@@ -1,2 +1,5 @@
-// Shared package barrel export — populated in Task 1.2
-export {};
+// Shared package barrel export
+export * from './types.js'
+export * from './categories.js'
+export * from './sg-mappings.js'
+export * from './constants.js'
