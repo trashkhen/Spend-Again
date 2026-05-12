@@ -22,6 +22,34 @@ function pkgDir(pkgName) {
   return main ? path.dirname(main) : undefined;
 }
 
+/**
+ * Rollup plugin that resolves relative imports using raw filesystem paths,
+ * bypassing Rollup's internal file-URL conversion which URL-encodes '?' to '%3F'.
+ */
+function localResolverPlugin(srcDir) {
+  const EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js'];
+  return {
+    name: 'local-fs-resolver',
+    resolveId(importee, importer) {
+      if (!importee.startsWith('.') || !importer) return null;
+      // Decode URL-encoded importer path that Rollup may pass in
+      const importerPath = decodeURIComponent(importer.replace(/^file:\/\//, ''));
+      const base = path.dirname(importerPath);
+      // Try each extension
+      for (const ext of EXTENSIONS) {
+        const candidate = path.resolve(base, importee + ext);
+        if (fs.existsSync(candidate)) return candidate;
+      }
+      // Try index files
+      for (const ext of EXTENSIONS) {
+        const candidate = path.resolve(base, importee, 'index' + ext);
+        if (fs.existsSync(candidate)) return candidate;
+      }
+      return null;
+    },
+  };
+}
+
 async function main() {
   const vite = require(path.join(__dirname, 'node_modules', 'vite', 'index.cjs'));
   const react = require(
@@ -50,10 +78,14 @@ async function main() {
     alias['scheduler'] = path.join(schedulerDir, 'index.js');
   }
 
+  const srcDir = path.join(__dirname, 'src');
+
   await vite.build({
     root: __dirname,
-    plugins: [react.default()],
-    resolve: { alias },
+    plugins: [localResolverPlugin(srcDir), react.default()],
+    resolve: {
+      alias,
+    },
     build: {
       outDir: path.join(__dirname, 'dist'),
       emptyOutDir: true,
