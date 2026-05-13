@@ -75,13 +75,16 @@ importers:
 
   apps/bot:
     dependencies:
+      '@spend-again/parser':
+        specifier: workspace:*
+        version: link:../../packages/parser
+      '@spend-again/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       grammy:
         specifier: ^1.30.0
         version: 1.42.0
     devDependencies:
-      '@spend-again/shared':
-        specifier: workspace:*
-        version: link:../../packages/shared
       tsx:
         specifier: ^4.0.0
         version: 4.21.0

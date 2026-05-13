@@ -11,10 +11,11 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@spend-again/parser": "workspace:*",
+    "@spend-again/shared": "workspace:*",
     "grammy": "^1.30.0"
   },
   "devDependencies": {
-    "@spend-again/shared": "workspace:*",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
