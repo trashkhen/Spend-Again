@@ -1,0 +1,38 @@
+diff --git a/dist/client.cjs b/dist/client.cjs
+index 451a75c95cba357d53a5c01372672a42647e5648..6d27ebe8804be66407c5ffaf55cab64524a5d49d 100644
+--- a/dist/client.cjs
++++ b/dist/client.cjs	
+@@ -30,9 +30,12 @@ const clientStub = {
+ 	removeStyle: () => {}
+ };
+ const env = utils.createImportMetaEnvProxy();
++const envStub = { env: {}, default: {} };
+ const DEFAULT_REQUEST_STUBS = {
+ 	"/@vite/client": clientStub,
+-	"@vite/client": clientStub
++	"@vite/client": clientStub,
++	"/@vite/env": envStub,
++	"@vite/env": envStub
+ };
+ class ModuleCacheMap extends Map {
+ 	normalizePath(fsPath) {
+diff --git a/dist/client.mjs b/dist/client.mjs
+index 8f2bc623dba855f95bc728f60aa08b82d1d0e167..e6c880734ad82cf8e085b45e28ed45a5a7f87206 100644
+--- a/dist/client.mjs
++++ b/dist/client.mjs	
+@@ -28,9 +28,14 @@ const clientStub = {
+ 	removeStyle: () => {}
+ };
+ const env = createImportMetaEnvProxy();
++// Stub for /@vite/env — prevents broken /@fs/ path lookup when the project
++// directory name contains '?' (URL-encoded to '%3F' in Vite's module URLs).
++const envStub = { env: {}, default: {} };
+ const DEFAULT_REQUEST_STUBS = {
+ 	"/@vite/client": clientStub,
+-	"@vite/client": clientStub
++	"@vite/client": clientStub,
++	"/@vite/env": envStub,
++	"@vite/env": envStub
+ };
+ class ModuleCacheMap extends Map {
+ 	normalizePath(fsPath) {

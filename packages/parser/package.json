@@ -21,6 +21,9 @@
     "@spend-again/db": "workspace:*",
     "@spend-again/shared": "workspace:*",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1"
   }
 }
