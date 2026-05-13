@@ -13,3 +13,5 @@ export type {
   Transaction,
   User,
 } from './schema.js'
+export { findMapping, upsertMapping } from './queries/learned-mappings.js'
+export type { MappingResult } from './queries/learned-mappings.js'
