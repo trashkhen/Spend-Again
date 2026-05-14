@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Layout } from '../components/Layout'
 import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
 import { listTransactions } from '../lib/api'
-import { getUserId, clearAuth } from '../lib/auth'
+import { getUserId } from '../lib/auth'
 import type { ApiTransaction } from '../lib/api'
 import type { Filters } from '../components/FilterBar'
 
@@ -16,7 +16,6 @@ const DEFAULT_FILTERS: Filters = {
 }
 
 export function Dashboard() {
-  const navigate = useNavigate()
   const userId = getUserId()
 
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
@@ -54,46 +53,29 @@ export function Dashboard() {
       )
     : allTransactions
 
-  function handleLogout() {
-    clearAuth()
-    navigate('/login')
-  }
-
   return (
-    <div className="dashboard-page">
-      <header className="dashboard-header">
-        <div className="dashboard-header-left">
-          <span className="dashboard-logo-mark">S$</span>
-          <h1 className="dashboard-title">Spend Again?</h1>
-        </div>
-        <button type="button" className="logout-btn" onClick={handleLogout}>
-          Logout
-        </button>
-      </header>
+    <Layout>
+      <div className="dashboard-section">
+        <h2 className="section-heading">Transactions</h2>
 
-      <main className="dashboard-main">
-        <div className="dashboard-section">
-          <h2 className="section-heading">Transactions</h2>
+        <FilterBar filters={filters} onChange={setFilters} />
 
-          <FilterBar filters={filters} onChange={setFilters} />
+        {error && (
+          <div className="error-banner" role="alert">
+            {error}
+            <button type="button" className="error-retry-btn" onClick={() => void fetchTransactions()}>
+              Retry
+            </button>
+          </div>
+        )}
 
-          {error && (
-            <div className="error-banner" role="alert">
-              {error}
-              <button type="button" className="error-retry-btn" onClick={() => void fetchTransactions()}>
-                Retry
-              </button>
-            </div>
-          )}
-
-          <TransactionTable
-            transactions={filtered}
-            loading={loading}
-            page={filters.page}
-            onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
-          />
-        </div>
-      </main>
-    </div>
+        <TransactionTable
+          transactions={filtered}
+          loading={loading}
+          page={filters.page}
+          onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
+        />
+      </div>
+    </Layout>
   )
 }

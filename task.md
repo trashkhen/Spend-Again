@@ -349,7 +349,7 @@
 ---
 
 ### Task 4.4 — Dashboard Styling + Layout
-- [ ] Premium, SG-themed design system
+- [x] Premium, SG-themed design system
 
 **Files:**
 - `[NEW] apps/dashboard/src/index.css` — Design tokens, global styles
