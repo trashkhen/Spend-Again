@@ -424,7 +424,8 @@
 ## Phase 6: Polish & Deploy
 
 ### Task 6.1 — Bot Personality (Singlish Responses)
-- [ ] Inject SG-flavored personality into bot messages
+- [x] Inject SG-flavored personality into bot messages
+  <!-- Completed: 2026-05-14 -->
 
 **Files:**
 - `[NEW] packages/shared/src/bot-messages.ts` — Message templates

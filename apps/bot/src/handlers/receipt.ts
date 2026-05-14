@@ -2,6 +2,20 @@ import type { Context } from 'grammy'
 import { parseReceiptWithOcr, simpleReceiptToParseResult } from '@spend-again/parser/ocr'
 import type { OcrResult, MultiItemReceiptResult } from '@spend-again/parser/ocr'
 import type { Category } from '@spend-again/shared'
+import {
+  MSG_NOT_REGISTERED,
+  MSG_RECEIPT_PROCESSING,
+  MSG_RECEIPT_UNSUPPORTED_FORMAT,
+  MSG_RECEIPT_NO_IMAGE,
+  MSG_RECEIPT_TOO_LARGE,
+  MSG_RECEIPT_DOWNLOAD_FAILED,
+  MSG_RECEIPT_RATE_LIMIT,
+  MSG_RECEIPT_PARSE_FAILED,
+  MSG_RECEIPT_ERROR,
+  MSG_RECEIPT_BOT_NOT_CONFIGURED,
+  MSG_RECEIPT_MULTI_HEADER,
+  MSG_RECEIPT_SAVE_PROMPT,
+} from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 import { buildConfirmationMessage, pendingConfirmations } from './expense.js'
@@ -84,7 +98,7 @@ function formatMultiReceipt(result: MultiItemReceiptResult): string {
     Other: '\u{1F4B0}',
   }
 
-  const lines: string[] = ['📄 Receipt detected:']
+  const lines: string[] = [MSG_RECEIPT_MULTI_HEADER]
 
   for (const item of result.items) {
     const emoji =
@@ -98,11 +112,11 @@ function formatMultiReceipt(result: MultiItemReceiptResult): string {
   }
 
   const total = `S$${(result.total / 100).toFixed(2)}`
-  lines.push(`\n💰 Total: ${total}`)
+  lines.push(`\n\u{1F4B0} Total: ${total}`)
   if (result.date !== undefined) {
-    lines.push(`📅 Date: ${result.date}`)
+    lines.push(`\u{1F4C5} Date: ${result.date}`)
   }
-  lines.push('\nSave all items as individual transactions?')
+  lines.push(MSG_RECEIPT_SAVE_PROMPT)
 
   return lines.join('\n')
 }
@@ -121,13 +135,13 @@ export async function receiptHandler(ctx: Context): Promise<void> {
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
     const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
-    await ctx.reply(`Please register at ${dashboardUrl} first! \u{1F64F}`)
+    await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }
 
   const botToken = process.env['BOT_TOKEN']
   if (botToken === undefined) {
-    await ctx.reply('Bot is not configured correctly. Please contact support.')
+    await ctx.reply(MSG_RECEIPT_BOT_NOT_CONFIGURED)
     return
   }
 
@@ -159,9 +173,7 @@ export async function receiptHandler(ctx: Context): Promise<void> {
       resolved !== 'image/png' &&
       resolved !== 'image/webp'
     ) {
-      await ctx.reply(
-        'Sorry, only JPEG, PNG, and WebP images are supported. Please send the receipt as a photo or supported image file.',
-      )
+      await ctx.reply(MSG_RECEIPT_UNSUPPORTED_FORMAT)
       return
     }
     fileId = document.file_id
@@ -170,33 +182,31 @@ export async function receiptHandler(ctx: Context): Promise<void> {
   }
 
   if (fileId === undefined) {
-    await ctx.reply('No image found in your message. Please send a receipt photo.')
+    await ctx.reply(MSG_RECEIPT_NO_IMAGE)
     return
   }
 
   // Size guard (file_size is optional — Telegram may not always include it)
   if (fileSizeBytes !== undefined && fileSizeBytes > MAX_IMAGE_BYTES) {
-    await ctx.reply(
-      `That image is too large (${(fileSizeBytes / 1024 / 1024).toFixed(1)} MB). Please send images under 10 MB.`,
-    )
+    await ctx.reply(MSG_RECEIPT_TOO_LARGE((fileSizeBytes / 1024 / 1024).toFixed(1)))
     return
   }
 
   // ── Acknowledge receipt and start processing ───────────────────────────────
 
-  await ctx.reply('📸 Processing your receipt...')
+  await ctx.reply(MSG_RECEIPT_PROCESSING)
 
   // ── Download and OCR ───────────────────────────────────────────────────────
 
   const imageData = await downloadTelegramFile(fileId, botToken)
   if (imageData === null) {
-    await ctx.reply('Could not download the image. Please try again.')
+    await ctx.reply(MSG_RECEIPT_DOWNLOAD_FAILED)
     return
   }
 
   // Post-download size guard (catches cases where file_size was not provided)
   if (imageData.byteLength > MAX_IMAGE_BYTES) {
-    await ctx.reply('That image is too large. Please send images under 10 MB.')
+    await ctx.reply(MSG_RECEIPT_TOO_LARGE((imageData.byteLength / 1024 / 1024).toFixed(1)))
     return
   }
 
@@ -206,25 +216,21 @@ export async function receiptHandler(ctx: Context): Promise<void> {
   } catch (err) {
     const errorMessage =
       err instanceof Error && err.name === 'OcrRateLimitError'
-        ? 'Processing is a bit busy right now. Please try again in a moment!'
-        : 'Could not process the receipt. Please try again or enter the expense manually.'
+        ? MSG_RECEIPT_RATE_LIMIT
+        : MSG_RECEIPT_PARSE_FAILED
     await ctx.reply(errorMessage)
     return
   }
 
   if (ocrResult === null) {
-    await ctx.reply(
-      "Hmm, I couldn't read that receipt. Please try a clearer photo or enter the expense manually (e.g. \"$10 chicken rice\").",
-    )
+    await ctx.reply(MSG_RECEIPT_PARSE_FAILED)
     return
   }
 
   // ── Handle error result ────────────────────────────────────────────────────
 
   if (ocrResult.type === 'error') {
-    await ctx.reply(
-      `Could not read the receipt: ${ocrResult.reason}. Please try a clearer photo or enter the expense manually.`,
-    )
+    await ctx.reply(MSG_RECEIPT_ERROR(ocrResult.reason))
     return
   }
 
@@ -250,8 +256,8 @@ export async function receiptHandler(ctx: Context): Promise<void> {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Save All', callback_data: 'receipt_confirm_all' },
-            { text: '❌ Cancel', callback_data: 'receipt_cancel' },
+            { text: '\u{2705} Save All', callback_data: 'receipt_confirm_all' },
+            { text: '\u{274C} Cancel', callback_data: 'receipt_cancel' },
           ],
         ],
       },

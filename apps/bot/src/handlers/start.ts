@@ -1,12 +1,8 @@
 import type { CommandContext, Context } from 'grammy'
+import { MSG_WELCOME } from '@spend-again/shared'
 import { mainKeyboard } from '../keyboards/main.js'
 
 export async function startHandler(ctx: CommandContext<Context>): Promise<void> {
-  await ctx.reply(
-    'Welcome to Spend Again? \u{1F1F8}\u{1F1EC}\n' +
-      'Track your spending effortlessly. Send me an expense like:\n' +
-      "'$8.50 for chicken rice at Maxwell'\n\n" +
-      'Type /help to see all commands.',
-    { reply_markup: mainKeyboard },
-  )
+  const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+  await ctx.reply(MSG_WELCOME(dashboardUrl), { reply_markup: mainKeyboard })
 }

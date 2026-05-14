@@ -1,7 +1,21 @@
 import type { Context } from 'grammy'
 import { saveMapping } from '@spend-again/parser'
 import type { Category, SubCategory } from '@spend-again/shared'
-import { DEFAULT_CATEGORY, DEFAULT_SUB_CATEGORY } from '@spend-again/shared'
+import {
+  DEFAULT_CATEGORY,
+  DEFAULT_SUB_CATEGORY,
+  MSG_SAVED,
+  MSG_SAVE_FAILED,
+  MSG_CONFIRM_EDIT,
+  MSG_CONFIRM_CANCELLED,
+  MSG_NO_PENDING_EXPENSE,
+  MSG_NOT_REGISTERED,
+  MSG_LEARN_PROMPT,
+  MSG_LEARN_SAVED,
+  MSG_LEARN_DECLINED,
+  MSG_LEARN_FAILED,
+  MSG_LEARN_ITEM_MISSING,
+} from '@spend-again/shared'
 import { apiClient, tokenStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { pendingConfirmations } from './expense.js'
@@ -55,14 +69,14 @@ async function handleConfirmYes(
 ): Promise<void> {
   const result = pendingConfirmations.get(chatId)
   if (result === undefined) {
-    await ctx.editMessageText('No pending expense found. Please send an expense first.')
+    await ctx.editMessageText(MSG_NO_PENDING_EXPENSE)
     return
   }
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
     const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
-    await ctx.editMessageText(`Please register at ${dashboardUrl} first! \u{1F64F}`)
+    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }
 
@@ -95,29 +109,26 @@ async function handleConfirmYes(
   pendingConfirmations.delete(chatId)
 
   if (saved !== null) {
-    await ctx.editMessageText('Saved! \u{1F4B0}')
+    await ctx.editMessageText(MSG_SAVED)
 
     // Tier 3 results (Gemini-resolved) — offer to remember the mapping
     if (result.tier === 3) {
-      await ctx.reply(
-        `Should I remember this category (${category}/${subCategory}) for "${result.item}" next time?`,
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [
-                {
-                  text: 'Yes, remember it',
-                  callback_data: `learn_yes|${encodeURIComponent(result.item)}|${category}|${subCategory}`,
-                },
-                { text: 'No thanks', callback_data: 'learn_no' },
-              ],
+      await ctx.reply(MSG_LEARN_PROMPT(result.item, category, subCategory), {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Yes, remember it \u{1F9E0}',
+                callback_data: `learn_yes|${encodeURIComponent(result.item)}|${category}|${subCategory}`,
+              },
+              { text: 'No thanks', callback_data: 'learn_no' },
             ],
-          },
+          ],
         },
-      )
+      })
     }
   } else {
-    await ctx.editMessageText('Failed to save — please try again.')
+    await ctx.editMessageText(MSG_SAVE_FAILED)
   }
 }
 
@@ -126,16 +137,14 @@ async function handleConfirmYes(
 async function handleConfirmEdit(ctx: Context, chatId: number): Promise<void> {
   // Clear the pending confirmation so the next message starts fresh
   pendingConfirmations.delete(chatId)
-  await ctx.editMessageText(
-    'OK, please send the corrected expense (e.g. "$10 chicken rice at Maxwell").',
-  )
+  await ctx.editMessageText(MSG_CONFIRM_EDIT)
 }
 
 // ── confirm_no ────────────────────────────────────────────────────────────────
 
 async function handleConfirmNo(ctx: Context, chatId: number): Promise<void> {
   pendingConfirmations.delete(chatId)
-  await ctx.editMessageText('Cancelled. No expense recorded.')
+  await ctx.editMessageText(MSG_CONFIRM_CANCELLED)
 }
 
 // ── learn_yes / learn_no (Tier-3 remember prompt) ─────────────────────────────
@@ -147,7 +156,7 @@ export async function learnHandler(ctx: Context): Promise<void> {
   await ctx.answerCallbackQuery()
 
   if (callbackData === 'learn_no') {
-    await ctx.editMessageText('Got it, won\'t remember.')
+    await ctx.editMessageText(MSG_LEARN_DECLINED)
     return
   }
 
@@ -158,17 +167,15 @@ export async function learnHandler(ctx: Context): Promise<void> {
     const subCategory = (parts[3] ?? DEFAULT_SUB_CATEGORY) as SubCategory
 
     if (itemName.length === 0) {
-      await ctx.editMessageText('Could not save mapping — item name missing.')
+      await ctx.editMessageText(MSG_LEARN_ITEM_MISSING)
       return
     }
 
     try {
       await saveMapping(itemName, category, subCategory, 'user')
-      await ctx.editMessageText(
-        `Got it! I'll remember "${itemName}" as ${category}/${subCategory}.`,
-      )
+      await ctx.editMessageText(MSG_LEARN_SAVED(itemName, category, subCategory))
     } catch {
-      await ctx.editMessageText('Could not save the mapping right now. Expense was already saved.')
+      await ctx.editMessageText(MSG_LEARN_FAILED)
     }
   }
 }

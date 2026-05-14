@@ -2,6 +2,11 @@ import type { Context } from 'grammy'
 import { parse } from '@spend-again/parser'
 import type { ParseResult } from '@spend-again/parser'
 import type { Category } from '@spend-again/shared'
+import {
+  MSG_NOT_REGISTERED,
+  MSG_PARSE_FAILED,
+  MSG_CONFIRM_PROMPT,
+} from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 
@@ -71,7 +76,7 @@ export function buildConfirmationMessage(result: ParseResult): string {
   const emoji = getCategoryEmoji(result)
   const amount = formatAmount(result.amount)
   const category = formatCategory(result)
-  return `${emoji} ${amount} — ${result.item} — ${category}. Correct?`
+  return MSG_CONFIRM_PROMPT(emoji, amount, result.item, category)
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -99,7 +104,7 @@ export async function expenseHandler(ctx: Context): Promise<void> {
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
     const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
-    await ctx.reply(`Please register at ${dashboardUrl} first! \u{1F64F}`)
+    await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }
 
@@ -107,7 +112,7 @@ export async function expenseHandler(ctx: Context): Promise<void> {
   const result = await parse(text)
 
   if (result === null) {
-    await ctx.reply("Sorry, I couldn't understand that. Try: $10 chicken rice")
+    await ctx.reply(MSG_PARSE_FAILED)
     return
   }
 

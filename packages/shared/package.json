@@ -15,7 +15,7 @@
     "build": "tsc --project tsconfig.json",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

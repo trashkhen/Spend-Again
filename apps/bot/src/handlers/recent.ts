@@ -1,5 +1,10 @@
 import type { Context } from 'grammy'
 import type { Category } from '@spend-again/shared'
+import {
+  MSG_NOT_REGISTERED,
+  MSG_RECENT_HEADER,
+  MSG_RECENT_EMPTY,
+} from '@spend-again/shared'
 import { apiClient, tokenStore } from '../lib/api-client.js'
 
 const CATEGORY_EMOJI: Record<Category, string> = {
@@ -24,7 +29,7 @@ export async function recentHandler(ctx: Context): Promise<void> {
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
     const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
-    await ctx.reply(`Please register at ${dashboardUrl} first! \u{1F64F}`)
+    await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }
 
@@ -32,7 +37,7 @@ export async function recentHandler(ctx: Context): Promise<void> {
   const transactions = await apiClient.getRecentTransactions(String(telegramId), 5)
 
   if (transactions.length === 0) {
-    await ctx.reply('No transactions yet. Send me an expense like "$10 chicken rice"!')
+    await ctx.reply(MSG_RECENT_EMPTY)
     return
   }
 
@@ -42,5 +47,5 @@ export async function recentHandler(ctx: Context): Promise<void> {
     return `${emoji} ${amount} — ${tx.item} (${tx.date})`
   })
 
-  await ctx.reply('📝 Your last 5 transactions:\n\n' + lines.join('\n'))
+  await ctx.reply(MSG_RECENT_HEADER + '\n' + lines.join('\n'))
 }

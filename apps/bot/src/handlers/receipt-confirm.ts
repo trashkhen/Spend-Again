@@ -1,6 +1,15 @@
 import type { Context } from 'grammy'
 import type { Category, SubCategory } from '@spend-again/shared'
-import { DEFAULT_CATEGORY, DEFAULT_SUB_CATEGORY } from '@spend-again/shared'
+import {
+  DEFAULT_CATEGORY,
+  DEFAULT_SUB_CATEGORY,
+  MSG_NOT_REGISTERED,
+  MSG_RECEIPT_SAVED,
+  MSG_RECEIPT_PARTIAL_SAVE,
+  MSG_RECEIPT_SAVE_TOTAL_FAILURE,
+  MSG_RECEIPT_CANCELLED,
+  MSG_RECEIPT_NO_PENDING,
+} from '@spend-again/shared'
 import { apiClient, tokenStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { pendingReceiptResults } from './receipt.js'
@@ -36,7 +45,7 @@ export async function receiptConfirmHandler(ctx: Context): Promise<void> {
 
   if (callbackData === 'receipt_cancel') {
     pendingReceiptResults.delete(chatId)
-    await ctx.editMessageText('Cancelled. No transactions saved.')
+    await ctx.editMessageText(MSG_RECEIPT_CANCELLED)
     return
   }
 
@@ -57,14 +66,14 @@ async function handleConfirmAll(
 ): Promise<void> {
   const receipt = pendingReceiptResults.get(chatId)
   if (receipt === undefined) {
-    await ctx.editMessageText('No pending receipt found. Please send a receipt photo.')
+    await ctx.editMessageText(MSG_RECEIPT_NO_PENDING)
     return
   }
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
     const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
-    await ctx.editMessageText(`Please register at ${dashboardUrl} first! \u{1F64F}`)
+    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }
 
@@ -107,21 +116,12 @@ async function handleConfirmAll(
 
   // Build a summary reply
   if (failedItems.length === 0) {
-    const count = savedIds.length
-    await ctx.editMessageText(
-      `✅ Saved ${count} transaction${count === 1 ? '' : 's'} from your receipt!`,
-    )
+    await ctx.editMessageText(MSG_RECEIPT_SAVED(savedIds.length))
   } else if (savedIds.length > 0) {
     // Partial success
-    const saved = savedIds.length
-    const failed = failedItems.length
-    await ctx.editMessageText(
-      `⚠️ Saved ${saved} transaction${saved === 1 ? '' : 's'}, but ${failed} item${failed === 1 ? '' : 's'} could not be saved:\n${failedItems.map((i) => `• ${i}`).join('\n')}`,
-    )
+    await ctx.editMessageText(MSG_RECEIPT_PARTIAL_SAVE(savedIds.length, failedItems))
   } else {
     // Total failure
-    await ctx.editMessageText(
-      'Failed to save the receipt transactions. Please try again or enter expenses manually.',
-    )
+    await ctx.editMessageText(MSG_RECEIPT_SAVE_TOTAL_FAILURE)
   }
 }
