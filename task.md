@@ -456,7 +456,8 @@
 ---
 
 ### Task 6.3 — Error Handling + Rate Limiting
-- [ ] Production-grade error handling across all services
+- [x] Production-grade error handling across all services
+  <!-- Completed: 2026-05-14 -->
 
 **Files:**
 - `[NEW] apps/api/src/middleware/error-handler.ts`

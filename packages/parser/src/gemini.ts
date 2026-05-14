@@ -15,6 +15,46 @@ export class GeminiRateLimitError extends Error {
 }
 
 // ---------------------------------------------------------------------------
+// Rate-limit queue — exported utility for callers to enforce 15 RPM cap
+// ---------------------------------------------------------------------------
+
+/**
+ * Simple sliding-window rate-limit queue for the Gemini free tier (15 RPM).
+ *
+ * Callers (e.g. the parse() orchestrator) can call `waitForGeminiRpmBudget()`
+ * before invoking `parseWithGemini` to avoid hitting the quota. This is kept
+ * separate from `parseWithGemini` itself so that the queue state does not
+ * interfere with unit tests (which run many calls in rapid succession).
+ */
+const _rpmTimestamps: number[] = []
+const _MAX_RPM = 15
+
+/**
+ * Wait until there is available capacity in the 15 RPM budget.
+ * Call this before each `parseWithGemini` invocation in production code.
+ */
+export async function waitForGeminiRpmBudget(): Promise<void> {
+  const now = Date.now()
+  while (_rpmTimestamps.length > 0 && now - (_rpmTimestamps[0] ?? 0) >= 60_000) {
+    _rpmTimestamps.shift()
+  }
+
+  if (_rpmTimestamps.length >= _MAX_RPM) {
+    const oldest = _rpmTimestamps[0] ?? now
+    const waitMs = 60_000 - (now - oldest) + 100
+    await new Promise<void>((resolve) => setTimeout(resolve, waitMs))
+    return waitForGeminiRpmBudget()
+  }
+
+  _rpmTimestamps.push(Date.now())
+}
+
+/** Clear the RPM tracking state (primarily for testing). */
+export function clearGeminiRpmState(): void {
+  _rpmTimestamps.length = 0
+}
+
+// ---------------------------------------------------------------------------
 // Internal shape of the JSON Gemini is expected to return
 // ---------------------------------------------------------------------------
 

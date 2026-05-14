@@ -14,6 +14,20 @@ if (!token) throw new Error('BOT_TOKEN is required')
 
 export const bot = new Bot(token)
 
+// ── Global error handler — prevents stack traces from reaching users ───────────
+bot.catch((err) => {
+  // Log the full error for debugging but send a friendly message to the user
+  console.error('[bot] Unhandled error:', err.error)
+  err.ctx
+    .reply(
+      `Aiyah, something went wrong lah! \u{1F625}\n` +
+        `Please try again in a moment. If the problem continues, type /help lor.`,
+    )
+    .catch(() => {
+      // If we can't even reply, there's nothing more we can do
+    })
+})
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 bot.command('start', startHandler)
