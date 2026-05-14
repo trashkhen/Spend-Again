@@ -4,6 +4,8 @@ import { helpHandler } from './handlers/help.js'
 import { expenseHandler } from './handlers/expense.js'
 import { confirmHandler, learnHandler } from './handlers/confirm.js'
 import { recentHandler } from './handlers/recent.js'
+import { receiptHandler } from './handlers/receipt.js'
+import { receiptConfirmHandler } from './handlers/receipt-confirm.js'
 import { tokenStore } from './lib/api-client.js'
 
 const token = process.env['BOT_TOKEN']
@@ -21,6 +23,7 @@ bot.command('recent', recentHandler)
 
 bot.callbackQuery(/^confirm_/, confirmHandler)
 bot.callbackQuery(/^learn_/, learnHandler)
+bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 
 // ── Reply keyboard button handlers ────────────────────────────────────────────
 
@@ -45,6 +48,11 @@ bot.hears('📊 Dashboard', async (ctx) => {
 bot.hears('📝 Recent', recentHandler)
 
 bot.hears('❓ Help', (ctx) => helpHandler(ctx as Parameters<typeof helpHandler>[0]))
+
+// ── Photo / receipt handler ───────────────────────────────────────────────────
+
+bot.on('message:photo', receiptHandler)
+bot.on('message:document', receiptHandler)
 
 // ── Expense text message handler ──────────────────────────────────────────────
 

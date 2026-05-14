@@ -370,7 +370,8 @@
 ## Phase 5: Receipt OCR
 
 ### Task 5.1 — Image Handling in Bot
-- [ ] Receive and process receipt photos
+- [x] Receive and process receipt photos
+  <!-- Completed: 2026-05-14 -->
 
 **Files:**
 - `[NEW] apps/bot/src/handlers/receipt.ts` — Photo message handler
@@ -386,7 +387,8 @@
 ---
 
 ### Task 5.2 — Gemini Vision Receipt Parser
-- [ ] Extract transaction data from receipt images
+- [x] Extract transaction data from receipt images
+  <!-- Completed: 2026-05-14 -->
 
 **Files:**
 - `[NEW] packages/parser/src/ocr.ts` — Gemini Vision integration
@@ -403,7 +405,8 @@
 ---
 
 ### Task 5.3 — Receipt Confirmation Flow
-- [ ] User confirms/edits OCR results before saving
+- [x] User confirms/edits OCR results before saving
+  <!-- Completed: 2026-05-14 -->
 
 **Files:**
 - `[MODIFY] apps/bot/src/handlers/receipt.ts` — Add confirmation step
