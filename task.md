@@ -475,7 +475,8 @@
 ---
 
 ### Task 6.4 — Deployment Configuration
-- [ ] Deploy dashboard to Vercel, bot + API to Railway
+- [x] Deploy dashboard to Vercel, bot + API to Railway
+  <!-- Completed: 2026-05-14 -->
 
 **Files:**
 - `[NEW] apps/dashboard/vercel.json`
