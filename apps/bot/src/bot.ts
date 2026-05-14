@@ -6,6 +6,7 @@ import { confirmHandler, learnHandler } from './handlers/confirm.js'
 import { recentHandler } from './handlers/recent.js'
 import { receiptHandler } from './handlers/receipt.js'
 import { receiptConfirmHandler } from './handlers/receipt-confirm.js'
+import { queryHandler, looksLikeQuery } from './handlers/query.js'
 import { tokenStore } from './lib/api-client.js'
 
 const token = process.env['BOT_TOKEN']
@@ -54,6 +55,14 @@ bot.hears('❓ Help', (ctx) => helpHandler(ctx as Parameters<typeof helpHandler>
 bot.on('message:photo', receiptHandler)
 bot.on('message:document', receiptHandler)
 
-// ── Expense text message handler ──────────────────────────────────────────────
+// ── Text message handler — route to query or expense ─────────────────────────
+// Query handler is checked first so spending questions don't get parsed as expenses.
 
-bot.on('message:text', expenseHandler)
+bot.on('message:text', async (ctx) => {
+  const text = ctx.message.text ?? ''
+  if (!text.startsWith('/') && looksLikeQuery(text)) {
+    await queryHandler(ctx)
+  } else {
+    await expenseHandler(ctx)
+  }
+})

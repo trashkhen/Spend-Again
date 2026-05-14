@@ -440,7 +440,8 @@
 ---
 
 ### Task 6.2 — AI Chatbot Queries
-- [ ] Users can ask spending questions in natural language
+- [x] Users can ask spending questions in natural language
+  <!-- Completed: 2026-05-14 -->
 
 **Files:**
 - `[NEW] apps/bot/src/handlers/query.ts` — Natural language query handler

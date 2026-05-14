@@ -1,5 +1,45 @@
 import type { Category, SubCategory, Transaction } from '@spend-again/shared'
 
+// ── Analytics response types ───────────────────────────────────────────────────
+
+export type AnalyticsSummary = {
+  month: string
+  year: string
+  totalCents: number
+  total: string // e.g. "150.00"
+  count: number
+}
+
+export type TopExpense = {
+  period: 'week' | 'month'
+  transaction: {
+    id: string
+    userId: string
+    amountCents: number
+    amount: string
+    item: string
+    category: string
+    subCategory: string
+    date: string
+    source: string
+  } | null
+}
+
+export type CategoryBreakdownItem = {
+  category: string
+  totalCents: number
+  total: string
+  count: number
+}
+
+export type CategoryBreakdown = {
+  month: string
+  year: string
+  breakdown: CategoryBreakdownItem[]
+  grandTotalCents: number
+  grandTotal: string
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type CreateTransactionInput = {
@@ -160,6 +200,82 @@ export class ApiClient {
     } catch (err) {
       console.error('[ApiClient] saveLearnedMapping error:', err)
       return false
+    }
+  }
+
+  /**
+   * GET /api/analytics/summary
+   * Returns total spend and count for the given month/year (defaults to current month).
+   */
+  async getSpendingSummary(
+    userId: string,
+    month?: string,
+    year?: string,
+  ): Promise<AnalyticsSummary | null> {
+    try {
+      const url = new URL(`${this.baseUrl}/api/analytics/summary`)
+      url.searchParams.set('userId', userId)
+      if (month !== undefined) url.searchParams.set('month', month)
+      if (year !== undefined) url.searchParams.set('year', year)
+
+      const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
+      if (!res.ok) {
+        console.error('[ApiClient] getSpendingSummary failed:', res.status)
+        return null
+      }
+      return (await res.json()) as AnalyticsSummary
+    } catch (err) {
+      console.error('[ApiClient] getSpendingSummary error:', err)
+      return null
+    }
+  }
+
+  /**
+   * GET /api/analytics/top
+   * Returns the biggest single transaction for the given period.
+   */
+  async getTopExpense(userId: string, period: 'week' | 'month' = 'month'): Promise<TopExpense | null> {
+    try {
+      const url = new URL(`${this.baseUrl}/api/analytics/top`)
+      url.searchParams.set('userId', userId)
+      url.searchParams.set('period', period)
+
+      const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
+      if (!res.ok) {
+        console.error('[ApiClient] getTopExpense failed:', res.status)
+        return null
+      }
+      return (await res.json()) as TopExpense
+    } catch (err) {
+      console.error('[ApiClient] getTopExpense error:', err)
+      return null
+    }
+  }
+
+  /**
+   * GET /api/analytics/breakdown
+   * Returns per-category spending summary for the given month/year.
+   */
+  async getCategoryBreakdown(
+    userId: string,
+    month?: string,
+    year?: string,
+  ): Promise<CategoryBreakdown | null> {
+    try {
+      const url = new URL(`${this.baseUrl}/api/analytics/breakdown`)
+      url.searchParams.set('userId', userId)
+      if (month !== undefined) url.searchParams.set('month', month)
+      if (year !== undefined) url.searchParams.set('year', year)
+
+      const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
+      if (!res.ok) {
+        console.error('[ApiClient] getCategoryBreakdown failed:', res.status)
+        return null
+      }
+      return (await res.json()) as CategoryBreakdown
+    } catch (err) {
+      console.error('[ApiClient] getCategoryBreakdown error:', err)
+      return null
     }
   }
 }
