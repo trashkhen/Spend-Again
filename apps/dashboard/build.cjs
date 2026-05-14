@@ -61,6 +61,7 @@ async function main() {
   const reactDir = pkgDir('react');
   const reactDomDir = pkgDir('react-dom');
   const schedulerDir = pkgDir('scheduler');
+  const reactRouterDomDir = pkgDir('react-router-dom');
 
   if (!reactDir || !reactDomDir) {
     throw new Error('Could not resolve react or react-dom');
@@ -76,6 +77,9 @@ async function main() {
   };
   if (schedulerDir) {
     alias['scheduler'] = path.join(schedulerDir, 'index.js');
+  }
+  if (reactRouterDomDir) {
+    alias['react-router-dom'] = path.join(reactRouterDomDir, 'dist', 'index.mjs');
   }
 
   const srcDir = path.join(__dirname, 'src');

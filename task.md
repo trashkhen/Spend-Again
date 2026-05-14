@@ -291,7 +291,7 @@
 ## Phase 4: Dashboard
 
 ### Task 4.1 — Dashboard Auth (Telegram Login Widget)
-- [ ] Login page with Telegram widget
+- [x] Login page with Telegram widget
 
 **Files:**
 - `[MODIFY] apps/dashboard/src/App.tsx` — Add routing (react-router-dom)
