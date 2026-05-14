@@ -310,7 +310,7 @@
 ---
 
 ### Task 4.2 — Transaction History Page
-- [ ] Filterable, paginated transaction list
+- [x] Filterable, paginated transaction list
 
 **Files:**
 - `[NEW] apps/dashboard/src/pages/Dashboard.tsx`
