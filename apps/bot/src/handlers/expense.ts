@@ -1,9 +1,9 @@
 import type { Context } from 'grammy'
-import { InlineKeyboard } from 'grammy'
 import { parse } from '@spend-again/parser'
 import type { ParseResult } from '@spend-again/parser'
 import type { Category } from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
+import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 
 // ── Category → emoji mapping ───────────────────────────────────────────────────
 
@@ -72,15 +72,6 @@ export function buildConfirmationMessage(result: ParseResult): string {
   const amount = formatAmount(result.amount)
   const category = formatCategory(result)
   return `${emoji} ${amount} — ${result.item} — ${category}. Correct?`
-}
-
-// ── Inline keyboard builder ───────────────────────────────────────────────────
-
-export function buildConfirmKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text('✅', 'confirm_yes')
-    .text('✏️', 'confirm_edit')
-    .text('❌', 'confirm_no')
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────

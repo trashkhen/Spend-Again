@@ -1,4 +1,5 @@
 import type { CommandContext, Context } from 'grammy'
+import { mainKeyboard } from '../keyboards/main.js'
 
 export async function startHandler(ctx: CommandContext<Context>): Promise<void> {
   await ctx.reply(
@@ -6,5 +7,6 @@ export async function startHandler(ctx: CommandContext<Context>): Promise<void> 
       'Track your spending effortlessly. Send me an expense like:\n' +
       "'$8.50 for chicken rice at Maxwell'\n\n" +
       'Type /help to see all commands.',
+    { reply_markup: mainKeyboard },
   )
 }

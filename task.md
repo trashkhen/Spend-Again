@@ -255,7 +255,7 @@
 ---
 
 ### Task 3.3 — Bot ↔ API Integration
-- [ ] Bot sends parsed expenses to the API
+- [x] Bot sends parsed expenses to the API
 
 **Files:**
 - `[NEW] apps/bot/src/handlers/expense.ts` — Message handler for expense text
@@ -273,7 +273,7 @@
 ---
 
 ### Task 3.4 — Bot Keyboard + Dashboard Link
-- [ ] Reply keyboard with "Go to Dashboard" button and inline commands
+- [x] Reply keyboard with "Go to Dashboard" button and inline commands
 
 **Files:**
 - `[NEW] apps/bot/src/keyboards/main.ts` — Main reply keyboard
