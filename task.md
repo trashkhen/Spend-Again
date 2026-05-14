@@ -329,7 +329,7 @@
 ---
 
 ### Task 4.3 — Spending Charts
-- [ ] Visual analytics with Recharts
+- [x] Visual analytics with Recharts
 
 **Files:**
 - `[NEW] apps/dashboard/src/pages/Analytics.tsx`

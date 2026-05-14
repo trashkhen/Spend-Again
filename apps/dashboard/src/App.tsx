@@ -1,19 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
+import { Analytics } from './pages/Analytics'
 import { ProtectedRoute } from './components/ProtectedRoute'
-
-/**
- * Analytics page placeholder — will be implemented in Task 4.3.
- */
-function AnalyticsPlaceholder() {
-  return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>Analytics</h1>
-      <p>Charts coming soon (Task 4.3).</p>
-    </div>
-  )
-}
 
 export default function App() {
   return (
@@ -35,7 +24,7 @@ export default function App() {
           path="/analytics"
           element={
             <ProtectedRoute>
-              <AnalyticsPlaceholder />
+              <Analytics />
             </ProtectedRoute>
           }
         />
