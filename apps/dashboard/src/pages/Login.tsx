@@ -56,7 +56,7 @@ export function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <span className="login-logo-icon">S$</span>
+          <img src="/logo.png" alt="Spend Again?" className="login-logo-img" />
           <h1 className="login-title">Spend Again?</h1>
           <p className="login-subtitle">Your Singapore expense tracker</p>
         </div>
