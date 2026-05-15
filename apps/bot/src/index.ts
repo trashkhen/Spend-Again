@@ -11,8 +11,21 @@
 import { webhookCallback } from 'grammy'
 import { createServer } from 'node:http'
 import { bot } from './bot.js'
+import { initDevMode } from './lib/dev-mode.js'
 
 const isProduction = process.env['NODE_ENV'] === 'production'
+
+// ── Dev mode: pre-register test user ────────────────────────────────────────
+// Set DEV_TELEGRAM_ID to your real Telegram user ID (numeric) to automatically
+// link all your bot messages to the test user, bypassing the login flow.
+const devTelegramId = process.env['DEV_TELEGRAM_ID']
+if (!isProduction && devTelegramId !== undefined) {
+  const apiUrl = process.env['API_URL'] ?? 'http://localhost:3001'
+  const result = await initDevMode(apiUrl, Number(devTelegramId))
+  if (result === null) {
+    console.warn('[bot] Dev mode init failed — bot will require normal auth')
+  }
+}
 const webhookUrl = process.env['WEBHOOK_URL']
 const port = Number(process.env['PORT'] ?? 3002)
 

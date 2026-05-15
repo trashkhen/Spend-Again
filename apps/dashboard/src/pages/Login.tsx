@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import type { TelegramAuthData } from '../hooks/useAuth'
 
 const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'SpendAgainBot'
+const DEV_MODE = import.meta.env['VITE_DEV_MODE'] === 'true'
 
 /**
  * Telegram Login Widget injects a global callback.
@@ -16,7 +17,7 @@ declare global {
 }
 
 export function Login() {
-  const { authenticated, loading, error, loginWithTelegram } = useAuth()
+  const { authenticated, loading, error, loginWithTelegram, loginAsTestUser } = useAuth()
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -68,6 +69,20 @@ export function Login() {
               <p className="login-prompt">Sign in with your Telegram account to continue.</p>
               <div ref={containerRef} className="login-widget-container" />
             </>
+          )}
+
+          {DEV_MODE && (
+            <div className="login-dev-section">
+              <p className="login-dev-label">Dev mode</p>
+              <button
+                className="login-dev-button"
+                onClick={() => void loginAsTestUser()}
+                disabled={loading}
+                type="button"
+              >
+                Skip login (test user)
+              </button>
+            </div>
           )}
 
           {error && (

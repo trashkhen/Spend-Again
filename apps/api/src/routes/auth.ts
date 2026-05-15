@@ -166,5 +166,44 @@ export function createAuthRouter(db: DbClient): Hono<AuthEnv> {
     return c.json({ success: true, token }, 200)
   })
 
+  /**
+   * POST /api/auth/dev-login
+   * Development-only endpoint — creates or retrieves the fixed test user and returns a JWT.
+   * Returns 404 in production to prevent accidental exposure.
+   */
+  router.post('/dev-login', async (c) => {
+    if (process.env['NODE_ENV'] === 'production') {
+      return c.json({ error: 'Not found' }, 404)
+    }
+
+    const DEV_TELEGRAM_ID = '__dev_test__'
+
+    const existing = await db
+      .select()
+      .from(users)
+      .where(eq(users.telegramId, DEV_TELEGRAM_ID))
+      .limit(1)
+
+    let userId: string
+
+    if (existing[0]) {
+      userId = existing[0].id
+    } else {
+      const rows = await db
+        .insert(users)
+        .values({ telegramId: DEV_TELEGRAM_ID })
+        .returning()
+
+      const newUser = rows[0]
+      if (!newUser) {
+        return c.json({ error: 'Failed to create test user', code: 'INSERT_FAILED' }, 500)
+      }
+      userId = newUser.id
+    }
+
+    const token = await signJWT({ userId, telegramId: DEV_TELEGRAM_ID })
+    return c.json({ token, userId }, 200)
+  })
+
   return router
 }
