@@ -23,6 +23,7 @@ export type AuthState = {
 
 export type UseAuthReturn = AuthState & {
   loginWithTelegram: (data: TelegramAuthData) => Promise<void>
+  loginAsTestUser: () => Promise<void>
   logout: () => void
 }
 
@@ -67,11 +68,32 @@ export function useAuth(): UseAuthReturn {
     [navigate],
   )
 
+  const loginAsTestUser = useCallback(async (): Promise<void> => {
+    setState((prev) => ({ ...prev, loading: true, error: null }))
+
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/dev-login`, { method: 'POST' })
+
+      if (!response.ok) {
+        throw new Error(`Dev login failed: HTTP ${response.status}`)
+      }
+
+      const result = (await response.json()) as { token: string; userId: string }
+
+      storeAuth({ token: result.token, userId: result.userId })
+      setState({ authenticated: true, userId: result.userId, loading: false, error: null })
+      navigate('/dashboard')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Dev login failed'
+      setState((prev) => ({ ...prev, loading: false, error: message }))
+    }
+  }, [navigate])
+
   const logout = useCallback((): void => {
     clearAuth()
     setState({ authenticated: false, userId: null, loading: false, error: null })
     navigate('/login')
   }, [navigate])
 
-  return { ...state, loginWithTelegram, logout }
+  return { ...state, loginWithTelegram, loginAsTestUser, logout }
 }
