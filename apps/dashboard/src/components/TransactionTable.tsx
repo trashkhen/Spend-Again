@@ -9,21 +9,24 @@ type Props = {
   onPageChange: (page: number) => void
 }
 
-/**
- * Formats a decimal string amount as "S$XX.XX".
- * Input is already a decimal string from the API (e.g. "10.50").
- */
 function formatAmount(amount: string): string {
   const num = parseFloat(amount)
-  return `S$${num.toFixed(2)}`
+  return `S$${num.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-/**
- * Returns a CSS class name for the category badge.
- * Maps to colours defined in index.css.
- */
-function categoryClass(category: string): string {
-  return `category-badge category-badge--${category.toLowerCase().replace(/[^a-z]/g, '-')}`
+/** Formats DD/MM/YYYY → "15 May 2026" */
+function formatDate(date: string): string {
+  const parts = date.split('/')
+  if (parts.length !== 3) return date
+  const [d, m, y] = parts
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const monthName = months[(parseInt(m ?? '1', 10) - 1)] ?? m
+  return `${parseInt(d ?? '1', 10)} ${monthName} ${y}`
+}
+
+/** Simple heuristic: transactions categorised as "Income" are rendered in green */
+function isIncome(category: string): boolean {
+  return category.toLowerCase() === 'income'
 }
 
 export function TransactionTable({ transactions, loading, page, onPageChange }: Props) {
@@ -32,7 +35,7 @@ export function TransactionTable({ transactions, loading, page, onPageChange }: 
 
   if (loading) {
     return (
-      <div className="table-state table-state--loading">
+      <div className="table-state">
         <span className="spinner" aria-label="Loading transactions..." />
       </div>
     )
@@ -47,32 +50,29 @@ export function TransactionTable({ transactions, loading, page, onPageChange }: 
   }
 
   return (
-    <div className="transaction-table-wrapper">
-      <table className="transaction-table">
-        <thead>
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Item</th>
-            <th scope="col">Category</th>
-            <th scope="col" className="text-right">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sliced.map((tx) => (
-            <tr key={tx.id} className="transaction-row">
-              <td className="transaction-date">{tx.date}</td>
-              <td className="transaction-item">{tx.item}</td>
-              <td>
-                <span className={categoryClass(tx.category)}>
-                  {tx.category}
-                  {tx.subCategory ? ` / ${tx.subCategory}` : ''}
+    <div className="tx-list-card">
+      <div className="tx-list-header">
+        <h3 className="tx-list-title">Recent Transactions</h3>
+      </div>
+
+      <ul className="tx-list" role="list">
+        {sliced.map((tx) => {
+          const income = isIncome(tx.category)
+          return (
+            <li key={tx.id} className="tx-row">
+              <div className="tx-row-left">
+                <span className="tx-item-name">{tx.item}</span>
+                <span className="tx-item-meta">
+                  {tx.category}{tx.subCategory ? ` / ${tx.subCategory}` : ''} · {formatDate(tx.date)}
                 </span>
-              </td>
-              <td className="transaction-amount text-right">{formatAmount(tx.amount)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              </div>
+              <span className={`tx-amount${income ? ' tx-amount--income' : ''}`}>
+                {income ? '+' : ''}{formatAmount(tx.amount)}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
 
       {/* Pagination */}
       {totalPages > 1 && (
@@ -84,13 +84,9 @@ export function TransactionTable({ transactions, loading, page, onPageChange }: 
             disabled={page <= 1}
             aria-label="Previous page"
           >
-            &laquo; Prev
+            ← Prev
           </button>
-
-          <span className="pagination-info">
-            Page {page} of {totalPages}
-          </span>
-
+          <span className="pagination-info">Page {page} of {totalPages}</span>
           <button
             type="button"
             className="pagination-btn"
@@ -98,7 +94,7 @@ export function TransactionTable({ transactions, loading, page, onPageChange }: 
             disabled={page >= totalPages}
             aria-label="Next page"
           >
-            Next &raquo;
+            Next →
           </button>
         </div>
       )}

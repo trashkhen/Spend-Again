@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { serve } from '@hono/node-server'
 import { healthRouter } from './routes/health.js'
 import { createTransactionsRouter } from './routes/transactions.js'
@@ -9,6 +10,21 @@ import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { db } from './lib/db.js'
 
 const app = new Hono()
+
+// ── CORS ──────────────────────────────────────────────────────────────────────
+const allowedOrigins = process.env['CORS_ORIGINS']
+  ? process.env['CORS_ORIGINS'].split(',')
+  : ['http://localhost:5173', 'http://localhost:4173']
+
+app.use(
+  '*',
+  cors({
+    origin: allowedOrigins,
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+  }),
+)
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.onError(globalErrorHandler)
