@@ -1,0 +1,9 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  esbuild: true
+onlyBuiltDependencies:
+  - esbuild
+patchedDependencies:
+  vite-node@3.2.4: patches/vite-node@3.2.4.patch

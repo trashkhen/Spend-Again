@@ -1,0 +1,24 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "API (Hono on :3001)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@spend-again/api", "dev"],
+      "port": 3001,
+      "autoPort": false
+    },
+    {
+      "name": "Dashboard (Vite on :5173)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@spend-again/dashboard", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "Bot (Telegram long-polling)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@spend-again/bot", "dev"],
+      "port": 3002
+    }
+  ]
+}

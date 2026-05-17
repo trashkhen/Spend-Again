@@ -1,0 +1,13 @@
+{
+  "framework": "vite",
+  "buildCommand": "cd ../.. && pnpm turbo run build --filter=@spend-again/dashboard",
+  "outputDirectory": "apps/dashboard/dist",
+  "installCommand": "pnpm install",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "env": {
+    "VITE_API_URL": "@api_url",
+    "VITE_BOT_USERNAME": "@bot_username"
+  }
+}

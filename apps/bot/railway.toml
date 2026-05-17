@@ -1,0 +1,11 @@
+[build]
+builder = "NIXPACKS"
+buildCommand = "pnpm install && pnpm turbo run build --filter=@spend-again/bot..."
+
+[deploy]
+startCommand = "node apps/bot/dist/index.js"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+name = "bot"
