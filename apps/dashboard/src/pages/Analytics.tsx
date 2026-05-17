@@ -26,14 +26,12 @@ export function Analytics() {
     setError(null)
 
     try {
-      // Fetch last 6 months of data client-side
       const sixMonthsAgo = new Date()
       sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
       sixMonthsAgo.setDate(1)
 
       const data = await listTransactions({ userId: userId ?? undefined })
 
-      // Filter client-side to last 6 months
       const filtered = data.filter((tx) => {
         const parts = tx.date.split('/')
         const txYear = parseInt(parts[2] ?? '0', 10)
@@ -61,8 +59,14 @@ export function Analytics() {
 
   return (
     <Layout>
+      {/* Page header */}
+      <div className="page-header">
+        <h1 className="page-title">Analytics</h1>
+        <p className="page-subtitle">Detailed insights into your spending patterns.</p>
+      </div>
+
       {loading && (
-        <div className="table-state table-state--loading">
+        <div className="table-state">
           <span className="spinner" aria-label="Loading analytics..." />
         </div>
       )}
@@ -80,7 +84,6 @@ export function Analytics() {
         <>
           {/* KPI cards */}
           <section className="dashboard-section">
-            <h2 className="section-heading">This Month at a Glance</h2>
             <SpendingSummary summary={summary} />
           </section>
 

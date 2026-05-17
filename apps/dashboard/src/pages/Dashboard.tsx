@@ -4,6 +4,7 @@ import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
 import { listTransactions } from '../lib/api'
 import { getUserId } from '../lib/auth'
+import { computeSummary } from '../lib/analytics'
 import type { ApiTransaction } from '../lib/api'
 import type { Filters } from '../components/FilterBar'
 
@@ -13,6 +14,10 @@ const DEFAULT_FILTERS: Filters = {
   month: String(new Date().getMonth() + 1).padStart(2, '0'),
   year: String(new Date().getFullYear()),
   page: 1,
+}
+
+function fmtSGD(amount: number): string {
+  return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export function Dashboard() {
@@ -46,18 +51,67 @@ export function Dashboard() {
     void fetchTransactions()
   }, [fetchTransactions])
 
-  // Client-side text search filter applied on top of server-filtered results
+  // Client-side text search — driven by both FilterBar and Header search
   const filtered = filters.search
     ? allTransactions.filter((tx) =>
         tx.item.toLowerCase().includes(filters.search.toLowerCase()),
       )
     : allTransactions
 
-  return (
-    <Layout>
-      <div className="dashboard-section">
-        <h2 className="section-heading">Transactions</h2>
+  const summary = computeSummary(allTransactions)
 
+  return (
+    <Layout
+      searchValue={filters.search}
+      onSearchChange={(val) => setFilters((prev) => ({ ...prev, search: val, page: 1 }))}
+    >
+      {/* Page header */}
+      <div className="page-header">
+        <h1 className="page-title">Dashboard</h1>
+        <p className="page-subtitle">Welcome back! Here's your financial overview.</p>
+      </div>
+
+      {/* KPI summary cards */}
+      <div className="kpi-grid">
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <div className="kpi-icon kpi-icon--blue">💳</div>
+            <span className="kpi-trend kpi-trend--up">↑ this month</span>
+          </div>
+          <span className="kpi-label">Monthly Spending</span>
+          <span className="kpi-value">{fmtSGD(summary.totalThisMonth)}</span>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <div className="kpi-icon kpi-icon--green">📈</div>
+            <span className="kpi-trend kpi-trend--up">avg / day</span>
+          </div>
+          <span className="kpi-label">Daily Average</span>
+          <span className="kpi-value">{fmtSGD(summary.averageDaily)}</span>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <div className="kpi-icon kpi-icon--orange">🏆</div>
+            <span className="kpi-trend" style={{ color: 'var(--color-warning)' }}>top spend</span>
+          </div>
+          <span className="kpi-label">Top Category</span>
+          <span className="kpi-value" style={{ fontSize: '17px' }}>{summary.topCategory ?? '—'}</span>
+        </div>
+
+        <div className="kpi-card">
+          <div className="kpi-card-top">
+            <div className="kpi-icon kpi-icon--blue">🧾</div>
+            <span className="kpi-trend kpi-trend--up">this month</span>
+          </div>
+          <span className="kpi-label">Transactions</span>
+          <span className="kpi-value">{summary.transactionCount}</span>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="dashboard-section">
         <FilterBar filters={filters} onChange={setFilters} />
 
         {error && (

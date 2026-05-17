@@ -15,7 +15,7 @@
     "build": "tsc --project tsconfig.json",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "migrate": "tsx src/migrate.ts",
+    "migrate": "tsx --env-file=../../.env src/migrate.ts",
     "generate": "drizzle-kit generate"
   },
   "dependencies": {

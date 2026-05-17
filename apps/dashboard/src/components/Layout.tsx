@@ -5,13 +5,16 @@ import type { ReactNode } from 'react'
 
 type Props = {
   children: ReactNode
+  searchValue?: string
+  onSearchChange?: (value: string) => void
 }
 
 /**
  * Main app shell — sidebar + header + content area.
  * The sidebar collapses to a hamburger menu on mobile.
+ * Optional searchValue / onSearchChange are threaded to the Header search bar.
  */
-export function Layout({ children }: Props) {
+export function Layout({ children, searchValue, onSearchChange }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   function closeSidebar() {
@@ -27,7 +30,11 @@ export function Layout({ children }: Props) {
       <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
       <div className="app-content">
-        <Header onMenuToggle={toggleSidebar} />
+        <Header
+          onMenuToggle={toggleSidebar}
+          searchValue={searchValue}
+          onSearchChange={onSearchChange}
+        />
         <main className="app-main page-enter">
           {children}
         </main>
