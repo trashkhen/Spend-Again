@@ -1,4 +1,4 @@
-import { Bot } from 'grammy'
+import { Bot, InlineKeyboard } from 'grammy'
 import { startHandler } from './handlers/start.js'
 import { helpHandler } from './handlers/help.js'
 import { expenseHandler } from './handlers/expense.js'
@@ -54,10 +54,11 @@ bot.hears('📊 Dashboard', async (ctx) => {
   const jwtToken = tokenStore.get(telegramId)
   const url =
     jwtToken !== undefined
-      ? `${dashboardUrl}?token=${encodeURIComponent(jwtToken)}`
+      ? `${dashboardUrl}/auth?token=${encodeURIComponent(jwtToken)}`
       : dashboardUrl
 
-  await ctx.reply(`📊 Open your dashboard:\n${url}`)
+  const keyboard = new InlineKeyboard().url('📊 Open Dashboard', url)
+  await ctx.reply('Your dashboard is ready!', { reply_markup: keyboard })
 })
 
 bot.hears('📝 Recent', recentHandler)

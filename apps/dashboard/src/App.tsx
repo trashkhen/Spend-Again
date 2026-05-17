@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Login } from './pages/Login'
+import { Auth } from './pages/Auth'
+import { Welcome } from './pages/Welcome'
 import { Dashboard } from './pages/Dashboard'
 import { Analytics } from './pages/Analytics'
 import { Settings } from './pages/Settings'
@@ -11,6 +13,8 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/welcome" element={<Welcome />} />
 
         {/* Protected routes */}
         <Route

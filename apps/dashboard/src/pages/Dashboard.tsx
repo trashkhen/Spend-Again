@@ -2,11 +2,18 @@ import { useState, useEffect, useCallback } from 'react'
 import { Layout } from '../components/Layout'
 import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
-import { listTransactions } from '../lib/api'
+import { TransactionModal } from '../components/TransactionModal'
+import {
+  listTransactions,
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+} from '../lib/api'
 import { getUserId } from '../lib/auth'
 import { computeSummary } from '../lib/analytics'
 import type { ApiTransaction } from '../lib/api'
 import type { Filters } from '../components/FilterBar'
+import type { TransactionFormData } from '../components/TransactionModal'
 
 const DEFAULT_FILTERS: Filters = {
   category: '',
@@ -27,6 +34,10 @@ export function Dashboard() {
   const [allTransactions, setAllTransactions] = useState<ApiTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Modal state
+  const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
+  const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
@@ -51,7 +62,6 @@ export function Dashboard() {
     void fetchTransactions()
   }, [fetchTransactions])
 
-  // Client-side text search — driven by both FilterBar and Header search
   const filtered = filters.search
     ? allTransactions.filter((tx) =>
         tx.item.toLowerCase().includes(filters.search.toLowerCase()),
@@ -60,6 +70,37 @@ export function Dashboard() {
 
   const summary = computeSummary(allTransactions)
 
+  function openCreate() {
+    setEditingTransaction(null)
+    setModalMode('create')
+  }
+
+  function openEdit(tx: ApiTransaction) {
+    setEditingTransaction(tx)
+    setModalMode('edit')
+  }
+
+  function closeModal() {
+    setModalMode(null)
+    setEditingTransaction(null)
+  }
+
+  async function handleSave(data: TransactionFormData) {
+    if (modalMode === 'create') {
+      if (!userId) throw new Error('Not authenticated')
+      await createTransaction({ ...data, userId })
+    } else if (modalMode === 'edit' && editingTransaction) {
+      await updateTransaction(editingTransaction.id, data)
+    }
+    await fetchTransactions()
+    closeModal()
+  }
+
+  async function handleDelete(id: string) {
+    await deleteTransaction(id)
+    await fetchTransactions()
+  }
+
   return (
     <Layout
       searchValue={filters.search}
@@ -67,8 +108,13 @@ export function Dashboard() {
     >
       {/* Page header */}
       <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">Welcome back! Here's your financial overview.</p>
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="page-subtitle">Welcome back! Here's your financial overview.</p>
+        </div>
+        <button type="button" className="btn-add-transaction" onClick={openCreate}>
+          + Add Transaction
+        </button>
       </div>
 
       {/* KPI summary cards */}
@@ -110,7 +156,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters + table */}
       <div className="dashboard-section">
         <FilterBar filters={filters} onChange={setFilters} />
 
@@ -128,8 +174,20 @@ export function Dashboard() {
           loading={loading}
           page={filters.page}
           onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
+          onEdit={openEdit}
+          onDelete={handleDelete}
         />
       </div>
+
+      {/* CRUD modal */}
+      {modalMode && (
+        <TransactionModal
+          mode={modalMode}
+          transaction={editingTransaction ?? undefined}
+          onSave={handleSave}
+          onClose={closeModal}
+        />
+      )}
     </Layout>
   )
 }

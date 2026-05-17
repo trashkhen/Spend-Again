@@ -1,15 +1,14 @@
 import { useNavigate } from 'react-router-dom'
-import { clearAuth, getUserId } from '../lib/auth'
+import { clearAuth } from '../lib/auth'
 
 type Props = {
   onMenuToggle: () => void
-  searchValue?: string
-  onSearchChange?: (value: string) => void
+  searchValue?: string | undefined
+  onSearchChange?: ((value: string) => void) | undefined
 }
 
 export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
   const navigate = useNavigate()
-  const userId = getUserId()
 
   function handleLogout() {
     clearAuth()

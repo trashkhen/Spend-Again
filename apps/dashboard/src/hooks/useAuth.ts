@@ -79,7 +79,7 @@ export function useAuth(): UseAuthReturn {
 
         setState({ authenticated: true, userId: result.userId, loading: false, error: null })
 
-        navigate('/dashboard')
+        navigate('/welcome')
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Login failed'
         setState((prev) => ({ ...prev, loading: false, error: message }))

@@ -119,6 +119,21 @@ spend-again/
 └── package.json
 ```
 
+## Environment Variables
+
+All environment variables live in `.env` at the monorepo root (git-ignored). A summary of what each variable does and which process reads it:
+
+| Variable | Read by | Purpose |
+|---|---|---|
+| `DATABASE_URL` | API | Supabase PostgreSQL connection string |
+| `GEMINI_API_KEY` | API / Parser | Google Gemini LLM calls |
+| `BOT_TOKEN` | **Bot + API** | Telegram bot token. Used by grammy to start the bot **and** by `apps/api/src/lib/telegram-auth.ts` to verify Telegram auth hashes. Both processes must have this value — do **not** rename it. |
+| `JWT_SECRET` | API | Signs and verifies all user JWTs (HS256, 30-day expiry). Falls back to `'dev-secret-change-in-prod'` if unset — always set this explicitly, even in dev. |
+| `DASHBOARD_URL` | Bot | URL the bot uses when generating the dashboard deep-link (e.g. `http://localhost:5175` in dev, `https://your-app.vercel.app` in prod). |
+| `API_URL` | Bot | Base URL the bot uses for all API calls (e.g. `http://localhost:3001`). |
+
+> **Note:** `TELEGRAM_BOT_TOKEN` was previously a duplicate of `BOT_TOKEN` in some env files. It is not read by any code — use `BOT_TOKEN` only.
+
 ## Development
 
 ```bash
@@ -151,6 +166,44 @@ pnpm --filter db migrate
 | **4. Dashboard** | React UI, charts, transaction history, auth flow | Week 7–8 |
 | **5. Receipt OCR** | Gemini Vision, image handling, confirmation flow | Week 9–10 |
 | **6. Polish** | Singlish bot personality, error handling, deploy | Week 11+ |
+
+## For Public Deployment
+
+Tasks that must be completed before this project goes live for real users.
+
+### Bot & Auth
+
+- [ ] Register the production Telegram bot via @BotFather and update `VITE_TELEGRAM_BOT_NAME` (currently `spend_again_dev_bot`) to the public bot username in all environment configs
+- [ ] Remove the **"Skip login (test user)"** button — set `VITE_DEV_MODE=false` (or remove the env var) in the production dashboard deployment; ensure the dev-login API route is disabled or guarded server-side
+
+### API & Backend (localhost → Railway)
+
+- [ ] Provision a Railway project and link the monorepo; configure the `apps/api` and `apps/bot` services
+- [ ] Set all production environment variables in Railway: `DATABASE_URL`, `JWT_SECRET`, `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `GEMINI_API_KEY`, `DASHBOARD_URL`, `API_URL`
+- [ ] Register the Telegram webhook URL pointing to the Railway deployment (`POST /webhook`)
+- [ ] Replace `VITE_API_URL=http://localhost:3001` in the dashboard with the public Railway API URL
+- [ ] Enable CORS on the Hono API to allow requests from the Vercel dashboard domain
+- [ ] Set up Railway health checks and auto-restart policies
+
+### Database (Supabase)
+
+- [ ] Provision a production Supabase project (separate from any dev instance)
+- [ ] Run all Drizzle migrations against the production database
+- [ ] Set up Supabase row-level security (RLS) policies to scope data by `userId`
+- [ ] Configure connection pooling (PgBouncer) for Railway → Supabase connections
+
+### Dashboard (localhost → Vercel)
+
+- [ ] Connect the repository to Vercel and configure the dashboard build (`apps/dashboard`)
+- [ ] Set Vercel environment variables: `VITE_API_URL`, `VITE_TELEGRAM_BOT_NAME`, ensure `VITE_DEV_MODE` is unset or `false`
+- [ ] Configure Vercel to serve `index.html` for all routes (SPA fallback)
+- [ ] Point a custom domain at the Vercel deployment and update the Telegram Login Widget's allowed domain in @BotFather settings
+
+### Security & Hardening
+
+- [ ] Verify Telegram HMAC signature validation is enforced on the API's `/api/auth/telegram-login` route
+- [ ] Rotate `JWT_SECRET` to a cryptographically random production value
+- [ ] Audit all API routes for missing auth guards before going live
 
 ## License
 

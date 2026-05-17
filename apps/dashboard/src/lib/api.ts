@@ -78,6 +78,39 @@ export async function getTransaction(id: string): Promise<ApiTransaction> {
   return apiFetch<ApiTransaction>(`/api/transactions/${id}`)
 }
 
+export type CreateTransactionPayload = {
+  userId: string
+  amountCents: number
+  item: string
+  category: string
+  subCategory: string
+  date: string  // DD/MM/YYYY
+  source: 'manual'
+}
+
+export type UpdateTransactionPayload = {
+  amountCents?: number
+  item?: string
+  category?: string
+  subCategory?: string
+  date?: string  // DD/MM/YYYY
+  source?: 'manual'
+}
+
+export async function createTransaction(data: CreateTransactionPayload): Promise<ApiTransaction> {
+  return apiFetch<ApiTransaction>('/api/transactions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateTransaction(id: string, data: UpdateTransactionPayload): Promise<ApiTransaction> {
+  return apiFetch<ApiTransaction>(`/api/transactions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
 export async function deleteTransaction(id: string): Promise<void> {
   await apiFetch<{ success: boolean }>(`/api/transactions/${id}`, { method: 'DELETE' })
 }
