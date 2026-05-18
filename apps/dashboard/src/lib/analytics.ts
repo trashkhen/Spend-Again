@@ -56,21 +56,28 @@ export type CategorySpend = {
   name: string
   total: number
   percentage: number
+  count: number
 }
 
-export function computeCategoryBreakdown(transactions: ApiTransaction[]): CategorySpend[] {
+export function computeCategoryBreakdown(
+  transactions: ApiTransaction[],
+  month?: number,
+  year?: number,
+): CategorySpend[] {
   const now = new Date()
-  const currentMonth = now.getMonth() + 1
-  const currentYear = now.getFullYear()
+  const targetMonth = month ?? (now.getMonth() + 1)
+  const targetYear = year ?? now.getFullYear()
 
   const current = transactions.filter((tx) => {
     const p = parseDate(tx.date)
-    return p.month === currentMonth && p.year === currentYear
+    return p.month === targetMonth && p.year === targetYear
   })
 
   const map = new Map<string, number>()
+  const countMap = new Map<string, number>()
   for (const tx of current) {
     map.set(tx.category, (map.get(tx.category) ?? 0) + parseAmount(tx.amount))
+    countMap.set(tx.category, (countMap.get(tx.category) ?? 0) + 1)
   }
 
   const grandTotal = Array.from(map.values()).reduce((a, b) => a + b, 0)
@@ -81,6 +88,7 @@ export function computeCategoryBreakdown(transactions: ApiTransaction[]): Catego
       name,
       total: Math.round(total * 100) / 100,
       percentage: Math.round((total / grandTotal) * 1000) / 10,
+      count: countMap.get(name) ?? 0,
     }))
     .sort((a, b) => b.total - a.total)
 }
@@ -92,14 +100,18 @@ export type DailySpend = {
   total: number // SGD
 }
 
-export function computeDailyTrend(transactions: ApiTransaction[]): DailySpend[] {
+export function computeDailyTrend(
+  transactions: ApiTransaction[],
+  month?: number,
+  year?: number,
+): DailySpend[] {
   const now = new Date()
-  const currentMonth = now.getMonth() + 1
-  const currentYear = now.getFullYear()
+  const targetMonth = month ?? (now.getMonth() + 1)
+  const targetYear = year ?? now.getFullYear()
 
   const current = transactions.filter((tx) => {
     const p = parseDate(tx.date)
-    return p.month === currentMonth && p.year === currentYear
+    return p.month === targetMonth && p.year === targetYear
   })
 
   const map = new Map<number, number>()
@@ -108,11 +120,12 @@ export function computeDailyTrend(transactions: ApiTransaction[]): DailySpend[] 
     map.set(day, (map.get(day) ?? 0) + parseAmount(tx.amount))
   }
 
-  // Fill all days in the month up to today
-  const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
-  const upToDay = now.getDate()
+  const daysInMonth = new Date(targetYear, targetMonth, 0).getDate()
+  const isCurrentMonth = targetMonth === now.getMonth() + 1 && targetYear === now.getFullYear()
+  const upToDay = isCurrentMonth ? now.getDate() : daysInMonth
+
   const result: DailySpend[] = []
-  for (let d = 1; d <= Math.min(daysInMonth, upToDay); d++) {
+  for (let d = 1; d <= upToDay; d++) {
     result.push({ day: d, total: Math.round((map.get(d) ?? 0) * 100) / 100 })
   }
   return result
@@ -127,18 +140,25 @@ export type SpendingSummary = {
   transactionCount: number
 }
 
-export function computeSummary(transactions: ApiTransaction[]): SpendingSummary {
+export function computeSummary(
+  transactions: ApiTransaction[],
+  month?: number,
+  year?: number,
+): SpendingSummary {
   const now = new Date()
-  const currentMonth = now.getMonth() + 1
-  const currentYear = now.getFullYear()
+  const targetMonth = month ?? (now.getMonth() + 1)
+  const targetYear = year ?? now.getFullYear()
 
   const current = transactions.filter((tx) => {
     const p = parseDate(tx.date)
-    return p.month === currentMonth && p.year === currentYear
+    return p.month === targetMonth && p.year === targetYear
   })
 
   const totalThisMonth = current.reduce((sum, tx) => sum + parseAmount(tx.amount), 0)
-  const daysElapsed = now.getDate()
+  const isCurrentMonth = targetMonth === now.getMonth() + 1 && targetYear === now.getFullYear()
+  const daysElapsed = isCurrentMonth
+    ? now.getDate()
+    : new Date(targetYear, targetMonth, 0).getDate()
   const averageDaily = daysElapsed > 0 ? totalThisMonth / daysElapsed : 0
 
   const catMap = new Map<string, number>()
@@ -148,10 +168,7 @@ export function computeSummary(transactions: ApiTransaction[]): SpendingSummary 
   let topCategory: string | null = null
   let topAmount = 0
   for (const [cat, amt] of catMap.entries()) {
-    if (amt > topAmount) {
-      topAmount = amt
-      topCategory = cat
-    }
+    if (amt > topAmount) { topAmount = amt; topCategory = cat }
   }
 
   return {
