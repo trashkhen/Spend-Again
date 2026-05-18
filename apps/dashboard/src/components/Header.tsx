@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { clearAuth } from '../lib/auth'
+import { clearAuth, getTelegramDisplayName } from '../lib/auth'
 
 type Props = {
   onMenuToggle: () => void
@@ -15,12 +15,11 @@ export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
     navigate('/login')
   }
 
-  // Always show "U" — UUID-based IDs don't produce meaningful initials
-  const avatarInitial = 'U'
+  const displayName = getTelegramDisplayName()
+  const avatarInitial = displayName[0]?.toUpperCase() ?? 'U'
 
   return (
     <>
-      {/* Mobile hamburger toggle */}
       <button
         type="button"
         className="sidebar-toggle"
@@ -31,7 +30,6 @@ export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
       </button>
 
       <header className="app-header">
-        {/* Search bar */}
         <div className="header-search">
           <span className="header-search-icon">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -49,9 +47,7 @@ export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
           />
         </div>
 
-        {/* Right actions */}
         <div className="header-actions">
-          {/* Notification bell */}
           <div className="header-bell" role="button" aria-label="Notifications">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -60,15 +56,10 @@ export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
             <span className="header-bell-dot" aria-hidden="true" />
           </div>
 
-          {/* User */}
           <div className="header-user">
             <div className="header-avatar" aria-hidden="true">{avatarInitial}</div>
-            <span className="header-username">User</span>
-            <button
-              type="button"
-              className="logout-btn"
-              onClick={handleLogout}
-            >
+            <span className="header-username">{displayName}</span>
+            <button type="button" className="logout-btn" onClick={handleLogout}>
               Logout
             </button>
           </div>
