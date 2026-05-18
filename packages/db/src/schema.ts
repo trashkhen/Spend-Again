@@ -12,6 +12,8 @@ export const users = pgTable('users', {
   email: text('email').unique(),
   telegramId: text('telegram_id').unique(),
   telegramUsername: text('telegram_username'),
+  monthlyBudget: integer('monthly_budget'),
+  budgetAlertPct: integer('budget_alert_pct').default(100),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
