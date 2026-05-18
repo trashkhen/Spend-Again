@@ -1804,3 +1804,36 @@ button {
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ── Budget button ───────────────────────────────────────────────────────────── */
+
+.btn-budget {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 600;
+  background: var(--color-error);
+  color: #ffffff;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.btn-budget:hover {
+  background: #dc2626;
+}
+
+.btn-budget:active {
+  transform: scale(0.97);
+}
+
+/* ── Budget KPI sub-text ─────────────────────────────────────────────────────── */
+
+.budget-kpi-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-error);
+  margin-top: 2px;
+}
