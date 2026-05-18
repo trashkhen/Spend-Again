@@ -3,6 +3,8 @@ import type { ApiTransaction } from '../lib/api'
 
 const PAGE_SIZE = 20
 
+type PriceSort = 'asc' | 'desc' | null
+
 type Props = {
   transactions: ApiTransaction[]
   loading: boolean
@@ -10,6 +12,38 @@ type Props = {
   onPageChange: (page: number) => void
   onEdit: (tx: ApiTransaction) => void
   onDelete: (id: string) => Promise<void>
+}
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  Food: '🍜',
+  Transport: '🚌',
+  Groceries: '🛒',
+  Shopping: '🛍️',
+  Entertainment: '🎬',
+  Health: '💊',
+  Education: '📚',
+  Travel: '✈️',
+  Utilities: '💡',
+  Finance: '💳',
+  Housing: '🏠',
+  Income: '💰',
+  Other: '📦',
+}
+
+const CATEGORY_COLOR: Record<string, string> = {
+  Food: 'rgba(99,102,241,0.10)',
+  Transport: 'rgba(245,158,11,0.10)',
+  Groceries: 'rgba(16,185,129,0.10)',
+  Shopping: 'rgba(139,92,246,0.10)',
+  Entertainment: 'rgba(236,72,153,0.10)',
+  Health: 'rgba(239,68,68,0.10)',
+  Education: 'rgba(59,130,246,0.10)',
+  Travel: 'rgba(20,184,166,0.10)',
+  Utilities: 'rgba(249,115,22,0.10)',
+  Finance: 'rgba(91,142,197,0.10)',
+  Housing: 'rgba(132,204,22,0.10)',
+  Income: 'rgba(34,197,94,0.10)',
+  Other: 'rgba(148,163,184,0.10)',
 }
 
 function formatAmount(amount: string): string {
@@ -28,6 +62,11 @@ function formatDate(date: string): string {
 
 function isIncome(category: string): boolean {
   return category.toLowerCase() === 'income'
+}
+
+function parseTransactionDate(date: string): Date {
+  const [d, m, y] = date.split('/').map(Number)
+  return new Date(y ?? 2026, (m ?? 1) - 1, d ?? 1)
 }
 
 function IconEdit() {
@@ -52,9 +91,23 @@ function IconTrash() {
 export function TransactionTable({ transactions, loading, page, onPageChange, onEdit, onDelete }: Props) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [priceSort, setPriceSort] = useState<PriceSort>(null)
 
-  const totalPages = Math.max(1, Math.ceil(transactions.length / PAGE_SIZE))
-  const sliced = transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  function cyclePriceSort() {
+    setPriceSort((cur) => cur === null ? 'asc' : cur === 'asc' ? 'desc' : null)
+  }
+
+  const sorted = priceSort
+    ? [...transactions].sort((a, b) => {
+        const diff = parseFloat(a.amount) - parseFloat(b.amount)
+        return priceSort === 'asc' ? diff : -diff
+      })
+    : [...transactions].sort((a, b) =>
+        parseTransactionDate(b.date).getTime() - parseTransactionDate(a.date).getTime()
+      )
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
+  const sliced = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   async function handleDeleteConfirm(id: string) {
     setDeletingId(id)
@@ -86,6 +139,9 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
     <div className="tx-list-card">
       <div className="tx-list-header">
         <h3 className="tx-list-title">Recent Transactions</h3>
+        <button type="button" className="tx-list-sort-btn" onClick={cyclePriceSort} aria-label="Sort by price">
+          Price{priceSort === 'asc' ? ' ↑' : priceSort === 'desc' ? ' ↓' : ''}
+        </button>
       </div>
 
       <ul className="tx-list" role="list">
@@ -93,14 +149,23 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
           const income = isIncome(tx.category)
           const isConfirmingDelete = confirmDeleteId === tx.id
           const isDeleting = deletingId === tx.id
+          const emoji = CATEGORY_EMOJI[tx.category] ?? '📦'
+          const iconBg = CATEGORY_COLOR[tx.category] ?? 'rgba(148,163,184,0.10)'
 
           return (
             <li key={tx.id} className="tx-row">
               <div className="tx-row-left">
-                <span className="tx-item-name">{tx.item}</span>
-                <span className="tx-item-meta">
-                  {tx.category}{tx.subCategory ? ` / ${tx.subCategory}` : ''} · {formatDate(tx.date)}
-                </span>
+                <div className="tx-category-icon" style={{ background: iconBg }}>
+                  {emoji}
+                </div>
+                <div className="tx-row-text">
+                  <span className="tx-item-name">{tx.item}</span>
+                  <span className="tx-item-meta">
+                    <span className="tx-category-name">{tx.category}</span>
+                    {tx.subCategory ? <span className="tx-subcategory"> / {tx.subCategory}</span> : null}
+                    {' · '}{formatDate(tx.date)}
+                  </span>
+                </div>
               </div>
 
               <div className="tx-row-right">

@@ -880,6 +880,9 @@ button {
 .tx-list-header {
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .tx-list-title {
@@ -912,9 +915,11 @@ button {
 
 .tx-row-left {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
+  flex: 1;
 }
 
 .tx-item-name {
@@ -945,6 +950,58 @@ button {
 
 .tx-amount--income {
   color: var(--color-success);
+}
+
+/* ── Transaction category icon ───────────────────────────────────────────────── */
+
+.tx-category-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.tx-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tx-category-name {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.tx-subcategory {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* ── Transaction list sort button ────────────────────────────────────────────── */
+
+.tx-list-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: color var(--transition-fast);
+}
+
+.tx-list-sort-btn:hover {
+  color: var(--color-accent-hover);
 }
 
 /* ── Pagination ──────────────────────────────────────────────────────────────── */
