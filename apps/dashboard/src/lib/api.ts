@@ -114,3 +114,21 @@ export async function updateTransaction(id: string, data: UpdateTransactionPaylo
 export async function deleteTransaction(id: string): Promise<void> {
   await apiFetch<{ success: boolean }>(`/api/transactions/${id}`, { method: 'DELETE' })
 }
+
+// ── Budget endpoints ───────────────────────────────────────────────────────────
+
+export type BudgetSettings = {
+  monthlyBudget: number | null
+  budgetAlertPct: number
+}
+
+export async function getBudget(): Promise<BudgetSettings> {
+  return apiFetch<BudgetSettings>('/api/users/budget')
+}
+
+export async function updateBudget(data: BudgetSettings): Promise<BudgetSettings> {
+  return apiFetch<BudgetSettings>('/api/users/budget', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
