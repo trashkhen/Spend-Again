@@ -1,8 +1,10 @@
 import { Keyboard } from 'grammy'
 
 export const mainKeyboard = new Keyboard()
-  .text('📊 Dashboard')
-  .text('📝 Recent')
+  .text('🌐 Bring me to Site')
+  .text('📊 Monthly Report')
+  .row()
+  .text('📝 Recents')
   .text('❓ Help')
   .resized()
   .persistent()

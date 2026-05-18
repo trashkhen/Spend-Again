@@ -78,6 +78,9 @@ importers:
 
   apps/bot:
     dependencies:
+      '@google/generative-ai':
+        specifier: ^0.24.1
+        version: 0.24.1
       '@spend-again/parser':
         specifier: workspace:*
         version: link:../../packages/parser

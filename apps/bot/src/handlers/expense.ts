@@ -1,5 +1,5 @@
 import type { Context } from 'grammy'
-import { parse } from '@spend-again/parser'
+import { parse, GeminiRateLimitError } from '@spend-again/parser'
 import type { ParseResult } from '@spend-again/parser'
 import type { Category } from '@spend-again/shared'
 import {
@@ -44,7 +44,9 @@ export const pendingConfirmations = new Map<number, ParseResult>()
  *   - Messages starting with a bare number (e.g. "10 chicken rice")
  */
 function looksLikeExpense(text: string): boolean {
-  return /^(?:S\$|SGD\s*|\$|\d)/.test(text.trim())
+  // Amount at start: "$5 chicken rice", "5.50 kopi", "SGD 8 lunch"
+  // Currency-prefixed amount anywhere: "chicken rice $5", "lunch S$8.50"
+  return /^(?:S\$|SGD\s*|\$|\d)|(?:S\$|SGD\s*|\$)\s*\d+(?:\.\d{1,2})?/.test(text.trim())
 }
 
 // ── Format helpers ────────────────────────────────────────────────────────────
@@ -109,7 +111,19 @@ export async function expenseHandler(ctx: Context): Promise<void> {
   }
 
   // Run the 3-tier parser
-  const result = await parse(text)
+  let result: ParseResult | null
+  try {
+    result = await parse(text)
+  } catch (err) {
+    if (err instanceof GeminiRateLimitError) {
+      await ctx.reply(
+        `Wait ah, AI a bit busy right now! \u{23F3}\n` +
+          `Pls try again later.`,
+      )
+      return
+    }
+    throw err
+  }
 
   if (result === null) {
     await ctx.reply(MSG_PARSE_FAILED)

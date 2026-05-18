@@ -2,7 +2,7 @@ import { createHmac, createHash } from 'node:crypto'
 import type { CommandContext, Context } from 'grammy'
 import { MSG_WELCOME } from '@spend-again/shared'
 import { mainKeyboard } from '../keyboards/main.js'
-import { tokenStore } from '../lib/api-client.js'
+import { tokenStore, userIdStore } from '../lib/api-client.js'
 
 const API_URL = process.env['API_URL'] ?? 'http://localhost:3001'
 
@@ -11,7 +11,7 @@ const API_URL = process.env['API_URL'] ?? 'http://localhost:3001'
  * hash the Telegram Login Widget would produce. The bot token IS the secret,
  * so we can generate a valid hash for any user the bot has context for.
  */
-async function loginViaTelegram(from: NonNullable<Context['from']>): Promise<string | null> {
+async function loginViaTelegram(from: NonNullable<Context['from']>): Promise<{ token: string; userId: string } | null> {
   const botToken = process.env['BOT_TOKEN'] ?? ''
   if (!botToken) return null
 
@@ -56,7 +56,7 @@ async function loginViaTelegram(from: NonNullable<Context['from']>): Promise<str
     }
 
     const result = (await res.json()) as { token: string; userId: string }
-    return result.token
+    return { token: result.token, userId: result.userId }
   } catch (err) {
     console.error('[start] API login error:', err)
     return null
@@ -68,9 +68,10 @@ export async function startHandler(ctx: CommandContext<Context>): Promise<void> 
   const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
 
   if (from !== undefined) {
-    const token = await loginViaTelegram(from)
-    if (token !== null) {
-      tokenStore.set(from.id, token)
+    const auth = await loginViaTelegram(from)
+    if (auth !== null) {
+      tokenStore.set(from.id, auth.token)
+      userIdStore.set(from.id, auth.userId)
       console.log(`[start] Authenticated user ${from.id} (${from.username ?? 'no username'})`)
     } else {
       console.warn(`[start] Could not obtain token for user ${from.id} — dashboard link will have no token`)

@@ -50,7 +50,7 @@ export function Login() {
                 </li>
                 <li className="login-step">
                   <span className="login-step-num">3</span>
-                  <span className="login-step-text">Press the <strong>📊 Dashboard</strong> button — you'll be logged in automatically</span>
+                  <span className="login-step-text">Press the <strong>🌐 Bring me to Site</strong> button — you'll be logged in automatically</span>
                 </li>
               </ol>
             </>

@@ -67,13 +67,13 @@ type ApiTransactionResponse = {
   updatedAt: string
 }
 
-// ── Token store (keyed by Telegram user ID) ───────────────────────────────────
+// ── Token + userId stores (keyed by Telegram user ID) ─────────────────────────
 
-/**
- * In-memory JWT store. Maps Telegram user ID → JWT token.
- * Persistence is out of scope for this task — real auth is handled in Task 3.2.
- */
+/** In-memory JWT store. Maps Telegram user ID → JWT token. */
 export const tokenStore = new Map<number, string>()
+
+/** In-memory user ID store. Maps Telegram user ID → database UUID (from /api/auth/telegram-login). */
+export const userIdStore = new Map<number, string>()
 
 // ── ApiClient ─────────────────────────────────────────────────────────────────
 
@@ -174,6 +174,14 @@ export class ApiClient {
       console.error('[ApiClient] getRecentTransactions error:', err)
       return []
     }
+  }
+
+  /**
+   * GET /api/transactions?userId=<userId>
+   * Returns all transactions for the user (no date filter), or empty array on failure.
+   */
+  async getAllTransactions(userId: string): Promise<Transaction[]> {
+    return this.getRecentTransactions(userId, 10000)
   }
 
   /**

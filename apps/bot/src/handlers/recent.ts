@@ -5,7 +5,7 @@ import {
   MSG_RECENT_HEADER,
   MSG_RECENT_EMPTY,
 } from '@spend-again/shared'
-import { apiClient, tokenStore } from '../lib/api-client.js'
+import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 
 const CATEGORY_EMOJI: Record<Category, string> = {
   Food: '\u{1F35C}',
@@ -34,7 +34,8 @@ export async function recentHandler(ctx: Context): Promise<void> {
   }
 
   apiClient.setToken(token)
-  const transactions = await apiClient.getRecentTransactions(String(telegramId), 5)
+  const userId = userIdStore.get(telegramId) ?? String(telegramId)
+  const transactions = await apiClient.getRecentTransactions(userId, 5)
 
   if (transactions.length === 0) {
     await ctx.reply(MSG_RECENT_EMPTY)

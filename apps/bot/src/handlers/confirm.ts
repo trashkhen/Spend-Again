@@ -16,7 +16,7 @@ import {
   MSG_LEARN_FAILED,
   MSG_LEARN_ITEM_MISSING,
 } from '@spend-again/shared'
-import { apiClient, tokenStore } from '../lib/api-client.js'
+import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { pendingConfirmations } from './expense.js'
 
@@ -83,16 +83,21 @@ async function handleConfirmYes(
   // Set token on API client for this request
   apiClient.setToken(token)
 
-  // Build transaction payload — userId comes from the JWT payload, but since we
-  // don't decode the JWT in the bot we pass the telegramId as a placeholder.
-  // In a real implementation, the API would look up the userId from the token.
+  // Resolve the database UUID for this user (stored at /start login)
+  const userId = userIdStore.get(telegramId)
+  if (userId === undefined) {
+    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+    return
+  }
+
   const category: Category =
     result.category !== undefined ? result.category : (DEFAULT_CATEGORY as Category)
   const subCategory: SubCategory =
     result.subCategory !== undefined ? result.subCategory : (DEFAULT_SUB_CATEGORY as SubCategory)
 
   const txInput: CreateTransactionInput = {
-    userId: String(telegramId), // placeholder — API resolves real userId from JWT
+    userId,
     amountCents: result.amount,
     item: result.item,
     category,

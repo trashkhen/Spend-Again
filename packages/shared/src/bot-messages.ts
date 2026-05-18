@@ -23,13 +23,18 @@ export const MSG_HELP =
   `  "$12 grab home"\n` +
   `  "25 NTUC groceries"\n\n` +
   `*Snap a receipt* — Send a photo \u{1F4F8}\n\n` +
+  `*Ask about your spending:*\n` +
+  `  "How much did I spend this month?"\n` +
+  `  "Show my spending trend for the past 2 weeks"\n` +
+  `  "Breakdown of expenditure last month by category"\n\n` +
   `*Commands:*\n` +
   `/start — Welcome message\n` +
   `/help — Show this help\n` +
   `/recent — Last 5 transactions\n\n` +
   `*Keyboard buttons:*\n` +
-  `\u{1F4CA} Dashboard — Open your spending overview\n` +
-  `\u{1F4DD} Recent — Show last 5 transactions\n` +
+  `\u{1F310} Bring me to Site — Open your dashboard\n` +
+  `\u{1F4CA} Monthly Report — Current month summary\n` +
+  `\u{1F4DD} Recents — Show last 5 transactions\n` +
   `\u{2753} Help — Show this message\n\n` +
   `Can lah, you got this! \u{1F44A}`
 

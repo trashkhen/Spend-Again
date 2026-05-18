@@ -107,7 +107,7 @@ export function useAuth(): UseAuthReturn {
       // API unreachable in dev — use a locally-generated mock token so the UI is
       // still testable without a running backend.
       console.warn('[dev] API unreachable — using offline mock token')
-      const mockUserId = 'dev-offline-user'
+      const mockUserId = '00000000-0000-4000-8000-000000000001'
       const mockToken = createMockDevToken(mockUserId)
       storeAuth({ token: mockToken, userId: mockUserId })
       setState({ authenticated: true, userId: mockUserId, loading: false, error: null })
