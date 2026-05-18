@@ -1915,3 +1915,51 @@ button {
   color: var(--color-text-muted);
   font-size: 13px;
 }
+
+/* ── Analytics page layout ───────────────────────────────────────────────────── */
+
+.analytics-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.analytics-summary-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.analytics-summary-rows {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.analytics-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.analytics-summary-row:last-child {
+  border-bottom: none;
+}
+
+.analytics-summary-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.analytics-summary-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+@media (max-width: 900px) {
+  .analytics-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
