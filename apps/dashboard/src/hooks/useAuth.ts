@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { storeAuth, clearAuth, isAuthenticated, getUserId } from '../lib/auth'
+import { storeAuth, clearAuth, isAuthenticated, getUserId, storeTelegramProfile } from '../lib/auth'
 
 const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3001'
 
@@ -73,9 +73,18 @@ export function useAuth(): UseAuthReturn {
           throw new Error(body.error ?? `HTTP ${response.status}`)
         }
 
-        const result = (await response.json()) as { token: string; userId: string }
+        const result = (await response.json()) as {
+          token: string
+          userId: string
+          telegramFirstName?: string | null
+          telegramUsername?: string | null
+        }
 
         storeAuth({ token: result.token, userId: result.userId })
+        storeTelegramProfile({
+          firstName: result.telegramFirstName ?? null,
+          username: result.telegramUsername ?? null,
+        })
 
         setState({ authenticated: true, userId: result.userId, loading: false, error: null })
 
