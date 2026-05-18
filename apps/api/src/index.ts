@@ -5,6 +5,7 @@ import { healthRouter } from './routes/health.js'
 import { createTransactionsRouter } from './routes/transactions.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createAnalyticsRouter } from './routes/analytics.js'
+import { createUsersRouter } from './routes/users.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { db } from './lib/db.js'
@@ -39,6 +40,7 @@ app.route('/', healthRouter)
 app.route('/api/transactions', createTransactionsRouter(db))
 app.route('/api/auth', createAuthRouter(db))
 app.route('/api/analytics', createAnalyticsRouter(db))
+app.route('/api/users', createUsersRouter(db))
 
 const port = Number(process.env['PORT'] ?? 3001)
 

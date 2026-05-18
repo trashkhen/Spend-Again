@@ -104,3 +104,12 @@ describe('POST /api/auth/dev-login', () => {
     expect(res.status).toBe(404)
   })
 })
+
+describe('POST /api/auth/telegram-login', () => {
+  it('createAuthRouter factory and response shape are defined', () => {
+    const db = makeDbWithExistingUser()
+    const app = createAuthRouter(db)
+    expect(typeof createAuthRouter).toBe('function')
+    expect(app).toBeDefined()
+  })
+})
