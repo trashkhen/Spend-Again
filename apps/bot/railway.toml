@@ -1,6 +1,7 @@
 [build]
 builder = "NIXPACKS"
 buildCommand = "pnpm install && pnpm turbo run build --filter=@spend-again/bot..."
+watchPatterns = ["/apps/bot/**", "/packages/**", "/.node-version", "/nixpacks.toml", "/pnpm-lock.yaml", "/package.json"]
 
 [deploy]
 startCommand = "node apps/bot/dist/index.js"
