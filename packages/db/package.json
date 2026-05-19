@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@spend-again/shared": "workspace:*",
+    "@types/node": "^22.0.0",
     "drizzle-kit": "^0.28.0",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0"
