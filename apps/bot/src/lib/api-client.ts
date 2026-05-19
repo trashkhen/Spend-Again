@@ -40,6 +40,11 @@ export type CategoryBreakdown = {
   grandTotal: string
 }
 
+export type BudgetData = {
+  monthlyBudget: number | null // budget in cents (e.g. 100000 = S$1000)
+  budgetAlertPct: number // alert threshold percentage (e.g. 80)
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type CreateTransactionInput = {
@@ -283,6 +288,27 @@ export class ApiClient {
       return (await res.json()) as CategoryBreakdown
     } catch (err) {
       console.error('[ApiClient] getCategoryBreakdown error:', err)
+      return null
+    }
+  }
+
+  /**
+   * GET /api/users/budget
+   * Returns the user's budget settings (authenticated endpoint).
+   */
+  async getBudget(): Promise<BudgetData | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/users/budget`, {
+        method: 'GET',
+        headers: this.buildHeaders(),
+      })
+      if (!res.ok) {
+        console.error('[ApiClient] getBudget failed:', res.status)
+        return null
+      }
+      return (await res.json()) as BudgetData
+    } catch (err) {
+      console.error('[ApiClient] getBudget error:', err)
       return null
     }
   }

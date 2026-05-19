@@ -165,3 +165,12 @@ export const MSG_RECEIPT_CANCELLED = `OK lah, cancelled. Nothing was saved. \u{1
 
 export const MSG_RECEIPT_NO_PENDING =
   `Eh, no pending receipt leh. Please send a receipt photo first! \u{1F4F8}`
+
+// ---------------------------------------------------------------------------
+// Budget alerts
+// ---------------------------------------------------------------------------
+
+export const MSG_BUDGET_WARNING = (spent: string, budget: string, pct: number): string =>
+  `\u{1F92C} Oi cut down on spending la, going to hit budget alr!\n\n` +
+  `\u{1F4B8} Spent: *S$${spent}* / S$${budget} (${pct}%)\n` +
+  `Tighten your belt this month lah! \u{1F972}`
