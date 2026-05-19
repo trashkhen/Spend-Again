@@ -33,9 +33,10 @@ export async function monthlyReportHandler(ctx: Context): Promise<void> {
 
   await ctx.reply(`\u{23F3} Fetching your ${monthName} report...`)
 
-  const [summary, breakdown] = await Promise.all([
+  const [summary, breakdown, budgetData] = await Promise.all([
     apiClient.getSpendingSummary(userId, month, year),
     apiClient.getCategoryBreakdown(userId, month, year),
+    apiClient.getBudget(),
   ])
 
   if (summary === null || breakdown === null) {
@@ -63,9 +64,13 @@ export async function monthlyReportHandler(ctx: Context): Promise<void> {
     return `  \u{2022} ${b.category}: *S$${b.total}* (${pct}%)`
   })
 
+  const budgetStr = budgetData?.monthlyBudget != null
+    ? ` / S$${(budgetData.monthlyBudget / 100).toFixed(2)}`
+    : ''
+
   const report =
     `\u{1F4CA} *${monthName} ${year} Report*\n\n` +
-    `\u{1F4B0} Total spent: *S$${summary.total}*\n` +
+    `\u{1F4B0} Total spent: *S$${summary.total}*${budgetStr}\n` +
     `\u{1F522} Transactions: ${summary.count}\n` +
     `\u{1F4C9} Average per expense: *S$${(avgCents / 100).toFixed(2)}*\n\n` +
     `*By Category:*\n` +
