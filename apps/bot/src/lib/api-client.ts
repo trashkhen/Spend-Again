@@ -81,6 +81,14 @@ export const tokenStore = new Map<number, string>()
 /** In-memory user ID store. Maps Telegram user ID → database UUID (from /api/auth/telegram-login). */
 export const userIdStore = new Map<number, string>()
 
+// ── URL helpers ───────────────────────────────────────────────────────────────
+
+/** Ensures a host-only API_URL value has an https:// scheme prefix. */
+function normalizeUrl(url: string): string {
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  return `https://${url}`
+}
+
 // ── Telegram login helper ─────────────────────────────────────────────────────
 
 type TelegramUser = {
@@ -99,6 +107,7 @@ export async function loginViaTelegram(
   from: TelegramUser,
   apiUrl: string = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app',
 ): Promise<{ token: string; userId: string } | null> {
+  apiUrl = normalizeUrl(apiUrl)
   const botToken = process.env['BOT_TOKEN'] ?? ''
   if (!botToken) return null
 
@@ -387,5 +396,5 @@ export class ApiClient {
 
 // ── Singleton instance ────────────────────────────────────────────────────────
 
-const API_URL = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app'
+const API_URL = normalizeUrl(process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app')
 export const apiClient = new ApiClient(API_URL)
