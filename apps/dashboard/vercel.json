@@ -8,6 +8,6 @@
   ],
   "env": {
     "VITE_API_URL": "@api_url",
-    "VITE_BOT_USERNAME": "@bot_username"
+    "VITE_TELEGRAM_BOT_NAME": "@telegram_bot_name"
   }
 }
