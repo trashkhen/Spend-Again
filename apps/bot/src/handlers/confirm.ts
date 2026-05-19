@@ -35,27 +35,31 @@ function getTodayDDMMYYYY(): string {
 }
 
 async function checkAndSendBudgetAlert(ctx: Context, telegramId: number, userId: string): Promise<void> {
-  const now = new Date()
-  const monthKey = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+  try {
+    const now = new Date()
+    const monthKey = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
 
-  if (budgetAlertSentStore.get(telegramId) === monthKey) return
+    if (budgetAlertSentStore.get(telegramId) === monthKey) return
 
-  const [summary, budgetData] = await Promise.all([
-    apiClient.getSpendingSummary(userId),
-    apiClient.getBudget(),
-  ])
+    const [summary, budgetData] = await Promise.all([
+      apiClient.getSpendingSummary(userId),
+      apiClient.getBudget(),
+    ])
 
-  if (summary === null || budgetData === null || budgetData.monthlyBudget === null) return
+    if (summary === null || budgetData === null || budgetData.monthlyBudget === null) return
 
-  const spentPct = (summary.totalCents / budgetData.monthlyBudget) * 100
-  if (spentPct < budgetData.budgetAlertPct) return
+    const spentPct = (summary.totalCents / budgetData.monthlyBudget) * 100
+    if (spentPct < budgetData.budgetAlertPct) return
 
-  const spentStr = (summary.totalCents / 100).toFixed(2)
-  const budgetStr = (budgetData.monthlyBudget / 100).toFixed(2)
-  const pctRounded = Math.round(spentPct)
+    const spentStr = (summary.totalCents / 100).toFixed(2)
+    const budgetStr = (budgetData.monthlyBudget / 100).toFixed(2)
+    const pctRounded = Math.round(spentPct)
 
-  await ctx.reply(MSG_BUDGET_WARNING(spentStr, budgetStr, pctRounded), { parse_mode: 'Markdown' })
-  budgetAlertSentStore.set(telegramId, monthKey)
+    await ctx.reply(MSG_BUDGET_WARNING(spentStr, budgetStr, pctRounded), { parse_mode: 'Markdown' })
+    budgetAlertSentStore.set(telegramId, monthKey)
+  } catch (err) {
+    console.error('[confirm] checkAndSendBudgetAlert error:', err)
+  }
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
