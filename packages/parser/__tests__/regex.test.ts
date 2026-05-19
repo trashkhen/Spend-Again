@@ -93,7 +93,7 @@ describe('parseWithRegex', () => {
   })
 
   it('returns no category for unknown item', () => {
-    const result = parseWithRegex('$8.50 lunch at Amoy')
+    const result = parseWithRegex('$8.50 thingamajig at random place')
     expect(result).not.toBeNull()
     expect(result?.category).toBeUndefined()
     expect(result?.subCategory).toBeUndefined()
