@@ -8,7 +8,7 @@ import { receiptHandler } from './handlers/receipt.js'
 import { receiptConfirmHandler } from './handlers/receipt-confirm.js'
 import { queryHandler, looksLikeQuery } from './handlers/query.js'
 import { monthlyReportHandler } from './handlers/monthly-report.js'
-import { tokenStore } from './lib/api-client.js'
+import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
 const token = process.env['BOT_TOKEN']
 if (!token) throw new Error('BOT_TOKEN is required')
@@ -41,15 +41,24 @@ bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 // ── Reply keyboard button handlers ────────────────────────────────────────────
 
 bot.hears('🌐 Bring me to Site', async (ctx) => {
-  const telegramId = ctx.from?.id
+  const from = ctx.from
   const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
+  const apiUrl = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app'
 
-  if (telegramId === undefined) {
+  if (from === undefined) {
     await ctx.reply(`Visit the dashboard: ${dashboardUrl}`)
     return
   }
 
-  const jwtToken = tokenStore.get(telegramId)
+  // Use cached token; re-authenticate if missing (e.g., after bot restart)
+  let jwtToken = tokenStore.get(from.id)
+  if (jwtToken === undefined) {
+    const auth = await loginViaTelegram(from, apiUrl)
+    if (auth !== null) {
+      jwtToken = auth.token
+    }
+  }
+
   const url =
     jwtToken !== undefined
       ? `${dashboardUrl}/auth?token=${encodeURIComponent(jwtToken)}`

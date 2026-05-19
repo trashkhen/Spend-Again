@@ -1,3 +1,4 @@
+import { createHmac, createHash } from 'node:crypto'
 import type { Category, SubCategory, Transaction } from '@spend-again/shared'
 
 // ── Analytics response types ───────────────────────────────────────────────────
@@ -79,6 +80,76 @@ export const tokenStore = new Map<number, string>()
 
 /** In-memory user ID store. Maps Telegram user ID → database UUID (from /api/auth/telegram-login). */
 export const userIdStore = new Map<number, string>()
+
+// ── Telegram login helper ─────────────────────────────────────────────────────
+
+type TelegramUser = {
+  id: number
+  first_name?: string
+  last_name?: string
+  username?: string
+}
+
+/**
+ * Authenticates a Telegram user against the API using the same HMAC-SHA256
+ * hash the Telegram Login Widget produces. Populates tokenStore and userIdStore
+ * on success.
+ */
+export async function loginViaTelegram(
+  from: TelegramUser,
+  apiUrl: string = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app',
+): Promise<{ token: string; userId: string } | null> {
+  const botToken = process.env['BOT_TOKEN'] ?? ''
+  if (!botToken) return null
+
+  const authDate = Math.floor(Date.now() / 1000)
+
+  const fields: Record<string, string> = {
+    id: String(from.id),
+    auth_date: String(authDate),
+  }
+  if (from.first_name) fields['first_name'] = from.first_name
+  if (from.last_name) fields['last_name'] = from.last_name
+  if (from.username) fields['username'] = from.username
+
+  const dataCheckString = Object.keys(fields)
+    .sort()
+    .map((k) => `${k}=${fields[k]}`)
+    .join('\n')
+
+  const secret = createHash('sha256').update(botToken).digest()
+  const hash = createHmac('sha256', secret).update(dataCheckString).digest('hex')
+
+  try {
+    const body: Record<string, string | number> = {
+      id: String(from.id),
+      auth_date: authDate,
+      hash,
+    }
+    if (from.first_name) body['first_name'] = from.first_name
+    if (from.last_name) body['last_name'] = from.last_name
+    if (from.username) body['username'] = from.username
+
+    const res = await fetch(`${apiUrl}/api/auth/telegram-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+
+    if (!res.ok) {
+      console.error('[loginViaTelegram] API login failed:', res.status, await res.text())
+      return null
+    }
+
+    const result = (await res.json()) as { token: string; userId: string }
+    tokenStore.set(from.id, result.token)
+    userIdStore.set(from.id, result.userId)
+    return { token: result.token, userId: result.userId }
+  } catch (err) {
+    console.error('[loginViaTelegram] API login error:', err)
+    return null
+  }
+}
 
 // ── ApiClient ─────────────────────────────────────────────────────────────────
 
@@ -316,5 +387,5 @@ export class ApiClient {
 
 // ── Singleton instance ────────────────────────────────────────────────────────
 
-const API_URL = process.env['API_URL'] ?? 'http://localhost:3001'
+const API_URL = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app'
 export const apiClient = new ApiClient(API_URL)
