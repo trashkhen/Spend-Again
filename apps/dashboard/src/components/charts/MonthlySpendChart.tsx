@@ -6,14 +6,16 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts'
 import type { MonthlySpend } from '../../lib/analytics'
 
 type Props = {
   data: MonthlySpend[]
+  budget?: number  // in SGD dollars, e.g. 1000
 }
 
-export function MonthlySpendChart({ data }: Props) {
+export function MonthlySpendChart({ data, budget }: Props) {
   const hasData = data.some((d) => d.total > 0)
 
   if (!hasData) {
@@ -51,6 +53,21 @@ export function MonthlySpendChart({ data }: Props) {
             labelStyle={{ color: 'var(--color-text)' }}
           />
           <Bar dataKey="total" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
+          {budget != null && (
+            <ReferenceLine
+              y={budget}
+              stroke="#ef4444"
+              strokeDasharray="6 4"
+              strokeWidth={2}
+              label={{
+                value: `Budget S$${budget}`,
+                position: 'right',
+                fill: '#ef4444',
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            />
+          )}
         </BarChart>
       </ResponsiveContainer>
     </div>

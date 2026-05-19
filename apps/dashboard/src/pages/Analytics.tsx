@@ -3,10 +3,10 @@ import { Layout } from '../components/Layout'
 import { MonthlySpendChart } from '../components/charts/MonthlySpendChart'
 import { CategoryBreakdown } from '../components/charts/CategoryBreakdown'
 import { DailyTrend } from '../components/charts/DailyTrend'
-import { listTransactions } from '../lib/api'
+import { listTransactions, getBudget } from '../lib/api'
 import { getUserId } from '../lib/auth'
 import { computeSummary, computeMonthlySpend } from '../lib/analytics'
-import type { ApiTransaction } from '../lib/api'
+import type { ApiTransaction, BudgetSettings } from '../lib/api'
 
 function fmtSGD(amount: number): string {
   return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -17,6 +17,7 @@ export function Analytics() {
   const now = new Date()
 
   const [transactions, setTransactions] = useState<ApiTransaction[]>([])
+  const [budget, setBudget] = useState<BudgetSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [categoryMonth, setCategoryMonth] = useState({
@@ -55,6 +56,17 @@ export function Analytics() {
   }, [userId])
 
   useEffect(() => { void fetchAll() }, [fetchAll])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const b = await getBudget()
+        setBudget(b)
+      } catch {
+        // budget is optional
+      }
+    })()
+  }, [])
 
   const summary = useMemo(
     () => computeSummary(transactions, categoryMonth.month, categoryMonth.year),
@@ -102,7 +114,12 @@ export function Analytics() {
                 <div className="analytics-summary-rows">
                   <div className="analytics-summary-row">
                     <span className="analytics-summary-label">Total this month</span>
-                    <span className="analytics-summary-value">{fmtSGD(summary.totalThisMonth)}</span>
+                    <span className="analytics-summary-value">
+                      {fmtSGD(summary.totalThisMonth)}
+                      {budget?.monthlyBudget != null && (
+                        <span className="budget-kpi-sub"> / {fmtSGD(budget.monthlyBudget / 100)}</span>
+                      )}
+                    </span>
                   </div>
                   <div className="analytics-summary-row">
                     <span className="analytics-summary-label">Daily average</span>
@@ -133,7 +150,10 @@ export function Analytics() {
 
           {/* Monthly Spend */}
           <section className="dashboard-section">
-            <MonthlySpendChart data={monthly} />
+            <MonthlySpendChart
+              data={monthly}
+              {...(budget?.monthlyBudget != null ? { budget: budget.monthlyBudget / 100 } : {})}
+            />
           </section>
         </>
       )}
