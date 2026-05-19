@@ -4,10 +4,13 @@
   "outputDirectory": "apps/dashboard/dist",
   "installCommand": "pnpm install",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ],
   "env": {
     "VITE_API_URL": "@api_url",
-    "VITE_TELEGRAM_BOT_NAME": "@telegram_bot_name"
+    "VITE_TELEGRAM_BOT_NAME": "@spend_again_bot"
   }
 }
