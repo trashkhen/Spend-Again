@@ -10,8 +10,9 @@
     },
     {
       "name": "Dashboard (Vite on :5173)",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["--filter", "@spend-again/dashboard", "dev"],
+      "runtimeExecutable": "/Users/khen/Desktop/spend-again/node_modules/.bin/vite",
+      "runtimeArgs": ["--port", "5173"],
+      "cwd": "/Users/khen/Desktop/spend-again/apps/dashboard",
       "port": 5173
     },
     {

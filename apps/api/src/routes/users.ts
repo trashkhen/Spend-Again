@@ -16,7 +16,7 @@ type UsersVariables = {
 type UsersEnv = { Variables: UsersVariables }
 
 const updateBudgetSchema = z.object({
-  monthlyBudget: z.number().int().positive().nullable(),
+  monthlyBudget: z.number().int().min(1).nullable(),
   budgetAlertPct: z.number().int().min(1).max(200),
 })
 

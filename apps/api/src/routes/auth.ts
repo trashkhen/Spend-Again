@@ -33,7 +33,7 @@ const telegramLoginSchema = z.object({
   last_name: z.string().optional(),
   username: z.string().optional(),
   photo_url: z.string().optional(),
-  auth_date: z.number().int().positive(),
+  auth_date: z.number().int().min(1),
   hash: z.string(),
 })
 

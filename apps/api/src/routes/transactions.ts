@@ -25,7 +25,7 @@ type AppEnv = {
 
 export const createTransactionSchema = z.object({
   userId: z.string().uuid(),
-  amountCents: z.number().int().positive(),
+  amountCents: z.number().int().min(1),
   item: z.string().min(1),
   category: z.enum(CATEGORIES as readonly [string, ...string[]]),
   subCategory: z.string().min(1),
@@ -38,7 +38,7 @@ export const createTransactionSchema = z.object({
 })
 
 export const updateTransactionSchema = z.object({
-  amountCents: z.number().int().positive().optional(),
+  amountCents: z.number().int().min(1).optional(),
   item: z.string().min(1).optional(),
   category: z.enum(CATEGORIES as readonly [string, ...string[]]).optional(),
   subCategory: z.string().min(1).optional(),
