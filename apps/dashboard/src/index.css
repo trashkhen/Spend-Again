@@ -1964,3 +1964,39 @@ button {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Budget KPI tier colours ─────────────────────────────────────────────────── */
+
+.kpi-budget--safe     { border-left: 3px solid #4ade80; background: rgba(74, 222, 128, 0.04); }
+.kpi-budget--moderate { border-left: 3px solid #fde047; background: rgba(253, 224, 71, 0.04); }
+.kpi-budget--caution  { border-left: 3px solid #facc15; background: rgba(250, 204, 21, 0.06); }
+.kpi-budget--warning  { border-left: 3px solid #fb923c; background: rgba(251, 146, 60, 0.06); }
+.kpi-budget--exceeded { border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.08); }
+
+/* ── Budget toast notification ───────────────────────────────────────────────── */
+
+.budget-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  background: #dc2626;
+  color: white;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 14px;
+  box-shadow: 0 8px 30px rgba(220, 38, 38, 0.3);
+  animation: toast-in 0.4s ease-out, toast-out 0.4s ease-in 4.6s forwards;
+  cursor: pointer;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-20px); }
+}
