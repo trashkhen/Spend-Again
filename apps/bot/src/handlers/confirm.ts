@@ -15,10 +15,14 @@ import {
   MSG_LEARN_DECLINED,
   MSG_LEARN_FAILED,
   MSG_LEARN_ITEM_MISSING,
+  MSG_BUDGET_WARNING,
 } from '@spend-again/shared'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { pendingConfirmations } from './expense.js'
+
+// Tracks which month a budget alert was already sent for each user (MM/YYYY)
+const budgetAlertSentStore = new Map<number, string>()
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +32,30 @@ function getTodayDDMMYYYY(): string {
   const mm = String(now.getMonth() + 1).padStart(2, '0')
   const yyyy = String(now.getFullYear())
   return `${dd}/${mm}/${yyyy}`
+}
+
+async function checkAndSendBudgetAlert(ctx: Context, telegramId: number, userId: string): Promise<void> {
+  const now = new Date()
+  const monthKey = `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`
+
+  if (budgetAlertSentStore.get(telegramId) === monthKey) return
+
+  const [summary, budgetData] = await Promise.all([
+    apiClient.getSpendingSummary(userId),
+    apiClient.getBudget(),
+  ])
+
+  if (summary === null || budgetData === null || budgetData.monthlyBudget === null) return
+
+  const spentPct = (summary.totalCents / budgetData.monthlyBudget) * 100
+  if (spentPct < budgetData.budgetAlertPct) return
+
+  const spentStr = (summary.totalCents / 100).toFixed(2)
+  const budgetStr = (budgetData.monthlyBudget / 100).toFixed(2)
+  const pctRounded = Math.round(spentPct)
+
+  await ctx.reply(MSG_BUDGET_WARNING(spentStr, budgetStr, pctRounded), { parse_mode: 'Markdown' })
+  budgetAlertSentStore.set(telegramId, monthKey)
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -132,6 +160,8 @@ async function handleConfirmYes(
         },
       })
     }
+
+    await checkAndSendBudgetAlert(ctx, telegramId, userId)
   } else {
     await ctx.editMessageText(MSG_SAVE_FAILED)
   }
