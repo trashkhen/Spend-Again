@@ -13,7 +13,7 @@ export const MSG_WELCOME = (dashboardUrl: string): string =>
   `Eh, welcome to Spend Again? \u{1F1F8}\u{1F1EC}\n` +
   `Track your kopi money lah! Send me an expense like:\n` +
   `"$3.50 kopi-o at Ya Kun"\n\n` +
-  `\u{1F4CA} Dashboard: ${dashboardUrl}\n` +
+  `\u{1F4CA} <a href="${dashboardUrl}">Open Dashboard</a>\n` +
   `Type /help to see all commands lor.`
 
 export const MSG_HELP =

@@ -1,5 +1,9 @@
 import { SignJWT, jwtVerify } from 'jose'
 
+if (!process.env['JWT_SECRET']) {
+  console.warn('[jwt] JWT_SECRET is not set — using insecure dev fallback. Set JWT_SECRET in production.')
+}
+
 const secret = new TextEncoder().encode(
   process.env['JWT_SECRET'] ?? 'dev-secret-change-in-prod',
 )

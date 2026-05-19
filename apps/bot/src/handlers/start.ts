@@ -82,7 +82,7 @@ export async function startHandler(ctx: CommandContext<Context>): Promise<void> 
     }
   }
 
-  await ctx.reply(MSG_WELCOME(authedUrl), { reply_markup: mainKeyboard })
+  await ctx.reply(MSG_WELCOME(authedUrl), { reply_markup: mainKeyboard, parse_mode: 'HTML' })
 
   if (authedUrl.includes('/auth?token=')) {
     const keyboard = new InlineKeyboard().url('🌐 Open Dashboard', authedUrl)

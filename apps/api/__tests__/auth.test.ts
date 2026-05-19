@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { createHmac, createHash } from 'node:crypto'
 
 // Prevent @spend-again/db from throwing at module init — tests pass their own mock
 vi.mock('@spend-again/db', () => ({
@@ -105,11 +106,132 @@ describe('POST /api/auth/dev-login', () => {
   })
 })
 
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function buildTelegramAuth(
+  botToken: string,
+  fields: Record<string, string>,
+): { hash: string; authDate: number } {
+  const authDate = Math.floor(Date.now() / 1000)
+  const allFields: Record<string, string> = { ...fields, auth_date: String(authDate) }
+
+  const dataCheckString = Object.keys(allFields)
+    .sort()
+    .map((k) => `${k}=${allFields[k]}`)
+    .join('\n')
+
+  const secret = createHash('sha256').update(botToken).digest()
+  const hash = createHmac('sha256', secret).update(dataCheckString).digest('hex')
+  return { hash, authDate }
+}
+
 describe('POST /api/auth/telegram-login', () => {
-  it('createAuthRouter factory and response shape are defined', () => {
+  const TEST_BOT_TOKEN = 'test-bot-token-12345:ABCDEFabcdef'
+  const originalBotToken = process.env['BOT_TOKEN']
+
+  beforeEach(() => {
+    process.env['BOT_TOKEN'] = TEST_BOT_TOKEN
+  })
+
+  afterEach(() => {
+    process.env['BOT_TOKEN'] = originalBotToken
+  })
+
+  it('accepts a valid HMAC and returns a JWT token', async () => {
+    const { hash, authDate } = buildTelegramAuth(TEST_BOT_TOKEN, {
+      id: '12345678',
+      first_name: 'Test',
+      username: 'testuser',
+    })
+
     const db = makeDbWithExistingUser()
     const app = createAuthRouter(db)
-    expect(typeof createAuthRouter).toBe('function')
-    expect(app).toBeDefined()
+
+    const res = await app.request('/telegram-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: '12345678',
+        auth_date: authDate,
+        hash,
+        first_name: 'Test',
+        username: 'testuser',
+      }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(typeof body['token']).toBe('string')
+    expect((body['token'] as string).split('.').length).toBe(3) // valid JWT structure
+    expect(typeof body['userId']).toBe('string')
+  })
+
+  it('accepts a valid HMAC with no optional fields', async () => {
+    const { hash, authDate } = buildTelegramAuth(TEST_BOT_TOKEN, { id: '99999999' })
+
+    const db = makeDbWithExistingUser()
+    const app = createAuthRouter(db)
+
+    const res = await app.request('/telegram-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '99999999', auth_date: authDate, hash }),
+    })
+
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects a tampered hash', async () => {
+    const { authDate } = buildTelegramAuth(TEST_BOT_TOKEN, { id: '12345678' })
+
+    const db = makeDbWithExistingUser()
+    const app = createAuthRouter(db)
+
+    const res = await app.request('/telegram-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: '12345678',
+        auth_date: authDate,
+        hash: 'aaaaaaaabbbbbbbbccccccccddddddddeeeeeeeeffffffff0000000011111111',
+      }),
+    })
+
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects a hash computed with the wrong bot token', async () => {
+    const { hash, authDate } = buildTelegramAuth('wrong-bot-token', { id: '12345678' })
+
+    const db = makeDbWithExistingUser()
+    const app = createAuthRouter(db)
+
+    const res = await app.request('/telegram-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '12345678', auth_date: authDate, hash }),
+    })
+
+    expect(res.status).toBe(401)
+  })
+
+  it('creates a new user when telegram ID is not registered', async () => {
+    const { hash, authDate } = buildTelegramAuth(TEST_BOT_TOKEN, {
+      id: '77777777',
+      username: 'newuser',
+    })
+
+    const db = makeDbWithNoUser()
+    const app = createAuthRouter(db)
+
+    const res = await app.request('/telegram-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '77777777', auth_date: authDate, hash, username: 'newuser' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(typeof body['token']).toBe('string')
   })
 })
