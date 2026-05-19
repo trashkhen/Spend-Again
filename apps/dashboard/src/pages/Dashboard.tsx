@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Layout } from '../components/Layout'
 import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
@@ -151,7 +151,6 @@ export function Dashboard() {
   const [budget, setBudget] = useState<BudgetSettings | null>(null)
   const [budgetModalOpen, setBudgetModalOpen] = useState(false)
   const [showBudgetToast, setShowBudgetToast] = useState(false)
-  const budgetToastShownRef = useRef(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
 
@@ -190,11 +189,16 @@ export function Dashboard() {
 
   useEffect(() => {
     if (budget?.monthlyBudget == null) return
-    if (budgetToastShownRef.current) return  // only fire once per page load
-    // same unit conversion: dollars → cents, then ratio → percentage
-    const pct = (summary.totalThisMonth * 100 / budget.monthlyBudget) * 100
+    // Key the dedup to the current calendar month so the toast fires at most
+    // once per browser session per month (mirrors the bot's monthly dedup).
+    const now = new Date()
+    const monthKey = `budget-toast-${now.getMonth() + 1}-${now.getFullYear()}`
+    if (sessionStorage.getItem(monthKey) === 'shown') return
+    // totalThisMonth is SGD dollars; monthlyBudget is cents — convert to same unit
+    const spentCents = summary.totalThisMonth * 100
+    const pct = (spentCents / budget.monthlyBudget) * 100
     if (pct >= budget.budgetAlertPct) {
-      budgetToastShownRef.current = true
+      sessionStorage.setItem(monthKey, 'shown')
       setShowBudgetToast(true)
       const timer = setTimeout(() => setShowBudgetToast(false), 5000)
       return () => clearTimeout(timer)
