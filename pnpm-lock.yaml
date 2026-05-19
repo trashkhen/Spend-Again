@@ -181,6 +181,9 @@ importers:
       '@spend-again/shared':
         specifier: workspace:*
         version: link:../shared
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.19
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
