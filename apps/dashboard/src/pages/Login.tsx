@@ -1,7 +1,7 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
-const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'SpendAgainBot'
+const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'spend_again_bot'
 const DEV_MODE = import.meta.env['VITE_DEV_MODE'] === 'true'
 
 export function Login() {

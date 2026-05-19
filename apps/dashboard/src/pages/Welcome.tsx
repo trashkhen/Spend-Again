@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { isAuthenticated } from '../lib/auth'
 
-const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'SpendAgainBot'
+const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'spend_again_bot'
 
 export function Welcome() {
   const navigate = useNavigate()
