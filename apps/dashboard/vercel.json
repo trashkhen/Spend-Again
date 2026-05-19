@@ -1,16 +1,12 @@
 {
   "framework": "vite",
+  "installCommand": "cd ../.. && pnpm install",
   "buildCommand": "cd ../.. && pnpm turbo run build --filter=@spend-again/dashboard",
-  "outputDirectory": "apps/dashboard/dist",
-  "installCommand": "pnpm install",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "env": {
-    "VITE_API_URL": "@api_url",
-    "VITE_TELEGRAM_BOT_NAME": "@spend_again_bot"
-  }
+  ]
 }
