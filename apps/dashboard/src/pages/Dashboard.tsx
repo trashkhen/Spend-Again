@@ -29,6 +29,17 @@ function fmtSGD(amount: number): string {
   return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+function getBudgetTierClass(totalThisMonth: number, budget: BudgetSettings | null): string {
+  if (budget?.monthlyBudget == null) return ''
+  const pct = (totalThisMonth * 100 / budget.monthlyBudget) * 100
+  const alertPct = budget.budgetAlertPct
+  if (pct > 100) return 'kpi-budget--exceeded'
+  if (pct >= alertPct) return 'kpi-budget--warning'
+  if (pct >= alertPct * 0.75) return 'kpi-budget--caution'
+  if (pct >= 50) return 'kpi-budget--moderate'
+  return 'kpi-budget--safe'
+}
+
 // ── Budget modal ───────────────────────────────────────────────────────────────
 
 function BudgetModal({
@@ -138,6 +149,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null)
   const [budget, setBudget] = useState<BudgetSettings | null>(null)
   const [budgetModalOpen, setBudgetModalOpen] = useState(false)
+  const [showBudgetToast, setShowBudgetToast] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
 
@@ -172,11 +184,21 @@ export function Dashboard() {
     })()
   }, [])
 
+  const summary = computeSummary(allTransactions)
+
+  useEffect(() => {
+    if (budget?.monthlyBudget == null) return
+    const pct = (summary.totalThisMonth * 100 / budget.monthlyBudget) * 100
+    if (pct >= budget.budgetAlertPct) {
+      setShowBudgetToast(true)
+      const timer = setTimeout(() => setShowBudgetToast(false), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [budget, summary.totalThisMonth])
+
   const filtered = filters.search
     ? allTransactions.filter((tx) => tx.item.toLowerCase().includes(filters.search.toLowerCase()))
     : allTransactions
-
-  const summary = computeSummary(allTransactions)
 
   function openCreate() { setEditingTransaction(null); setModalMode('create') }
   function openEdit(tx: ApiTransaction) { setEditingTransaction(tx); setModalMode('edit') }
@@ -219,7 +241,7 @@ export function Dashboard() {
       </div>
 
       <div className="kpi-grid">
-        <div className="kpi-card">
+        <div className={`kpi-card ${getBudgetTierClass(summary.totalThisMonth, budget)}`}>
           <div className="kpi-card-top">
             <div className="kpi-icon kpi-icon--blue">💳</div>
             <span className="kpi-trend kpi-trend--up">↑ this month</span>
@@ -296,6 +318,16 @@ export function Dashboard() {
           onSave={handleSave}
           onClose={closeModal}
         />
+      )}
+
+      {showBudgetToast && (
+        <div
+          className="budget-toast"
+          onClick={() => setShowBudgetToast(false)}
+          role="alert"
+        >
+          Oi cut down on spending la, going to hit budget alr 🤬
+        </div>
       )}
     </Layout>
   )
