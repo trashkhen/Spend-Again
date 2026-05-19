@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Layout } from '../components/Layout'
 import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
@@ -31,6 +31,7 @@ function fmtSGD(amount: number): string {
 
 function getBudgetTierClass(totalThisMonth: number, budget: BudgetSettings | null): string {
   if (budget?.monthlyBudget == null) return ''
+  // totalThisMonth is dollars; monthlyBudget is cents — multiply by 100 to match units, then × 100 for %
   const pct = (totalThisMonth * 100 / budget.monthlyBudget) * 100
   const alertPct = budget.budgetAlertPct
   if (pct > 100) return 'kpi-budget--exceeded'
@@ -150,6 +151,7 @@ export function Dashboard() {
   const [budget, setBudget] = useState<BudgetSettings | null>(null)
   const [budgetModalOpen, setBudgetModalOpen] = useState(false)
   const [showBudgetToast, setShowBudgetToast] = useState(false)
+  const budgetToastShownRef = useRef(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
 
@@ -188,8 +190,11 @@ export function Dashboard() {
 
   useEffect(() => {
     if (budget?.monthlyBudget == null) return
+    if (budgetToastShownRef.current) return  // only fire once per page load
+    // same unit conversion: dollars → cents, then ratio → percentage
     const pct = (summary.totalThisMonth * 100 / budget.monthlyBudget) * 100
     if (pct >= budget.budgetAlertPct) {
+      budgetToastShownRef.current = true
       setShowBudgetToast(true)
       const timer = setTimeout(() => setShowBudgetToast(false), 5000)
       return () => clearTimeout(timer)
