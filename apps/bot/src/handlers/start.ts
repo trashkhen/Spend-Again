@@ -6,6 +6,7 @@ import { mainKeyboard } from '../keyboards/main.js'
 import { tokenStore, userIdStore } from '../lib/api-client.js'
 
 const API_URL = process.env['API_URL'] ?? 'http://localhost:3001'
+console.log(`[start] API_URL = ${API_URL}`)
 
 /**
  * Authenticates the Telegram user against the API using the same HMAC-SHA256
@@ -77,12 +78,16 @@ export async function startHandler(ctx: CommandContext<Context>): Promise<void> 
       authedUrl = `${dashboardUrl}/auth?token=${encodeURIComponent(auth.token)}`
       console.log(`[start] Authenticated user ${from.id} (${from.username ?? 'no username'})`)
     } else {
-      console.warn(`[start] Could not obtain token for user ${from.id} — dashboard link will have no token`)
+      console.warn(`[start] Could not obtain token for user ${from.id} (API_URL=${API_URL}) — dashboard link will have no token`)
     }
   }
 
   await ctx.reply(MSG_WELCOME(authedUrl), { reply_markup: mainKeyboard })
 
-  const keyboard = new InlineKeyboard().url('🌐 Open Dashboard', authedUrl)
-  await ctx.reply('Already logged in — tap below to open your dashboard lah 👇', { reply_markup: keyboard })
+  if (authedUrl.includes('/auth?token=')) {
+    const keyboard = new InlineKeyboard().url('🌐 Open Dashboard', authedUrl)
+    await ctx.reply('Already logged in — tap below to open your dashboard lah 👇', { reply_markup: keyboard })
+  } else {
+    await ctx.reply('Use the 🌐 Bring me to Site button below to open your dashboard lor.')
+  }
 }
