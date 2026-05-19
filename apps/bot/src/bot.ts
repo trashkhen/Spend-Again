@@ -42,7 +42,7 @@ bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 
 bot.hears('🌐 Bring me to Site', async (ctx) => {
   const telegramId = ctx.from?.id
-  const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+  const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
 
   if (telegramId === undefined) {
     await ctx.reply(`Visit the dashboard: ${dashboardUrl}`)

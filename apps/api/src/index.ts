@@ -15,7 +15,7 @@ const app = new Hono()
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env['CORS_ORIGINS']
   ? process.env['CORS_ORIGINS'].split(',')
-  : ['http://localhost:5173', 'http://localhost:4173']
+  : ['https://spend-again-dashboard.vercel.app']
 
 app.use(
   '*',

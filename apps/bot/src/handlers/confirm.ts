@@ -107,7 +107,7 @@ async function handleConfirmYes(
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
     await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }
@@ -118,7 +118,7 @@ async function handleConfirmYes(
   // Resolve the database UUID for this user (stored at /start login)
   const userId = userIdStore.get(telegramId)
   if (userId === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
     await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }

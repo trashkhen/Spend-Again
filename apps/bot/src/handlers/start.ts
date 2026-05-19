@@ -1,4 +1,5 @@
 import { createHmac, createHash } from 'node:crypto'
+import { InlineKeyboard } from 'grammy'
 import type { CommandContext, Context } from 'grammy'
 import { MSG_WELCOME } from '@spend-again/shared'
 import { mainKeyboard } from '../keyboards/main.js'
@@ -65,18 +66,23 @@ async function loginViaTelegram(from: NonNullable<Context['from']>): Promise<{ t
 
 export async function startHandler(ctx: CommandContext<Context>): Promise<void> {
   const from = ctx.from
-  const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+  const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
 
+  let authedUrl = dashboardUrl
   if (from !== undefined) {
     const auth = await loginViaTelegram(from)
     if (auth !== null) {
       tokenStore.set(from.id, auth.token)
       userIdStore.set(from.id, auth.userId)
+      authedUrl = `${dashboardUrl}/auth?token=${encodeURIComponent(auth.token)}`
       console.log(`[start] Authenticated user ${from.id} (${from.username ?? 'no username'})`)
     } else {
       console.warn(`[start] Could not obtain token for user ${from.id} — dashboard link will have no token`)
     }
   }
 
-  await ctx.reply(MSG_WELCOME(dashboardUrl), { reply_markup: mainKeyboard })
+  await ctx.reply(MSG_WELCOME(authedUrl), { reply_markup: mainKeyboard })
+
+  const keyboard = new InlineKeyboard().url('🌐 Open Dashboard', authedUrl)
+  await ctx.reply('Already logged in — tap below to open your dashboard lah 👇', { reply_markup: keyboard })
 }

@@ -72,7 +72,7 @@ async function handleConfirmAll(
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
     await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
     return
   }

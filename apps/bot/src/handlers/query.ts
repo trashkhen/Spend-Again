@@ -392,7 +392,7 @@ export async function queryHandler(ctx: Context): Promise<void> {
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
+    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
     await ctx.reply(
       `Eh, you haven't registered yet leh! \u{1F64F}\n` +
         `Please sign up at ${dashboardUrl} first, then come back here lor.`,
