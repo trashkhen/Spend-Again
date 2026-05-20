@@ -10,6 +10,8 @@ import type { DbClient } from '../lib/db.js'
 
 type AnalyticsVariables = {
   validatedQuery: unknown
+  userId: string         // set by requireAuth middleware (applied in index.ts)
+  telegramId: string | undefined
 }
 
 type AnalyticsEnv = {
@@ -19,7 +21,6 @@ type AnalyticsEnv = {
 // ── Zod schemas ────────────────────────────────────────────────────────────────
 
 const summaryQuerySchema = z.object({
-  userId: z.string(),
   month: z
     .string()
     .regex(/^\d{2}$/, 'month must be 2-digit, e.g. 05')
@@ -31,12 +32,10 @@ const summaryQuerySchema = z.object({
 })
 
 const topExpenseQuerySchema = z.object({
-  userId: z.string(),
   period: z.enum(['week', 'month']).optional().default('month'),
 })
 
 const categoryBreakdownQuerySchema = z.object({
-  userId: z.string(),
   month: z
     .string()
     .regex(/^\d{2}$/, 'month must be 2-digit, e.g. 05')
@@ -91,13 +90,14 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
    * Query: userId (required), month (optional, MM), year (optional, YYYY)
    */
   router.get('/summary', validateQuery(summaryQuerySchema), async (c) => {
+    const userId = c.get('userId')
     const query = c.get('validatedQuery') as z.infer<typeof summaryQuerySchema>
     const { month, year } = query.month !== undefined && query.year !== undefined
       ? { month: query.month, year: query.year }
       : getCurrentMonthYear()
 
     const conditions = [
-      eq(transactions.userId, query.userId),
+      eq(transactions.userId, userId),
       like(transactions.date, `__/${month}/${year}`),
     ]
 
@@ -129,12 +129,13 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
    * Query: userId (required), period ("week" | "month", default "month")
    */
   router.get('/top', validateQuery(topExpenseQuerySchema), async (c) => {
+    const userId = c.get('userId')
     const query = c.get('validatedQuery') as z.infer<typeof topExpenseQuerySchema>
     const period = query.period ?? 'month'
 
     // Pull all transactions for this user, then filter in JS
     // (date is stored as text DD/MM/YYYY so we can't use SQL date functions directly)
-    const userCondition = eq(transactions.userId, query.userId)
+    const userCondition = eq(transactions.userId, userId)
 
     if (period === 'month') {
       const { month, year } = getCurrentMonthYear()
@@ -192,13 +193,14 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
    * Query: userId (required), month (optional, MM), year (optional, YYYY)
    */
   router.get('/breakdown', validateQuery(categoryBreakdownQuerySchema), async (c) => {
+    const userId = c.get('userId')
     const query = c.get('validatedQuery') as z.infer<typeof categoryBreakdownQuerySchema>
     const { month, year } = query.month !== undefined && query.year !== undefined
       ? { month: query.month, year: query.year }
       : getCurrentMonthYear()
 
     const conditions = [
-      eq(transactions.userId, query.userId),
+      eq(transactions.userId, userId),
       like(transactions.date, `__/${month}/${year}`),
     ]
 

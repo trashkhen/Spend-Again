@@ -8,6 +8,7 @@ import { createAnalyticsRouter } from './routes/analytics.js'
 import { createUsersRouter } from './routes/users.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
+import { requireAuth } from './middleware/auth.js'
 import { db } from './lib/db.js'
 
 const app = new Hono()
@@ -15,7 +16,11 @@ const app = new Hono()
 // ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = process.env['CORS_ORIGINS']
   ? process.env['CORS_ORIGINS'].split(',')
-  : ['https://spend-again-dashboard.vercel.app']
+  : [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'https://spend-again-dashboard.vercel.app',
+    ]
 
 app.use(
   '*',
@@ -37,7 +42,11 @@ app.use('/api/*', rateLimitMiddleware)
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.route('/', healthRouter)
+app.use('/api/transactions', requireAuth)
+app.use('/api/transactions/*', requireAuth)
 app.route('/api/transactions', createTransactionsRouter(db))
+app.use('/api/analytics', requireAuth)
+app.use('/api/analytics/*', requireAuth)
 app.route('/api/auth', createAuthRouter(db))
 app.route('/api/analytics', createAnalyticsRouter(db))
 app.route('/api/users', createUsersRouter(db))

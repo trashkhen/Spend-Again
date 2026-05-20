@@ -51,8 +51,14 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    const body = (await response.json()) as ApiError
-    throw new Error(body.error ?? `HTTP ${response.status}`)
+    let errorMessage = `HTTP ${response.status}`
+    try {
+      const body = (await response.json()) as ApiError
+      errorMessage = body.error ?? errorMessage
+    } catch {
+      // response body isn't JSON (e.g. HTML from a proxy or cold-start page)
+    }
+    throw new Error(errorMessage)
   }
 
   return response.json() as Promise<T>

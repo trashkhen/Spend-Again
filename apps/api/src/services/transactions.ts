@@ -40,9 +40,9 @@ export type TransactionRow = Transaction
 export interface TransactionService {
   create(input: CreateTransactionInput): Promise<TransactionRow>
   list(query: ListTransactionsQuery): Promise<TransactionRow[]>
-  findById(id: string): Promise<TransactionRow | null>
-  update(id: string, input: UpdateTransactionInput): Promise<TransactionRow | null>
-  remove(id: string): Promise<boolean>
+  findById(id: string, userId: string): Promise<TransactionRow | null>
+  update(id: string, userId: string, input: UpdateTransactionInput): Promise<TransactionRow | null>
+  remove(id: string, userId: string): Promise<boolean>
 }
 
 // ── Service factory ────────────────────────────────────────────────────────────
@@ -102,11 +102,11 @@ export function createTransactionService(db: DbClient): TransactionService {
       return rows
     },
 
-    async findById(id: string): Promise<TransactionRow | null> {
+    async findById(id: string, userId: string): Promise<TransactionRow | null> {
       const rows = await db
         .select()
         .from(transactions)
-        .where(eq(transactions.id, id))
+        .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
         .limit(1)
 
       return rows[0] ?? null
@@ -114,6 +114,7 @@ export function createTransactionService(db: DbClient): TransactionService {
 
     async update(
       id: string,
+      userId: string,
       input: UpdateTransactionInput,
     ): Promise<TransactionRow | null> {
       const patch: Record<string, unknown> = {}
@@ -128,7 +129,7 @@ export function createTransactionService(db: DbClient): TransactionService {
       if (input.confidence !== undefined) patch['confidence'] = String(input.confidence)
 
       if (Object.keys(patch).length === 0) {
-        return this.findById(id)
+        return this.findById(id, userId)
       }
 
       patch['updatedAt'] = sql`now()`
@@ -136,16 +137,16 @@ export function createTransactionService(db: DbClient): TransactionService {
       const rows = await db
         .update(transactions)
         .set(patch)
-        .where(eq(transactions.id, id))
+        .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
         .returning()
 
       return rows[0] ?? null
     },
 
-    async remove(id: string): Promise<boolean> {
+    async remove(id: string, userId: string): Promise<boolean> {
       const rows = await db
         .delete(transactions)
-        .where(eq(transactions.id, id))
+        .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
         .returning({ id: transactions.id })
 
       return rows.length > 0

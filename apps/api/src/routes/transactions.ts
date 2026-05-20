@@ -15,6 +15,8 @@ import type {
 type AppVariables = {
   validatedBody: unknown
   validatedQuery: unknown
+  userId: string         // set by requireAuth middleware (applied in index.ts)
+  telegramId: string | undefined
 }
 
 type AppEnv = {
@@ -24,7 +26,6 @@ type AppEnv = {
 // ── Zod schemas ────────────────────────────────────────────────────────────────
 
 export const createTransactionSchema = z.object({
-  userId: z.string().uuid(),
   amountCents: z.number().int().min(1),
   item: z.string().min(1),
   category: z.enum(CATEGORIES as readonly [string, ...string[]]),
@@ -61,7 +62,6 @@ export const listTransactionsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}$/, 'year must be 4-digit, e.g. 2026')
     .optional(),
-  userId: z.string().uuid().optional(),
 })
 
 // ── Response helper ────────────────────────────────────────────────────────────
@@ -85,16 +85,18 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
 
   // POST /api/transactions
   router.post('/', validateBody(createTransactionSchema), async (c) => {
-    const input = c.get('validatedBody') as CreateTransactionInput
-    const tx = await svc.create(input)
+    const userId = c.get('userId')
+    const input = c.get('validatedBody') as Omit<CreateTransactionInput, 'userId'>
+    const tx = await svc.create({ ...input, userId })
     const { amountCents, ...rest } = tx
     return c.json({ ...rest, amount: centsToDecimalString(amountCents) }, 201)
   })
 
   // GET /api/transactions
   router.get('/', validateQuery(listTransactionsQuerySchema), async (c) => {
-    const query = c.get('validatedQuery') as ListTransactionsQuery
-    const txs = await svc.list(query)
+    const userId = c.get('userId')
+    const query = c.get('validatedQuery') as Omit<ListTransactionsQuery, 'userId'>
+    const txs = await svc.list({ ...query, userId })
     return c.json(
       txs.map(({ amountCents, ...rest }) => ({
         ...rest,
@@ -105,8 +107,9 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
 
   // GET /api/transactions/:id
   router.get('/:id', async (c) => {
+    const userId = c.get('userId')
     const id = c.req.param('id')
-    const tx = await svc.findById(id)
+    const tx = await svc.findById(id, userId)
     if (!tx) {
       return c.json({ error: 'Transaction not found', code: 'NOT_FOUND' }, 404)
     }
@@ -116,9 +119,10 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
 
   // PUT /api/transactions/:id
   router.put('/:id', validateBody(updateTransactionSchema), async (c) => {
+    const userId = c.get('userId')
     const id = c.req.param('id')
     const input = c.get('validatedBody') as UpdateTransactionInput
-    const tx = await svc.update(id, input)
+    const tx = await svc.update(id, userId, input)
     if (!tx) {
       return c.json({ error: 'Transaction not found', code: 'NOT_FOUND' }, 404)
     }
@@ -128,8 +132,9 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
 
   // DELETE /api/transactions/:id
   router.delete('/:id', async (c) => {
+    const userId = c.get('userId')
     const id = c.req.param('id')
-    const deleted = await svc.remove(id)
+    const deleted = await svc.remove(id, userId)
     if (!deleted) {
       return c.json({ error: 'Transaction not found', code: 'NOT_FOUND' }, 404)
     }
