@@ -207,8 +207,8 @@ export async function parseWithGemini(input: string): Promise<ParseResult | null
     const result = await model.generateContent(prompt)
     rawText = result.response.text()
   } catch (err) {
-    if (err instanceof GoogleGenerativeAIFetchError && err.status === 429) {
-      console.error('[gemini] 429 from API:', err.message, err.errorDetails)
+    if (err instanceof GoogleGenerativeAIFetchError && (err.status === 429 || err.status === 503)) {
+      console.error(`[gemini] ${err.status} from API:`, err.message, err.errorDetails)
       throw new GeminiRateLimitError()
     }
     throw err

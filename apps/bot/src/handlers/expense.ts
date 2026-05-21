@@ -7,7 +7,7 @@ import {
   MSG_PARSE_FAILED,
   MSG_CONFIRM_PROMPT,
 } from '@spend-again/shared'
-import { tokenStore } from '../lib/api-client.js'
+import { tokenStore, loginViaTelegram } from '../lib/api-client.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 
 // ── Category → emoji mapping ───────────────────────────────────────────────────
@@ -102,8 +102,12 @@ export async function expenseHandler(ctx: Context): Promise<void> {
     return
   }
 
-  // Check if user is linked (has a JWT)
-  const token = tokenStore.get(telegramId)
+  // Check if user is linked (has a JWT); tokenStore may be empty after a process restart
+  let token = tokenStore.get(telegramId)
+  if (token === undefined && ctx.from !== undefined) {
+    const auth = await loginViaTelegram(ctx.from)
+    token = auth?.token
+  }
   if (token === undefined) {
     const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
     await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))

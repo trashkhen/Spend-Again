@@ -270,6 +270,14 @@ describe('parseWithGemini', () => {
     await expect(parseWithGemini('test input')).rejects.toThrow(GeminiRateLimitError)
   })
 
+  it('throws GeminiRateLimitError on HTTP 503 (service unavailable)', async () => {
+    const { GoogleGenerativeAIFetchError } = await import('@google/generative-ai')
+    const serviceErr = new GoogleGenerativeAIFetchError('Service Unavailable', 503, 'Service Unavailable')
+    mockGenerateContent.mockRejectedValueOnce(serviceErr)
+
+    await expect(parseWithGemini('test input')).rejects.toThrow(GeminiRateLimitError)
+  })
+
   it('GeminiRateLimitError has the correct message', async () => {
     const { GoogleGenerativeAIFetchError } = await import('@google/generative-ai')
     const rateLimitErr = new GoogleGenerativeAIFetchError('Too Many Requests', 429, 'Too Many Requests')
@@ -278,7 +286,7 @@ describe('parseWithGemini', () => {
     await expect(parseWithGemini('test input')).rejects.toThrow('Gemini rate limit exceeded (15 RPM)')
   })
 
-  it('rethrows non-429 errors as-is', async () => {
+  it('rethrows non-429/503 errors as-is', async () => {
     const networkErr = new Error('Network error')
     mockGenerateContent.mockRejectedValueOnce(networkErr)
 
