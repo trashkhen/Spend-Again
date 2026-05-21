@@ -14,18 +14,25 @@ import { db } from './lib/db.js'
 const app = new Hono()
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const allowedOrigins = process.env['CORS_ORIGINS']
-  ? process.env['CORS_ORIGINS'].split(',')
-  : [
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'https://spend-again-dashboard.vercel.app',
-    ]
+const explicitOrigins = process.env['CORS_ORIGINS']
+  ? process.env['CORS_ORIGINS'].split(',').map((o) => o.trim().replace(/\/$/, ''))
+  : ['http://localhost:5173', 'http://localhost:5174', 'https://spend-again-dashboard.vercel.app']
+
+// Allow any Vercel preview deployment for this project (spend-again-dashboard-*.vercel.app)
+// in addition to the explicit list. CORS_ORIGINS env var always takes precedence.
+function isAllowedOrigin(origin: string): boolean {
+  if (explicitOrigins.includes(origin)) return true
+  if (!process.env['CORS_ORIGINS']) {
+    // Also allow Vercel preview URLs for the dashboard project
+    return /^https:\/\/spend-again-dashboard(-[a-z0-9]+)*\.vercel\.app$/.test(origin)
+  }
+  return false
+}
 
 app.use(
   '*',
   cors({
-    origin: allowedOrigins,
+    origin: (origin) => (isAllowedOrigin(origin) ? origin : null),
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
