@@ -2,7 +2,7 @@
 
 > A low-friction, Singapore-centric expense tracker powered by Telegram and AI.
 
-![Spend Again? Logo](./Spend%20Again%3F.png)
+![Spend Again? Logo](./docs/spend-again-logo.png)
 
 ## Overview
 
