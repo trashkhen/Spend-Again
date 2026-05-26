@@ -149,7 +149,10 @@ export async function loginViaTelegram(
     })
 
     if (!res.ok) {
-      log.error({ status: res.status, body: await res.text() }, 'loginViaTelegram API login failed')
+      log.error(
+        { status: res.status, body: (await res.text()).slice(0, 500) },
+        'loginViaTelegram API login failed',
+      )
       return null
     }
 
@@ -212,7 +215,10 @@ export class ApiClient {
       })
 
       if (!res.ok) {
-        log.error({ status: res.status, body: await res.text() }, 'createTransaction failed')
+        log.error(
+          { status: res.status, body: (await res.text()).slice(0, 500) },
+          'createTransaction failed',
+        )
         return null
       }
 
@@ -240,7 +246,10 @@ export class ApiClient {
       })
 
       if (!res.ok) {
-        log.error({ status: res.status, body: await res.text() }, 'getRecentTransactions failed')
+        log.error(
+          { status: res.status, body: (await res.text()).slice(0, 500) },
+          'getRecentTransactions failed',
+        )
         return []
       }
 

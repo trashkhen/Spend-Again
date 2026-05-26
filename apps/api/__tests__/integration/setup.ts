@@ -1,7 +1,12 @@
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import postgres from 'postgres'
 import * as schema from '@spend-again/db/schema'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const MIGRATIONS_DIR = resolve(__dirname, '../../../../packages/db/drizzle')
 
 // Import schema as a namespace via the dedicated `./schema` subpath export. We
 // deliberately avoid the `@spend-again/db` barrel because it imports the
@@ -29,7 +34,7 @@ export async function setupTestDb(): Promise<{
   const url = requireTestDatabaseUrl()
   const sql = postgres(url, { max: 2 })
   const db = drizzle(sql, { schema })
-  await migrate(db, { migrationsFolder: '../../packages/db/drizzle' })
+  await migrate(db, { migrationsFolder: MIGRATIONS_DIR })
   // Wipe all tables for a clean slate per test run
   await sql`TRUNCATE users, transactions, learned_mappings RESTART IDENTITY CASCADE`
   return {

@@ -12,7 +12,7 @@
 import type { Context } from 'hono'
 import { createLogger, isAppError } from '@spend-again/shared'
 
-const log = createLogger('api')
+const log = createLogger('api:error-handler')
 
 // ── Consistent error response shape ──────────────────────────────────────────
 
