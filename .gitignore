@@ -12,6 +12,9 @@ out/
 # Turbo
 .turbo/
 
+# Worktrees (created by superpowers per-phase)
+.worktrees/
+
 # Environment files
 .env
 .env.local
