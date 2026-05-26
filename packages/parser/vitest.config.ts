@@ -19,6 +19,5 @@ export default defineConfig({
   test: {
     environment: 'node',
     pool: 'vmForks',
-    passWithNoTests: true,
   },
 })
