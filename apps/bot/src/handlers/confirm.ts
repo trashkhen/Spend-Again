@@ -1,5 +1,6 @@
 import type { Context } from 'grammy'
 import { saveMapping } from '@spend-again/parser'
+import { createLogger } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import {
   DEFAULT_CATEGORY,
@@ -20,6 +21,8 @@ import {
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { pendingConfirmations } from './expense.js'
+
+const log = createLogger('bot:confirm')
 
 // Tracks which month a budget alert was already sent for each user (MM/YYYY)
 const budgetAlertSentStore = new Map<number, string>()
@@ -58,7 +61,7 @@ async function checkAndSendBudgetAlert(ctx: Context, telegramId: number, userId:
     await ctx.reply(MSG_BUDGET_WARNING(spentStr, budgetStr, pctRounded), { parse_mode: 'Markdown' })
     budgetAlertSentStore.set(telegramId, monthKey)
   } catch (err) {
-    console.error('[confirm] checkAndSendBudgetAlert error:', err)
+    log.error({ err }, 'checkAndSendBudgetAlert error')
   }
 }
 

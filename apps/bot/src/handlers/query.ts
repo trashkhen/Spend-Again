@@ -8,9 +8,11 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { Context } from 'grammy'
-import { GEMINI_MODEL } from '@spend-again/shared'
+import { GEMINI_MODEL, createLogger } from '@spend-again/shared'
 import type { Transaction } from '@spend-again/shared'
 import { tokenStore, userIdStore, apiClient } from '../lib/api-client.js'
+
+const log = createLogger('bot:query')
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
 
@@ -160,7 +162,7 @@ async function parseQueryWithGemini(text: string): Promise<GeminiQueryIntent | n
     const parsed = JSON.parse(raw.slice(start, end + 1)) as GeminiQueryIntent
     return parsed
   } catch (err) {
-    console.error('[query] Gemini parse error:', err)
+    log.error({ err }, 'Gemini parse error')
     return null
   }
 }

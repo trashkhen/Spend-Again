@@ -1,4 +1,5 @@
 import { Bot, InlineKeyboard } from 'grammy'
+import { createLogger } from '@spend-again/shared'
 import { startHandler } from './handlers/start.js'
 import { helpHandler } from './handlers/help.js'
 import { expenseHandler } from './handlers/expense.js'
@@ -10,6 +11,8 @@ import { queryHandler, looksLikeQuery } from './handlers/query.js'
 import { monthlyReportHandler } from './handlers/monthly-report.js'
 import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
+const log = createLogger('bot')
+
 const token = process.env['BOT_TOKEN']
 if (!token) throw new Error('BOT_TOKEN is required')
 
@@ -17,7 +20,7 @@ export const bot = new Bot(token)
 
 // ── Global error handler ──────────────────────────────────────────────────────
 bot.catch((err) => {
-  console.error('[bot] Unhandled error:', err.error)
+  log.error({ err: err.error }, 'Unhandled error')
   err.ctx
     .reply(
       `Eh, something went wrong leh! \u{1F625}\n` +

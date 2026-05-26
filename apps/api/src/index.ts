@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serve } from '@hono/node-server'
+import { createLogger } from '@spend-again/shared'
 import { healthRouter } from './routes/health.js'
 import { createTransactionsRouter } from './routes/transactions.js'
 import { createAuthRouter } from './routes/auth.js'
@@ -11,6 +12,7 @@ import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { requireAuth } from './middleware/auth.js'
 import { db } from './lib/db.js'
 
+const log = createLogger('api')
 const app = new Hono()
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
@@ -61,5 +63,5 @@ app.route('/api/users', createUsersRouter(db))
 const port = Number(process.env['PORT'] ?? 3001)
 
 serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`API server running on port ${info.port}`)
+  log.info({ port: info.port }, 'API server running')
 })

@@ -10,9 +10,11 @@
 
 import { webhookCallback } from 'grammy'
 import { createServer } from 'node:http'
+import { createLogger } from '@spend-again/shared'
 import { bot } from './bot.js'
 import { initDevMode } from './lib/dev-mode.js'
 
+const log = createLogger('bot')
 const isProduction = process.env['NODE_ENV'] === 'production'
 
 // ── Dev mode: pre-register test user ────────────────────────────────────────
@@ -23,7 +25,7 @@ if (!isProduction && devTelegramId !== undefined) {
   const apiUrl = process.env['API_URL'] ?? 'http://localhost:3001'
   const result = await initDevMode(apiUrl, Number(devTelegramId))
   if (result === null) {
-    console.warn('[bot] Dev mode init failed — bot will require normal auth')
+    log.warn('Dev mode init failed — bot will require normal auth')
   }
 }
 const webhookUrl = process.env['WEBHOOK_URL']
@@ -34,7 +36,7 @@ if (isProduction && webhookUrl !== undefined && webhookUrl.length > 0) {
   // Set the webhook with Telegram, then start an HTTP server to receive updates.
 
   await bot.api.setWebhook(webhookUrl)
-  console.log(`[bot] Webhook set to ${webhookUrl}`)
+  log.info({ webhookUrl }, 'Webhook set')
 
   const handleUpdate = webhookCallback(bot, 'http')
 
@@ -48,10 +50,10 @@ if (isProduction && webhookUrl !== undefined && webhookUrl.length > 0) {
   })
 
   server.listen(port, () => {
-    console.log(`[bot] Webhook server listening on port ${port}`)
+    log.info({ port }, 'Webhook server listening')
   })
 } else {
   // ── Long-polling mode (development) ────────────────────────────────────────
-  console.log('[bot] Starting in long-polling mode (development)')
+  log.info('Starting in long-polling mode (development)')
   await bot.start()
 }
