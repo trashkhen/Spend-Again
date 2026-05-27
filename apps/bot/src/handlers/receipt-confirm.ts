@@ -10,7 +10,7 @@ import {
   MSG_RECEIPT_CANCELLED,
   MSG_RECEIPT_NO_PENDING,
 } from '@spend-again/shared'
-import { apiClient, tokenStore } from '../lib/api-client.js'
+import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { pendingReceiptResults } from './receipt.js'
 
@@ -77,6 +77,13 @@ async function handleConfirmAll(
     return
   }
 
+  const userId = userIdStore.get(telegramId)
+  if (userId === undefined) {
+    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
+    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+    return
+  }
+
   apiClient.setToken(token)
 
   const date = receipt.date ?? getTodayDDMMYYYY()
@@ -92,7 +99,7 @@ async function handleConfirmAll(
         : (DEFAULT_SUB_CATEGORY as SubCategory)
 
     const txInput: CreateTransactionInput = {
-      userId: String(telegramId),
+      userId,
       amountCents: lineItem.amount,
       item: lineItem.item,
       category,
