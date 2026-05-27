@@ -102,7 +102,7 @@ SINGAPORE CONTEXT:
 - Grab / GoJek rides → Transport / Grab or Transport / Gojek
 - MRT / bus / EZ-Link → Transport / MRT/Bus
 - Guardian, Watsons → Health / Pharmacy
-- Popular, MPH bookstore → Education / Books
+- Popular, MPH bookstore → Shopping / Books
 - Lazada, Shopee → Shopping / Online Shopping
 
 EXAMPLES:
