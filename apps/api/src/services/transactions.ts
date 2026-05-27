@@ -1,4 +1,4 @@
-import { eq, and, like, sql } from 'drizzle-orm'
+import { eq, and, like, sql, desc } from 'drizzle-orm'
 import { transactions } from '@spend-again/db'
 import type { Transaction } from '@spend-again/db'
 import type { DbClient } from '../lib/db.js'
@@ -33,6 +33,8 @@ export type ListTransactionsQuery = {
   category?: string
   month?: string
   year?: string
+  limit?: number
+  offset?: number
 }
 
 export type TransactionRow = Transaction
@@ -91,13 +93,15 @@ export function createTransactionService(db: DbClient): TransactionService {
         conditions.push(like(transactions.date, `__/__/${query.year}`))
       }
 
-      const rows =
-        conditions.length > 0
-          ? await db
-              .select()
-              .from(transactions)
-              .where(and(...conditions))
-          : await db.select().from(transactions)
+      const limit = query.limit ?? 50
+      const offset = query.offset ?? 0
+
+      const base = db.select().from(transactions)
+      const filtered = conditions.length > 0 ? base.where(and(...conditions)) : base
+      const rows = await filtered
+        .orderBy(desc(transactions.createdAt))
+        .limit(limit)
+        .offset(offset)
 
       return rows
     },

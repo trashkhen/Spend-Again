@@ -278,7 +278,9 @@ export class ApiClient {
    * Returns all transactions for the user (no date filter), or empty array on failure.
    */
   async getAllTransactions(userId: string): Promise<Transaction[]> {
-    return this.getRecentTransactions(userId, 10000)
+    // Capped at 500 to match the API's new max page size. If callers need more,
+    // they should paginate. The previous 10000 was silently truncated server-side.
+    return this.getRecentTransactions(userId, 500)
   }
 
   /**

@@ -62,6 +62,8 @@ export const listTransactionsQuerySchema = z.object({
     .string()
     .regex(/^\d{4}$/, 'year must be 4-digit, e.g. 2026')
     .optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0),
 })
 
 // ── Response helper ────────────────────────────────────────────────────────────
