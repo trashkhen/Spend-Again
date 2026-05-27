@@ -24,6 +24,7 @@ const BASE_TX: TransactionRow = {
   category: 'Food',
   subCategory: 'Hawker',
   date: '13/05/2026',
+  occurredOn: '2026-05-13',
   source: 'bot',
   tier: 1,
   confidence: '0.95',
@@ -139,6 +140,31 @@ describe('POST /api/transactions', () => {
     expect(body['amountCents']).toBeUndefined()
     expect(body['item']).toBe('chicken rice')
     expect(body['category']).toBe('Food')
+  })
+
+  it('dual-writes occurredOn in ISO format alongside legacy date field', async () => {
+    const db = makeMockDb()
+    const app = makeApp(db)
+
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(validBody),
+    })
+
+    expect(res.status).toBe(201)
+    const body = await json(res)
+    // The response reflects the mock return value which includes occurredOn
+    expect(body['occurredOn']).toBe('2026-05-13')
+    // Verify the insert was called with occurredOn derived from date
+    const insertMock = vi.mocked(db.insert as unknown as () => unknown)
+    const valuesMock = (insertMock.mock.results[0]?.value as { values: ReturnType<typeof vi.fn> }).values
+    expect(valuesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date: '13/05/2026',
+        occurredOn: '2026-05-13',
+      }),
+    )
   })
 
   it('returns 400 for missing required fields', async () => {

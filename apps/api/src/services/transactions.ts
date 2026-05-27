@@ -1,6 +1,7 @@
 import { eq, and, like, sql, desc } from 'drizzle-orm'
 import { transactions } from '@spend-again/db'
 import type { Transaction } from '@spend-again/db'
+import { ddmmyyyyToIso } from '@spend-again/shared'
 import type { DbClient } from '../lib/db.js'
 
 // ── Input types (exported for use in routes and tests) ─────────────────────────
@@ -61,6 +62,7 @@ export function createTransactionService(db: DbClient): TransactionService {
           category: input.category,
           subCategory: input.subCategory,
           date: input.date,
+          occurredOn: ddmmyyyyToIso(input.date),
           source: input.source,
           tier: input.tier ?? null,
           confidence: input.confidence !== undefined ? String(input.confidence) : null,
@@ -127,7 +129,10 @@ export function createTransactionService(db: DbClient): TransactionService {
       if (input.item !== undefined) patch['item'] = input.item
       if (input.category !== undefined) patch['category'] = input.category
       if (input.subCategory !== undefined) patch['subCategory'] = input.subCategory
-      if (input.date !== undefined) patch['date'] = input.date
+      if (input.date !== undefined) {
+        patch['date'] = input.date
+        patch['occurredOn'] = ddmmyyyyToIso(input.date)
+      }
       if (input.source !== undefined) patch['source'] = input.source
       if (input.tier !== undefined) patch['tier'] = input.tier
       if (input.confidence !== undefined) patch['confidence'] = String(input.confidence)
