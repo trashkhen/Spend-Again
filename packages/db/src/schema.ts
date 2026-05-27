@@ -1,4 +1,5 @@
 import {
+  date,
   integer,
   numeric,
   pgTable,
@@ -28,6 +29,7 @@ export const transactions = pgTable('transactions', {
   category: text('category').notNull(),
   subCategory: text('sub_category').notNull(),
   date: text('date').notNull(), // stored as DD/MM/YYYY
+  occurredOn: date('occurred_on', { mode: 'string' }).notNull(),
   source: text('source').notNull(), // manual/bot/sms/ocr
   tier: integer('tier'),
   confidence: numeric('confidence', { precision: 4, scale: 3 }),
