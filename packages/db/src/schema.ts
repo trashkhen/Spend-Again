@@ -1,5 +1,6 @@
 import {
   date,
+  index,
   integer,
   numeric,
   pgTable,
@@ -36,7 +37,10 @@ export const transactions = pgTable('transactions', {
   confidence: numeric('confidence', { precision: 4, scale: 3 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-})
+}, (table) => ({
+  userOccurredIdx: index('transactions_user_occurred_idx')
+    .on(table.userId, table.occurredOn),
+}))
 
 export const learnedMappings = pgTable('learned_mappings', {
   id: uuid('id').primaryKey().defaultRandom(),
