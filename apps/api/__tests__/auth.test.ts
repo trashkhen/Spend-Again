@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { createHmac, createHash } from 'node:crypto'
 
 // Prevent @spend-again/db from throwing at module init — tests pass their own mock
@@ -126,16 +126,10 @@ function buildTelegramAuth(
 }
 
 describe('POST /api/auth/telegram-login', () => {
-  const TEST_BOT_TOKEN = 'test-bot-token-12345:ABCDEFabcdef'
-  const originalBotToken = process.env['BOT_TOKEN']
-
-  beforeEach(() => {
-    process.env['BOT_TOKEN'] = TEST_BOT_TOKEN
-  })
-
-  afterEach(() => {
-    process.env['BOT_TOKEN'] = originalBotToken
-  })
+  // telegram-auth.ts captures BOT_TOKEN at module load (via requireEnv), so
+  // the value used by verifyTelegramAuth is whatever vitest.setup.ts set on
+  // first import. Read it back here so the test signs HMAC with the same key.
+  const TEST_BOT_TOKEN = process.env['BOT_TOKEN'] ?? ''
 
   it('accepts a valid HMAC and returns a JWT token', async () => {
     const { hash, authDate } = buildTelegramAuth(TEST_BOT_TOKEN, {

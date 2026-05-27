@@ -1,5 +1,6 @@
 import { Bot, InlineKeyboard } from 'grammy'
-import { createLogger, requireEnv } from '@spend-again/shared'
+import { createLogger } from '@spend-again/shared'
+import { BOT_TOKEN, API_URL } from './lib/env.js'
 import { startHandler } from './handlers/start.js'
 import { helpHandler } from './handlers/help.js'
 import { expenseHandler } from './handlers/expense.js'
@@ -13,9 +14,7 @@ import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
 const log = createLogger('bot')
 
-const token = requireEnv('BOT_TOKEN')
-
-export const bot = new Bot(token)
+export const bot = new Bot(BOT_TOKEN)
 
 // ── Global error handler ──────────────────────────────────────────────────────
 bot.catch((err) => {
@@ -45,7 +44,6 @@ bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 bot.hears('🌐 Bring me to Site', async (ctx) => {
   const from = ctx.from
   const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-  const apiUrl = requireEnv('API_URL')
 
   if (from === undefined) {
     await ctx.reply(`Visit the dashboard: ${dashboardUrl}`)
@@ -55,7 +53,7 @@ bot.hears('🌐 Bring me to Site', async (ctx) => {
   // Use cached token; re-authenticate if missing (e.g., after bot restart)
   let jwtToken = tokenStore.get(from.id)
   if (jwtToken === undefined) {
-    const auth = await loginViaTelegram(from, apiUrl)
+    const auth = await loginViaTelegram(from, API_URL)
     if (auth !== null) {
       jwtToken = auth.token
     }

@@ -1,6 +1,7 @@
 import { createHmac, createHash } from 'node:crypto'
 import { createLogger, requireEnv } from '@spend-again/shared'
 import type { Category, SubCategory, Transaction } from '@spend-again/shared'
+import { BOT_TOKEN } from './env.js'
 
 const log = createLogger('bot:api-client')
 
@@ -114,8 +115,6 @@ export async function loginViaTelegram(
   // need it set, while production callers still hard-fail at first use.
   const resolved = normalizeUrl(apiUrl ?? requireEnv('API_URL'))
   apiUrl = resolved
-  const botToken = process.env['BOT_TOKEN'] ?? ''
-  if (!botToken) return null
 
   const authDate = Math.floor(Date.now() / 1000)
 
@@ -132,7 +131,7 @@ export async function loginViaTelegram(
     .map((k) => `${k}=${fields[k]}`)
     .join('\n')
 
-  const secret = createHash('sha256').update(botToken).digest()
+  const secret = createHash('sha256').update(BOT_TOKEN).digest()
   const hash = createHmac('sha256', secret).update(dataCheckString).digest('hex')
 
   try {
@@ -413,10 +412,21 @@ export class ApiClient {
 
 // ── Singleton instance ────────────────────────────────────────────────────────
 //
-// API_URL is resolved lazily on first access via a Proxy. This keeps test code
-// (which mocks this module or imports specific exports) from triggering a
-// startup throw, while still hard-failing the moment production code makes
-// its first request.
+// This Proxy exists to defer `requireEnv('API_URL')` until the first method
+// call on `apiClient`. Without it, importing this module would throw at load
+// time, which breaks unit tests that exercise unrelated exports (e.g.
+// `loginViaTelegram`, `tokenStore`) without configuring `API_URL`. Production
+// code still hard-fails the moment it makes its first API request.
+//
+// Constraints (intentional, documented tech-debt):
+//   - Methods are forwarded and bound to the underlying ApiClient instance,
+//     so `apiClient.someMethod(...)` works as expected.
+//   - Direct property assignment (e.g. `apiClient.foo = bar`) is NOT supported
+//     — the Proxy only implements `get`. Such writes are silently dropped
+//     onto the empty target object.
+//   - `instanceof ApiClient` against the Proxy is NOT supported. Use the
+//     underlying instance if you need that.
+// no property assignments
 
 function buildApiClient(): ApiClient {
   return new ApiClient(normalizeUrl(requireEnv('API_URL')))
