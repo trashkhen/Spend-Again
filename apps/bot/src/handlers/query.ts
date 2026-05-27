@@ -8,7 +8,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { Context } from 'grammy'
-import { GEMINI_MODEL, createLogger } from '@spend-again/shared'
+import { GEMINI_MODEL, createLogger, getTodayDDMMYYYY, parseDDMMYYYY, fmtShortDate, fmtSGD } from '@spend-again/shared'
 import type { Transaction } from '@spend-again/shared'
 import { waitForGeminiRpmBudget } from '@spend-again/parser'
 import { tokenStore, userIdStore, apiClient } from '../lib/api-client.js'
@@ -17,33 +17,12 @@ const log = createLogger('bot:query')
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
 
-function getTodayDDMMYYYY(): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  return `${dd}/${mm}/${now.getFullYear()}`
-}
-
 function currentMonthYear(): { month: string; year: string } {
   const now = new Date()
   return {
     month: String(now.getMonth() + 1).padStart(2, '0'),
     year: String(now.getFullYear()),
   }
-}
-
-function parseDDMMYYYY(dateStr: string): Date | null {
-  const parts = dateStr.split('/')
-  if (parts.length !== 3) return null
-  const [dd, mm, yyyy] = parts
-  if (!dd || !mm || !yyyy) return null
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd))
-}
-
-function fmtShortDate(dateStr: string): string {
-  const parts = dateStr.split('/')
-  if (parts.length !== 3) return dateStr
-  return `${parts[0]}/${parts[1]}`
 }
 
 // ── Keyword query classifier ─────────────────────────────────────────────────
@@ -179,10 +158,6 @@ function filterByDateRange(txs: Transaction[], start: string, end: string): Tran
     const d = parseDDMMYYYY(tx.date)
     return d !== null && d >= startDate && d <= endDate
   })
-}
-
-function fmtSGD(cents: number): string {
-  return `S$${(cents / 100).toFixed(2)}`
 }
 
 function buildSummaryReply(txs: Transaction[], start: string, end: string): string {

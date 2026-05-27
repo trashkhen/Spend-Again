@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { emojiFor } from '@spend-again/shared'
 import type { ApiTransaction } from '../lib/api'
 
 const PAGE_SIZE = 20
@@ -14,22 +15,6 @@ type Props = {
   onDelete: (id: string) => Promise<void>
 }
 
-const CATEGORY_EMOJI: Record<string, string> = {
-  Food: '🍜',
-  Transport: '🚌',
-  Groceries: '🛒',
-  Shopping: '🛍️',
-  Entertainment: '🎬',
-  Health: '💊',
-  Education: '📚',
-  Travel: '✈️',
-  Utilities: '💡',
-  Finance: '💳',
-  Housing: '🏠',
-  Income: '💰',
-  Other: '📦',
-}
-
 const CATEGORY_COLOR: Record<string, string> = {
   Food: 'rgba(99,102,241,0.10)',
   Transport: 'rgba(245,158,11,0.10)',
@@ -42,7 +27,6 @@ const CATEGORY_COLOR: Record<string, string> = {
   Utilities: 'rgba(249,115,22,0.10)',
   Finance: 'rgba(91,142,197,0.10)',
   Housing: 'rgba(132,204,22,0.10)',
-  Income: 'rgba(34,197,94,0.10)',
   Other: 'rgba(148,163,184,0.10)',
 }
 
@@ -58,10 +42,6 @@ function formatDate(date: string): string {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const monthName = months[(parseInt(m ?? '1', 10) - 1)] ?? m
   return `${parseInt(d ?? '1', 10)} ${monthName} ${y}`
-}
-
-function isIncome(category: string): boolean {
-  return category.toLowerCase() === 'income'
 }
 
 function parseTransactionDate(date: string): Date {
@@ -146,10 +126,9 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
 
       <ul className="tx-list" role="list">
         {sliced.map((tx) => {
-          const income = isIncome(tx.category)
           const isConfirmingDelete = confirmDeleteId === tx.id
           const isDeleting = deletingId === tx.id
-          const emoji = CATEGORY_EMOJI[tx.category] ?? '📦'
+          const emoji = emojiFor(tx.category)
           const iconBg = CATEGORY_COLOR[tx.category] ?? 'rgba(148,163,184,0.10)'
 
           return (
@@ -169,8 +148,8 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
               </div>
 
               <div className="tx-row-right">
-                <span className={`tx-amount${income ? ' tx-amount--income' : ''}`}>
-                  {income ? '+' : ''}{formatAmount(tx.amount)}
+                <span className="tx-amount">
+                  {formatAmount(tx.amount)}
                 </span>
 
                 {isConfirmingDelete ? (

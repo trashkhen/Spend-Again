@@ -9,22 +9,11 @@ import {
   MSG_RECEIPT_SAVE_TOTAL_FAILURE,
   MSG_RECEIPT_CANCELLED,
   MSG_RECEIPT_NO_PENDING,
+  getTodayDDMMYYYY,
 } from '@spend-again/shared'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { pendingReceiptResults } from './receipt.js'
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getTodayDDMMYYYY(): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(now.getFullYear())
-  return `${dd}/${mm}/${yyyy}`
-}
 
 // ---------------------------------------------------------------------------
 // Main callback query handler

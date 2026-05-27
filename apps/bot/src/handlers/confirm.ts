@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { Context } from 'grammy'
-import { createLogger } from '@spend-again/shared'
+import { createLogger, getTodayDDMMYYYY } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import {
   DEFAULT_CATEGORY,
@@ -59,14 +59,6 @@ function makeLearnId(): string {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function getTodayDDMMYYYY(): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(now.getFullYear())
-  return `${dd}/${mm}/${yyyy}`
-}
 
 async function checkAndSendBudgetAlert(ctx: Context, telegramId: number, userId: string): Promise<void> {
   try {

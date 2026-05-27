@@ -1,23 +1,6 @@
-import { SG_ITEM_MAP } from '@spend-again/shared'
+import { SG_ITEM_MAP, parseCents } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
-
-// ---------------------------------------------------------------------------
-// Amount helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Convert a decimal-string dollar amount (e.g. "25.00", "8.5") to integer cents.
- */
-function parseCents(raw: string): number {
-  const dotIndex = raw.indexOf('.')
-  if (dotIndex === -1) {
-    return parseInt(raw, 10) * 100
-  }
-  const intPart = raw.slice(0, dotIndex)
-  const decPart = raw.slice(dotIndex + 1).padEnd(2, '0').slice(0, 2)
-  return parseInt(intPart, 10) * 100 + parseInt(decPart, 10)
-}
 
 // ---------------------------------------------------------------------------
 // SG_ITEM_MAP lookup

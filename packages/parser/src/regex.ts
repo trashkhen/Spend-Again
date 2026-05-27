@@ -1,4 +1,4 @@
-import { SG_ITEM_MAP } from '@spend-again/shared'
+import { SG_ITEM_MAP, getTodayDDMMYYYY, getYesterdayDDMMYYYY } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 
 export type ParseResult = {
@@ -28,23 +28,6 @@ const TODAY_REGEX = /\btoday\b/i
 
 // Prepositions/connectors to strip when extracting item text
 const LEADING_PREPOSITIONS = /^(?:for|on|at|from)\s+/i
-
-function getTodayDDMMYYYY(): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(now.getFullYear())
-  return `${dd}/${mm}/${yyyy}`
-}
-
-function getYesterdayDDMMYYYY(): string {
-  const now = new Date()
-  now.setDate(now.getDate() - 1)
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(now.getFullYear())
-  return `${dd}/${mm}/${yyyy}`
-}
 
 function parseCentsFromMatch(raw: string): number {
   const dotIndex = raw.indexOf('.')

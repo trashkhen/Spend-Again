@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/generative-ai'
-import { CATEGORY_MAP, GEMINI_MODEL, GEMINI_RPM_LIMIT, createLogger, GeminiRateLimitError } from '@spend-again/shared'
+import { CATEGORY_MAP, GEMINI_MODEL, GEMINI_RPM_LIMIT, createLogger, GeminiRateLimitError, getTodayDDMMYYYY, getYesterdayDDMMYYYY } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
 
@@ -113,27 +113,6 @@ Now parse this input:
 "${input}"
 
 Respond with ONLY the JSON object.`
-}
-
-// ---------------------------------------------------------------------------
-// Date helpers
-// ---------------------------------------------------------------------------
-
-function getTodayDDMMYYYY(): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(now.getFullYear())
-  return `${dd}/${mm}/${yyyy}`
-}
-
-function getYesterdayDDMMYYYY(): string {
-  const now = new Date()
-  now.setDate(now.getDate() - 1)
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(now.getFullYear())
-  return `${dd}/${mm}/${yyyy}`
 }
 
 // ---------------------------------------------------------------------------
