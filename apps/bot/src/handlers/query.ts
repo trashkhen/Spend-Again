@@ -10,6 +10,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { Context } from 'grammy'
 import { GEMINI_MODEL, createLogger } from '@spend-again/shared'
 import type { Transaction } from '@spend-again/shared'
+import { waitForGeminiRpmBudget } from '@spend-again/parser'
 import { tokenStore, userIdStore, apiClient } from '../lib/api-client.js'
 
 const log = createLogger('bot:query')
@@ -150,6 +151,7 @@ async function parseQueryWithGemini(text: string): Promise<GeminiQueryIntent | n
     `Return ONLY the JSON object, no markdown, no explanation.`
 
   try {
+    await waitForGeminiRpmBudget()
     const client = new GoogleGenerativeAI(apiKey)
     const model = client.getGenerativeModel({ model: GEMINI_MODEL })
     const result = await model.generateContent(prompt)

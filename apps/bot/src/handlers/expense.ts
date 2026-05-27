@@ -7,7 +7,7 @@ import {
   MSG_PARSE_FAILED,
   MSG_CONFIRM_PROMPT,
 } from '@spend-again/shared'
-import { tokenStore, loginViaTelegram } from '../lib/api-client.js'
+import { tokenStore, loginViaTelegram, apiClient } from '../lib/api-client.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 
 // ── Category → emoji mapping ───────────────────────────────────────────────────
@@ -114,10 +114,13 @@ export async function expenseHandler(ctx: Context): Promise<void> {
     return
   }
 
+  // Set token on API client so getLearnedMapping can authenticate
+  apiClient.setToken(token)
+
   // Run the 3-tier parser
   let result: ParseResult | null
   try {
-    result = await parse(text)
+    result = await parse(text, { lookupItem: (name) => apiClient.getLearnedMapping(name) })
   } catch (err) {
     if (err instanceof GeminiRateLimitError) {
       await ctx.reply(

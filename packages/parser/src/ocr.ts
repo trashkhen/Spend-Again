@@ -2,6 +2,7 @@ import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/genera
 import { CATEGORY_MAP, GEMINI_MODEL, OcrRateLimitError } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
+import { waitForGeminiRpmBudget } from './gemini.js'
 
 // ---------------------------------------------------------------------------
 // OCR-specific result types
@@ -214,6 +215,8 @@ export async function parseReceiptWithOcr(
   const model = client.getGenerativeModel({ model: GEMINI_MODEL })
 
   const prompt = buildOcrPrompt()
+
+  await waitForGeminiRpmBudget()
 
   let rawText: string
   try {

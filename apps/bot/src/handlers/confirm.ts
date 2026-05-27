@@ -1,6 +1,5 @@
 import { randomBytes } from 'node:crypto'
 import type { Context } from 'grammy'
-import { saveMapping } from '@spend-again/parser'
 import { createLogger } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import {
@@ -43,6 +42,7 @@ type PendingLearn = {
   category: Category
   subCategory: SubCategory
   createdAt: number
+  telegramId: number
 }
 export const pendingLearnPrompts = new Map<string, PendingLearn>()
 const PENDING_LEARN_TTL_MS = 10 * 60 * 1000
@@ -192,6 +192,7 @@ async function handleConfirmYes(
         category,
         subCategory,
         createdAt: now,
+        telegramId,
       })
       await ctx.reply(MSG_LEARN_PROMPT(result.item, category, subCategory), {
         reply_markup: {
@@ -250,8 +251,17 @@ export async function learnHandler(ctx: Context): Promise<void> {
       return
     }
 
+    const token = tokenStore.get(pending.telegramId)
+    if (!token) {
+      const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
+      await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+      return
+    }
+    apiClient.setToken(token)
+
     try {
-      await saveMapping(pending.item, pending.category, pending.subCategory, 'user')
+      const ok = await apiClient.saveLearnedMapping(pending.item, pending.category, pending.subCategory)
+      if (!ok) throw new Error('save failed')
       await ctx.editMessageText(MSG_LEARN_SAVED(pending.item, pending.category, pending.subCategory))
     } catch {
       await ctx.editMessageText(MSG_LEARN_FAILED)
