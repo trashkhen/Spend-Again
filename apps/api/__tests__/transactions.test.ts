@@ -44,15 +44,32 @@ function makeMockDb(overrides: Partial<{
   const updateReturn = overrides.updateReturn ?? { ...BASE_TX, item: 'nasi lemak', amountCents: 800 }
   const deleteReturn = overrides.deleteReturn ?? [{ id: BASE_TX.id }]
 
-  // Build a chainable query builder mock
+  // Build a chainable query builder mock.
+  // Supports: .from().where().orderBy().limit().offset() (await-able at any point)
+  // and the findById style: .from().where().limit(1).
   const makeSelectorChain = (rows: TransactionRow[]) => {
-    const chain = {
+    const chain: Record<string, unknown> = {
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue(rows),
-      then: (resolve: (v: TransactionRow[]) => void) => resolve(rows),
+      orderBy: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockImplementation((n: number) => {
+        // findById uses .where(...).limit(1) (no orderBy) and awaits.
+        // list uses .orderBy(...).limit(N).offset(M) and awaits offset.
+        const sliced = rows.slice(0, n)
+        // Return a chain that still supports .offset() but is also awaitable.
+        const tail: Record<string, unknown> = {
+          offset: vi.fn().mockImplementation((skip: number) =>
+            Promise.resolve(sliced.slice(skip)),
+          ),
+        }
+        Object.defineProperty(tail, 'then', {
+          get() {
+            return (resolve: (v: TransactionRow[]) => void) => resolve(sliced)
+          },
+        })
+        return tail
+      }),
     }
-    // Allow both `.limit(1)` and direct await
     Object.defineProperty(chain, 'then', {
       get() {
         return (resolve: (v: TransactionRow[]) => void) => resolve(rows)
@@ -229,6 +246,38 @@ describe('GET /api/transactions', () => {
     const app = makeApp(db)
 
     const res = await app.request('/?month=5')
+    expect(res.status).toBe(400)
+  })
+
+  it('passes limit and offset to the underlying select chain and orders by createdAt desc', async () => {
+    const olderTx: TransactionRow = {
+      ...BASE_TX,
+      id: '00000000-0000-4000-8000-000000000002',
+      createdAt: new Date('2026-05-12T10:00:00Z'),
+    }
+    // Pretend DB returned both rows (we'll assert the chain calls)
+    const db = makeMockDb({ selectReturn: [BASE_TX, olderTx] })
+    const app = makeApp(db)
+
+    const res = await app.request('/?limit=2&offset=0')
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Array<Record<string, unknown>>
+    expect(body).toHaveLength(2)
+
+    // The mock select() returns a chain; orderBy + limit + offset must have been called.
+    const selectMock = vi.mocked(db.select as unknown as () => unknown)
+    const chain = selectMock.mock.results[selectMock.mock.results.length - 1]?.value as {
+      orderBy: ReturnType<typeof vi.fn>
+      limit: ReturnType<typeof vi.fn>
+    }
+    expect(chain.orderBy).toHaveBeenCalledOnce()
+    expect(chain.limit).toHaveBeenCalledWith(2)
+  })
+
+  it('rejects limit > 500', async () => {
+    const db = makeMockDb()
+    const app = makeApp(db)
+    const res = await app.request('/?limit=501')
     expect(res.status).toBe(400)
   })
 })

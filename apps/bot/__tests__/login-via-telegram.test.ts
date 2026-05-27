@@ -11,21 +11,16 @@ const FROM = { id: 123456789, first_name: 'Tester', username: 'tester' }
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('loginViaTelegram', () => {
-  const originalBotToken = process.env['BOT_TOKEN']
-
+  // BOT_TOKEN is now captured at module load by apps/bot/src/lib/env.ts. The
+  // vitest setup file provides a default so import succeeds; we only need to
+  // reset stores between tests.
   beforeEach(() => {
-    process.env['BOT_TOKEN'] = 'test-bot-token:ABCDEF'
     tokenStore.clear()
     userIdStore.clear()
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
-    if (originalBotToken !== undefined) {
-      process.env['BOT_TOKEN'] = originalBotToken
-    } else {
-      delete process.env['BOT_TOKEN']
-    }
   })
 
   it('returns token and userId, and populates stores on success', async () => {
@@ -88,11 +83,7 @@ describe('loginViaTelegram', () => {
     expect(result).toBeNull()
   })
 
-  it('returns null when BOT_TOKEN is not set', async () => {
-    delete process.env['BOT_TOKEN']
-
-    const result = await loginViaTelegram(FROM, TEST_API_URL)
-
-    expect(result).toBeNull()
-  })
+  // Note: BOT_TOKEN is now validated at module load via apps/bot/src/lib/env.ts,
+  // so there is no runtime "BOT_TOKEN missing" branch left to test. The bot
+  // process would fail to start instead.
 })

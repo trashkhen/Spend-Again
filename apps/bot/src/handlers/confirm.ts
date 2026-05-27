@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import type { Context } from 'grammy'
 import { saveMapping } from '@spend-again/parser'
 import { createLogger } from '@spend-again/shared'
@@ -26,6 +27,36 @@ const log = createLogger('bot:confirm')
 
 // Tracks which month a budget alert was already sent for each user (MM/YYYY)
 const budgetAlertSentStore = new Map<number, string>()
+
+// ── Pending "learn this mapping" prompts ──────────────────────────────────────
+//
+// Telegram caps inline-keyboard callback_data at 64 bytes. Previously the bot
+// jammed item/category/subCategory into the callback string, which broke when
+// any field had non-ASCII characters or just exceeded the budget. Now we stash
+// the trio in-memory keyed by a short random id and put only `learn_yes|<id>`
+// on the wire (~22 bytes total, well under the limit).
+//
+// TTL eviction (10 min) prevents stale prompts from accumulating if a user
+// never taps a button.
+type PendingLearn = {
+  item: string
+  category: Category
+  subCategory: SubCategory
+  createdAt: number
+}
+export const pendingLearnPrompts = new Map<string, PendingLearn>()
+const PENDING_LEARN_TTL_MS = 10 * 60 * 1000
+
+function evictStaleLearnPrompts(now: number): void {
+  for (const [id, entry] of pendingLearnPrompts) {
+    if (now - entry.createdAt > PENDING_LEARN_TTL_MS) pendingLearnPrompts.delete(id)
+  }
+}
+
+function makeLearnId(): string {
+  // 6 bytes → 12 hex chars; collision-resistant for the volume we ever hold.
+  return randomBytes(6).toString('hex')
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -153,14 +184,20 @@ async function handleConfirmYes(
 
     // Tier 3 results (Gemini-resolved) — offer to remember the mapping
     if (result.tier === 3) {
+      const now = Date.now()
+      evictStaleLearnPrompts(now)
+      const learnId = makeLearnId()
+      pendingLearnPrompts.set(learnId, {
+        item: result.item,
+        category,
+        subCategory,
+        createdAt: now,
+      })
       await ctx.reply(MSG_LEARN_PROMPT(result.item, category, subCategory), {
         reply_markup: {
           inline_keyboard: [
             [
-              {
-                text: 'Yes, remember it \u{1F9E0}',
-                callback_data: `learn_yes|${encodeURIComponent(result.item)}|${category}|${subCategory}`,
-              },
+              { text: 'Yes, remember it \u{1F9E0}', callback_data: `learn_yes|${learnId}` },
               { text: 'No thanks', callback_data: 'learn_no' },
             ],
           ],
@@ -203,19 +240,19 @@ export async function learnHandler(ctx: Context): Promise<void> {
   }
 
   if (callbackData.startsWith('learn_yes|')) {
-    const parts = callbackData.split('|')
-    const itemName = decodeURIComponent(parts[1] ?? '')
-    const category = (parts[2] ?? DEFAULT_CATEGORY) as Category
-    const subCategory = (parts[3] ?? DEFAULT_SUB_CATEGORY) as SubCategory
+    const id = callbackData.slice('learn_yes|'.length)
+    const pending = pendingLearnPrompts.get(id)
+    pendingLearnPrompts.delete(id)
 
-    if (itemName.length === 0) {
+    if (pending === undefined) {
+      // Expired (>10 min), bot restarted, or duplicate tap.
       await ctx.editMessageText(MSG_LEARN_ITEM_MISSING)
       return
     }
 
     try {
-      await saveMapping(itemName, category, subCategory, 'user')
-      await ctx.editMessageText(MSG_LEARN_SAVED(itemName, category, subCategory))
+      await saveMapping(pending.item, pending.category, pending.subCategory, 'user')
+      await ctx.editMessageText(MSG_LEARN_SAVED(pending.item, pending.category, pending.subCategory))
     } catch {
       await ctx.editMessageText(MSG_LEARN_FAILED)
     }

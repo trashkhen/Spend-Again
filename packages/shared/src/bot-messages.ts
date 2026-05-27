@@ -141,9 +141,6 @@ export const MSG_RECEIPT_ERROR = (reason: string): string =>
   `Aiyah, cannot read the receipt: ${reason}. \u{1F615}\n` +
   `Please try a clearer photo or enter the expense manually lor.`
 
-export const MSG_RECEIPT_BOT_NOT_CONFIGURED =
-  `Bot not configured correctly leh. Please contact support! \u{1F64F}`
-
 /** Header shown above the multi-item receipt summary. */
 export const MSG_RECEIPT_MULTI_HEADER = `\u{1F4C4} Receipt detected! These are the items lah:`
 

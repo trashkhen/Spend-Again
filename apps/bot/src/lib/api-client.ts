@@ -1,6 +1,7 @@
 import { createHmac, createHash } from 'node:crypto'
-import { createLogger } from '@spend-again/shared'
+import { createLogger, requireEnv } from '@spend-again/shared'
 import type { Category, SubCategory, Transaction } from '@spend-again/shared'
+import { BOT_TOKEN } from './env.js'
 
 const log = createLogger('bot:api-client')
 
@@ -108,11 +109,12 @@ type TelegramUser = {
  */
 export async function loginViaTelegram(
   from: TelegramUser,
-  apiUrl: string = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app',
+  apiUrl?: string,
 ): Promise<{ token: string; userId: string } | null> {
-  apiUrl = normalizeUrl(apiUrl)
-  const botToken = process.env['BOT_TOKEN'] ?? ''
-  if (!botToken) return null
+  // Resolve API_URL lazily so tests that don't exercise this codepath don't
+  // need it set, while production callers still hard-fail at first use.
+  const resolved = normalizeUrl(apiUrl ?? requireEnv('API_URL'))
+  apiUrl = resolved
 
   const authDate = Math.floor(Date.now() / 1000)
 
@@ -129,7 +131,7 @@ export async function loginViaTelegram(
     .map((k) => `${k}=${fields[k]}`)
     .join('\n')
 
-  const secret = createHash('sha256').update(botToken).digest()
+  const secret = createHash('sha256').update(BOT_TOKEN).digest()
   const hash = createHmac('sha256', secret).update(dataCheckString).digest('hex')
 
   try {
@@ -278,7 +280,9 @@ export class ApiClient {
    * Returns all transactions for the user (no date filter), or empty array on failure.
    */
   async getAllTransactions(userId: string): Promise<Transaction[]> {
-    return this.getRecentTransactions(userId, 10000)
+    // Capped at 500 to match the API's new max page size. If callers need more,
+    // they should paginate. The previous 10000 was silently truncated server-side.
+    return this.getRecentTransactions(userId, 500)
   }
 
   /**
@@ -407,6 +411,32 @@ export class ApiClient {
 }
 
 // ── Singleton instance ────────────────────────────────────────────────────────
+//
+// This Proxy exists to defer `requireEnv('API_URL')` until the first method
+// call on `apiClient`. Without it, importing this module would throw at load
+// time, which breaks unit tests that exercise unrelated exports (e.g.
+// `loginViaTelegram`, `tokenStore`) without configuring `API_URL`. Production
+// code still hard-fails the moment it makes its first API request.
+//
+// Constraints (intentional, documented tech-debt):
+//   - Methods are forwarded and bound to the underlying ApiClient instance,
+//     so `apiClient.someMethod(...)` works as expected.
+//   - Direct property assignment (e.g. `apiClient.foo = bar`) is NOT supported
+//     — the Proxy only implements `get`. Such writes are silently dropped
+//     onto the empty target object.
+//   - `instanceof ApiClient` against the Proxy is NOT supported. Use the
+//     underlying instance if you need that.
+// no property assignments
 
-const API_URL = normalizeUrl(process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app')
-export const apiClient = new ApiClient(API_URL)
+function buildApiClient(): ApiClient {
+  return new ApiClient(normalizeUrl(requireEnv('API_URL')))
+}
+
+let _apiClient: ApiClient | undefined
+export const apiClient: ApiClient = new Proxy({} as ApiClient, {
+  get(_target, prop, receiver) {
+    if (_apiClient === undefined) _apiClient = buildApiClient()
+    const value = Reflect.get(_apiClient, prop, receiver)
+    return typeof value === 'function' ? value.bind(_apiClient) : value
+  },
+})

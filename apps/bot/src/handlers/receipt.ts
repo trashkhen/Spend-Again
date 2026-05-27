@@ -12,11 +12,12 @@ import {
   MSG_RECEIPT_RATE_LIMIT,
   MSG_RECEIPT_PARSE_FAILED,
   MSG_RECEIPT_ERROR,
-  MSG_RECEIPT_BOT_NOT_CONFIGURED,
   MSG_RECEIPT_MULTI_HEADER,
   MSG_RECEIPT_SAVE_PROMPT,
+  OcrRateLimitError,
 } from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
+import { BOT_TOKEN } from '../lib/env.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 import { buildConfirmationMessage, pendingConfirmations } from './expense.js'
 
@@ -139,12 +140,6 @@ export async function receiptHandler(ctx: Context): Promise<void> {
     return
   }
 
-  const botToken = process.env['BOT_TOKEN']
-  if (botToken === undefined) {
-    await ctx.reply(MSG_RECEIPT_BOT_NOT_CONFIGURED)
-    return
-  }
-
   // ── Determine photo to use ──────────────────────────────────────────────────
   // Telegram sends compressed photos as `message.photo` (array of sizes).
   // Uncompressed documents (e.g. "Send as file") come as `message.document`.
@@ -198,7 +193,7 @@ export async function receiptHandler(ctx: Context): Promise<void> {
 
   // ── Download and OCR ───────────────────────────────────────────────────────
 
-  const imageData = await downloadTelegramFile(fileId, botToken)
+  const imageData = await downloadTelegramFile(fileId, BOT_TOKEN)
   if (imageData === null) {
     await ctx.reply(MSG_RECEIPT_DOWNLOAD_FAILED)
     return
@@ -215,9 +210,7 @@ export async function receiptHandler(ctx: Context): Promise<void> {
     ocrResult = await parseReceiptWithOcr(imageData, mimeType)
   } catch (err) {
     const errorMessage =
-      err instanceof Error && err.name === 'OcrRateLimitError'
-        ? MSG_RECEIPT_RATE_LIMIT
-        : MSG_RECEIPT_PARSE_FAILED
+      err instanceof OcrRateLimitError ? MSG_RECEIPT_RATE_LIMIT : MSG_RECEIPT_PARSE_FAILED
     await ctx.reply(errorMessage)
     return
   }

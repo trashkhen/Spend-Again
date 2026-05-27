@@ -1,27 +1,21 @@
 import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/generative-ai'
-import { CATEGORY_MAP, GEMINI_MODEL, GEMINI_RPM_LIMIT, createLogger } from '@spend-again/shared'
+import { CATEGORY_MAP, GEMINI_MODEL, GEMINI_RPM_LIMIT, createLogger, GeminiRateLimitError } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
 
 const log = createLogger('parser:gemini')
 
-// ---------------------------------------------------------------------------
-// Typed error for rate-limit responses
-// ---------------------------------------------------------------------------
-
-export class GeminiRateLimitError extends Error {
-  constructor() {
-    super('Gemini rate limit exceeded (15 RPM)')
-    this.name = 'GeminiRateLimitError'
-  }
-}
+// Re-export so existing imports from '@spend-again/parser' keep working.
+// (The canonical class lives in @spend-again/shared so it can be thrown and
+// caught across the API/bot/parser boundary without duplication.)
+export { GeminiRateLimitError }
 
 // ---------------------------------------------------------------------------
-// Rate-limit queue — exported utility for callers to enforce 15 RPM cap
+// Rate-limit queue — enforce the Gemini free-tier RPM cap (GEMINI_RPM_LIMIT)
 // ---------------------------------------------------------------------------
 
 /**
- * Simple sliding-window rate-limit queue for the Gemini free tier (15 RPM).
+ * Simple sliding-window rate-limit queue for the Gemini free tier.
  *
  * Callers (e.g. the parse() orchestrator) can call `waitForGeminiRpmBudget()`
  * before invoking `parseWithGemini` to avoid hitting the quota. This is kept
@@ -32,7 +26,7 @@ const _rpmTimestamps: number[] = []
 const _MAX_RPM = GEMINI_RPM_LIMIT
 
 /**
- * Wait until there is available capacity in the 15 RPM budget.
+ * Wait until there is available capacity in the GEMINI_RPM_LIMIT budget.
  * Call this before each `parseWithGemini` invocation in production code.
  */
 export async function waitForGeminiRpmBudget(): Promise<void> {
@@ -102,7 +96,7 @@ SINGAPORE CONTEXT:
 - Grab / GoJek rides → Transport / Grab or Transport / Gojek
 - MRT / bus / EZ-Link → Transport / MRT/Bus
 - Guardian, Watsons → Health / Pharmacy
-- Popular, MPH bookstore → Education / Books
+- Popular, MPH bookstore → Shopping / Books
 - Lazada, Shopee → Shopping / Online Shopping
 
 EXAMPLES:

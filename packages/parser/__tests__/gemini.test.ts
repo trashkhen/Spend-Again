@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CATEGORY_MAP } from '@spend-again/shared'
+import { CATEGORY_MAP, GEMINI_RPM_LIMIT } from '@spend-again/shared'
 
 // ---------------------------------------------------------------------------
 // Mock @google/generative-ai BEFORE importing the module under test.
@@ -283,7 +283,9 @@ describe('parseWithGemini', () => {
     const rateLimitErr = new GoogleGenerativeAIFetchError('Too Many Requests', 429, 'Too Many Requests')
     mockGenerateContent.mockRejectedValueOnce(rateLimitErr)
 
-    await expect(parseWithGemini('test input')).rejects.toThrow('Gemini rate limit exceeded (15 RPM)')
+    await expect(parseWithGemini('test input')).rejects.toThrow(
+      `Gemini rate limit exceeded (${GEMINI_RPM_LIMIT} RPM)`,
+    )
   })
 
   it('rethrows non-429/503 errors as-is', async () => {

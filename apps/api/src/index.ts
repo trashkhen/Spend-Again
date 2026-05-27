@@ -44,20 +44,29 @@ app.use(
 // ── Global error handler ──────────────────────────────────────────────────────
 app.onError(globalErrorHandler)
 
-// ── Rate limiting on all API routes ──────────────────────────────────────────
-// Applied after auth middleware so userId is available for per-user limits.
-// The health endpoint is intentionally excluded (it's public and cheap).
-app.use('/api/*', rateLimitMiddleware)
-
 // ── Routes ────────────────────────────────────────────────────────────────────
+// Middleware ordering matters: requireAuth runs BEFORE rateLimitMiddleware so
+// the per-user limiter sees c.get('userId'). Without this, anonymous requests
+// share a single IP-keyed bucket and one user can starve another.
+
+// Public routes
 app.route('/', healthRouter)
-app.use('/api/transactions', requireAuth)
-app.use('/api/transactions/*', requireAuth)
-app.route('/api/transactions', createTransactionsRouter(db))
-app.use('/api/analytics', requireAuth)
-app.use('/api/analytics/*', requireAuth)
+
+// /api/auth is unauthenticated by definition; rate-limit by IP only.
+app.use('/api/auth/*', rateLimitMiddleware)
 app.route('/api/auth', createAuthRouter(db))
+
+// Authenticated routes — auth first, then per-user rate limit.
+app.use('/api/transactions', requireAuth, rateLimitMiddleware)
+app.use('/api/transactions/*', requireAuth, rateLimitMiddleware)
+app.route('/api/transactions', createTransactionsRouter(db))
+
+app.use('/api/analytics', requireAuth, rateLimitMiddleware)
+app.use('/api/analytics/*', requireAuth, rateLimitMiddleware)
 app.route('/api/analytics', createAnalyticsRouter(db))
+
+app.use('/api/users', requireAuth, rateLimitMiddleware)
+app.use('/api/users/*', requireAuth, rateLimitMiddleware)
 app.route('/api/users', createUsersRouter(db))
 
 const port = Number(process.env['PORT'] ?? 3001)

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { isAuthenticated } from '../lib/auth'
 
 const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'spend_again_bot'
@@ -6,9 +6,10 @@ const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'spend_again_bot'
 export function Welcome() {
   const navigate = useNavigate()
 
+  // Render-time navigation via the imperative navigate() is illegal in React
+  // (sets parent state during a child's render). Use <Navigate> instead.
   if (!isAuthenticated()) {
-    navigate('/login', { replace: true })
-    return null
+    return <Navigate to="/login" replace />
   }
 
   return (

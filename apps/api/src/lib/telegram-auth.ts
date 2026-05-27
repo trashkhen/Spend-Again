@@ -1,6 +1,9 @@
 import { createHmac, createHash, timingSafeEqual } from 'node:crypto'
+import { requireEnv } from '@spend-again/shared'
 
 const AUTH_EXPIRY_SECONDS = 24 * 60 * 60 // 24 hours
+
+const BOT_TOKEN = requireEnv('BOT_TOKEN')
 
 /**
  * Validates Telegram Login Widget data according to Telegram's spec:
@@ -14,9 +17,6 @@ const AUTH_EXPIRY_SECONDS = 24 * 60 * 60 // 24 hours
  * 5. Verify auth_date is within 24 hours
  */
 export function verifyTelegramAuth(data: Record<string, string>): boolean {
-  const botToken = process.env['BOT_TOKEN'] ?? ''
-  if (!botToken) return false
-
   const { hash, ...rest } = data
 
   if (!hash) return false
@@ -28,7 +28,7 @@ export function verifyTelegramAuth(data: Record<string, string>): boolean {
     .join('\n')
 
   // Step 2: HMAC-SHA256 using SHA256(bot_token) as key
-  const secretKey = createHash('sha256').update(botToken).digest()
+  const secretKey = createHash('sha256').update(BOT_TOKEN).digest()
   const computedHmac = createHmac('sha256', secretKey).update(dataCheckString).digest('hex')
 
   // Step 3: Constant-time comparison to prevent timing attacks
