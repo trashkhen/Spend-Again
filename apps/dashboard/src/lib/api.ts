@@ -109,6 +109,23 @@ export async function deleteTransaction(id: string): Promise<void> {
   await apiFetch<{ success: boolean }>(`/api/transactions/${id}`, { method: 'DELETE' })
 }
 
+// ── Custom categories endpoints ────────────────────────────────────────────────
+
+export async function listCustomCategories(): Promise<CustomCategory[]> {
+  return apiFetch<CustomCategory[]>('/api/users/custom-categories')
+}
+
+export async function createCustomCategory(input: { category: string; subCategory: string }): Promise<CustomCategory> {
+  return apiFetch<CustomCategory>('/api/users/custom-categories', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function deleteCustomCategory(id: string): Promise<void> {
+  await apiFetch<{ success: boolean }>(`/api/users/custom-categories/${id}`, { method: 'DELETE' })
+}
+
 // ── Budget endpoints ───────────────────────────────────────────────────────────
 
 export async function getBudget(): Promise<BudgetSettings> {

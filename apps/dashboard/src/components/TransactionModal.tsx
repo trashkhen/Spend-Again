@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { CATEGORIES, CATEGORY_MAP } from '@spend-again/shared'
-import type { Category } from '@spend-again/shared'
+import type { Category, CustomCategory } from '@spend-again/shared'
 import type { ApiTransaction } from '../lib/api'
+import { listCustomCategories, createCustomCategory } from '../lib/api'
 
 export type TransactionFormData = {
   item: string
@@ -62,19 +63,30 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Custom categories/sub-categories added this session
-  const [customCategories, setCustomCategories] = useState<string[]>([])
-  const [customSubCategories, setCustomSubCategories] = useState<Record<string, string[]>>({})
+  // Server-backed custom categories
+  const [serverCustoms, setServerCustoms] = useState<CustomCategory[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void listCustomCategories().then((data) => { if (!cancelled) setServerCustoms(data) })
+    return () => { cancelled = true }
+  }, [])
+
+  const customCategoryNames = Array.from(new Set(serverCustoms.map((c) => c.category)))
+    .filter((c) => !CATEGORIES.includes(c as Category))
+  const allCategories: string[] = [...CATEGORIES, ...customCategoryNames]
+
+  const customSubsForCategory = serverCustoms
+    .filter((c) => c.category === category)
+    .map((c) => c.subCategory)
+  const baseSubs: string[] = (CATEGORY_MAP[category as Category] ?? ['Other']) as string[]
+  const allSubCategories = Array.from(new Set([...baseSubs, ...customSubsForCategory]))
 
   // Drawer state
   const [drawerTarget, setDrawerTarget] = useState<DrawerTarget>(null)
   const [drawerVisible, setDrawerVisible] = useState(false)
   const [drawerInput, setDrawerInput] = useState('')
   const drawerInputRef = useRef<HTMLInputElement>(null)
-
-  const allCategories = [...CATEGORIES, ...customCategories]
-  const baseSubCategories = (CATEGORY_MAP[category as Category] ?? ['Other']) as string[]
-  const allSubCategories = [...baseSubCategories, ...(customSubCategories[category] ?? [])]
 
   // Animate drawer in after mount
   useEffect(() => {
@@ -96,28 +108,32 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
     setTimeout(() => setDrawerTarget(null), 350)
   }
 
-  function handleDrawerConfirm() {
+  async function handleDrawerConfirm() {
     const name = drawerInput.trim()
     if (!name) return
-
-    if (drawerTarget === 'category') {
-      setCustomCategories((prev) => [...prev, name])
-      setCategory(name)
-      setSubCategory('Other')
-    } else if (drawerTarget === 'subcategory') {
-      setCustomSubCategories((prev) => ({
-        ...prev,
-        [category]: [...(prev[category] ?? []), name],
-      }))
-      setSubCategory(name)
+    try {
+      if (drawerTarget === 'category') {
+        const created = await createCustomCategory({ category: name, subCategory: 'Other' })
+        setServerCustoms((prev) => [...prev, created])
+        setCategory(name)
+        setSubCategory('Other')
+      } else if (drawerTarget === 'subcategory') {
+        const created = await createCustomCategory({ category, subCategory: name })
+        setServerCustoms((prev) => [...prev, created])
+        setSubCategory(name)
+      }
+      closeDrawer()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add')
     }
-    closeDrawer()
   }
 
   function handleCategoryChange(cat: string) {
     setCategory(cat)
     const subs = (CATEGORY_MAP[cat as Category] ?? []) as string[]
-    const customSubs = customSubCategories[cat] ?? []
+    const customSubs = serverCustoms
+      .filter((c) => c.category === cat)
+      .map((c) => c.subCategory)
     setSubCategory(subs[0] ?? customSubs[0] ?? 'Other')
   }
 
@@ -292,13 +308,13 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
               placeholder={drawerTarget === 'category' ? 'e.g. Gifts' : 'e.g. Birthday'}
               value={drawerInput}
               onChange={(e) => setDrawerInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleDrawerConfirm() }}
+              onKeyDown={(e) => { if (e.key === 'Enter') void handleDrawerConfirm() }}
               maxLength={40}
             />
             <button
               type="button"
               className="drawer-confirm"
-              onClick={handleDrawerConfirm}
+              onClick={() => { void handleDrawerConfirm() }}
               disabled={!drawerInput.trim()}
             >
               Add
