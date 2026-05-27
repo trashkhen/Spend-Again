@@ -77,10 +77,12 @@ export class InternalError extends AppError {
 // AI / parsing errors
 // ---------------------------------------------------------------------------
 
+import { GEMINI_RPM_LIMIT } from './constants.js'
+
 /** Thrown when the Gemini API returns a 429 rate-limit response. */
 export class GeminiRateLimitError extends RateLimitError {
   constructor() {
-    super('Gemini rate limit exceeded (15 RPM)')
+    super(`Gemini rate limit exceeded (${GEMINI_RPM_LIMIT} RPM)`)
     this.name = 'GeminiRateLimitError'
   }
 }
@@ -88,7 +90,7 @@ export class GeminiRateLimitError extends RateLimitError {
 /** Thrown when the Gemini Vision OCR API returns a 429 response. */
 export class OcrRateLimitError extends RateLimitError {
   constructor() {
-    super('OCR rate limit exceeded')
+    super(`OCR rate limit exceeded (${GEMINI_RPM_LIMIT} RPM)`)
     this.name = 'OcrRateLimitError'
   }
 }

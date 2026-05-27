@@ -5,7 +5,8 @@ import { parseWithGemini } from './gemini.js'
 
 export type { ParseResult } from './regex.js'
 export { parseWithRegex } from './regex.js'
-export { parseWithGemini, GeminiRateLimitError, buildPrompt } from './gemini.js'
+export { parseWithGemini, buildPrompt } from './gemini.js'
+export { GeminiRateLimitError, OcrRateLimitError } from '@spend-again/shared'
 export { lookupItem, saveMapping } from './learned.js'
 
 /**

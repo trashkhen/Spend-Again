@@ -15,6 +15,7 @@ import {
   MSG_RECEIPT_BOT_NOT_CONFIGURED,
   MSG_RECEIPT_MULTI_HEADER,
   MSG_RECEIPT_SAVE_PROMPT,
+  OcrRateLimitError,
 } from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
@@ -215,9 +216,7 @@ export async function receiptHandler(ctx: Context): Promise<void> {
     ocrResult = await parseReceiptWithOcr(imageData, mimeType)
   } catch (err) {
     const errorMessage =
-      err instanceof Error && err.name === 'OcrRateLimitError'
-        ? MSG_RECEIPT_RATE_LIMIT
-        : MSG_RECEIPT_PARSE_FAILED
+      err instanceof OcrRateLimitError ? MSG_RECEIPT_RATE_LIMIT : MSG_RECEIPT_PARSE_FAILED
     await ctx.reply(errorMessage)
     return
   }

@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/generative-ai'
-import { CATEGORY_MAP, GEMINI_MODEL } from '@spend-again/shared'
+import { CATEGORY_MAP, GEMINI_MODEL, OcrRateLimitError } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
 
@@ -41,16 +41,9 @@ export type ReceiptErrorResult = {
 
 export type OcrResult = MultiItemReceiptResult | SimpleReceiptResult | ReceiptErrorResult
 
-// ---------------------------------------------------------------------------
-// Typed error for rate-limit responses
-// ---------------------------------------------------------------------------
-
-export class OcrRateLimitError extends Error {
-  constructor() {
-    super('Gemini Vision rate limit exceeded (15 RPM)')
-    this.name = 'OcrRateLimitError'
-  }
-}
+// Re-export the rate-limit error so existing parser callers keep working.
+// Canonical class lives in @spend-again/shared.
+export { OcrRateLimitError }
 
 // ---------------------------------------------------------------------------
 // Internal Gemini JSON shapes
