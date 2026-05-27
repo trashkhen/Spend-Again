@@ -1,5 +1,5 @@
 import { createHmac, createHash } from 'node:crypto'
-import { createLogger } from '@spend-again/shared'
+import { createLogger, requireEnv } from '@spend-again/shared'
 import type { Category, SubCategory, Transaction } from '@spend-again/shared'
 
 const log = createLogger('bot:api-client')
@@ -108,9 +108,12 @@ type TelegramUser = {
  */
 export async function loginViaTelegram(
   from: TelegramUser,
-  apiUrl: string = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app',
+  apiUrl?: string,
 ): Promise<{ token: string; userId: string } | null> {
-  apiUrl = normalizeUrl(apiUrl)
+  // Resolve API_URL lazily so tests that don't exercise this codepath don't
+  // need it set, while production callers still hard-fail at first use.
+  const resolved = normalizeUrl(apiUrl ?? requireEnv('API_URL'))
+  apiUrl = resolved
   const botToken = process.env['BOT_TOKEN'] ?? ''
   if (!botToken) return null
 
@@ -409,6 +412,21 @@ export class ApiClient {
 }
 
 // ── Singleton instance ────────────────────────────────────────────────────────
+//
+// API_URL is resolved lazily on first access via a Proxy. This keeps test code
+// (which mocks this module or imports specific exports) from triggering a
+// startup throw, while still hard-failing the moment production code makes
+// its first request.
 
-const API_URL = normalizeUrl(process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app')
-export const apiClient = new ApiClient(API_URL)
+function buildApiClient(): ApiClient {
+  return new ApiClient(normalizeUrl(requireEnv('API_URL')))
+}
+
+let _apiClient: ApiClient | undefined
+export const apiClient: ApiClient = new Proxy({} as ApiClient, {
+  get(_target, prop, receiver) {
+    if (_apiClient === undefined) _apiClient = buildApiClient()
+    const value = Reflect.get(_apiClient, prop, receiver)
+    return typeof value === 'function' ? value.bind(_apiClient) : value
+  },
+})

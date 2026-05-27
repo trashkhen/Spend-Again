@@ -20,6 +20,8 @@ const isProduction = process.env['NODE_ENV'] === 'production'
 // ── Dev mode: pre-register test user ────────────────────────────────────────
 // Set DEV_TELEGRAM_ID to your real Telegram user ID (numeric) to automatically
 // link all your bot messages to the test user, bypassing the login flow.
+// A localhost fallback is intentional here — production code paths read
+// API_URL via requireEnv (no defaults) and will throw if it's missing.
 const devTelegramId = process.env['DEV_TELEGRAM_ID']
 if (!isProduction && devTelegramId !== undefined) {
   const apiUrl = process.env['API_URL'] ?? 'http://localhost:3001'

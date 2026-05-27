@@ -1,5 +1,5 @@
 import { Bot, InlineKeyboard } from 'grammy'
-import { createLogger } from '@spend-again/shared'
+import { createLogger, requireEnv } from '@spend-again/shared'
 import { startHandler } from './handlers/start.js'
 import { helpHandler } from './handlers/help.js'
 import { expenseHandler } from './handlers/expense.js'
@@ -13,8 +13,7 @@ import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
 const log = createLogger('bot')
 
-const token = process.env['BOT_TOKEN']
-if (!token) throw new Error('BOT_TOKEN is required')
+const token = requireEnv('BOT_TOKEN')
 
 export const bot = new Bot(token)
 
@@ -46,7 +45,7 @@ bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 bot.hears('🌐 Bring me to Site', async (ctx) => {
   const from = ctx.from
   const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-  const apiUrl = process.env['API_URL'] ?? 'https://spend-againapi-production.up.railway.app'
+  const apiUrl = requireEnv('API_URL')
 
   if (from === undefined) {
     await ctx.reply(`Visit the dashboard: ${dashboardUrl}`)
