@@ -8,6 +8,7 @@ import { createAuthRouter } from './routes/auth.js'
 import { createAnalyticsRouter } from './routes/analytics.js'
 import { createUsersRouter } from './routes/users.js'
 import { createCustomCategoriesRouter } from './routes/custom-categories.js'
+import { createLearnedMappingsRouter } from './routes/learned-mappings.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { requireAuth } from './middleware/auth.js'
@@ -73,6 +74,10 @@ app.route('/api/users', createUsersRouter(db))
 app.use('/api/users/custom-categories/*', requireAuth, rateLimitMiddleware)
 app.use('/api/users/custom-categories', requireAuth, rateLimitMiddleware)
 app.route('/api/users/custom-categories', createCustomCategoriesRouter(db))
+
+app.use('/api/learned-mappings/*', requireAuth, rateLimitMiddleware)
+app.use('/api/learned-mappings', requireAuth, rateLimitMiddleware)
+app.route('/api/learned-mappings', createLearnedMappingsRouter(db))
 
 const port = Number(process.env['PORT'] ?? 3001)
 
