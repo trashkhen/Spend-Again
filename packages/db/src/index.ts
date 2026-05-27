@@ -3,6 +3,7 @@ export type { Database } from './client.js'
 export {
   learnedMappings,
   transactions,
+  userCustomCategories,
   users,
 } from './schema.js'
 export type {
@@ -10,8 +11,10 @@ export type {
   NewLearnedMapping,
   NewTransaction,
   NewUser,
+  NewUserCustomCategory,
   Transaction,
   User,
+  UserCustomCategory,
 } from './schema.js'
 export { findMapping, upsertMapping } from './queries/learned-mappings.js'
 export type { MappingResult } from './queries/learned-mappings.js'

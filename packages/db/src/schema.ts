@@ -1,9 +1,12 @@
 import {
+  date,
+  index,
   integer,
   numeric,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 
@@ -28,12 +31,16 @@ export const transactions = pgTable('transactions', {
   category: text('category').notNull(),
   subCategory: text('sub_category').notNull(),
   date: text('date').notNull(), // stored as DD/MM/YYYY
+  occurredOn: date('occurred_on', { mode: 'string' }).notNull(),
   source: text('source').notNull(), // manual/bot/sms/ocr
   tier: integer('tier'),
   confidence: numeric('confidence', { precision: 4, scale: 3 }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-})
+}, (table) => ({
+  userOccurredIdx: index('transactions_user_occurred_idx')
+    .on(table.userId, table.occurredOn),
+}))
 
 export const learnedMappings = pgTable('learned_mappings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -47,9 +54,21 @@ export const learnedMappings = pgTable('learned_mappings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const userCustomCategories = pgTable('user_custom_categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  category: text('category').notNull(),
+  subCategory: text('sub_category').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniq: uniqueIndex('user_custom_categories_unique').on(table.userId, table.category, table.subCategory),
+}))
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Transaction = typeof transactions.$inferSelect
 export type NewTransaction = typeof transactions.$inferInsert
 export type LearnedMapping = typeof learnedMappings.$inferSelect
 export type NewLearnedMapping = typeof learnedMappings.$inferInsert
+export type UserCustomCategory = typeof userCustomCategories.$inferSelect
+export type NewUserCustomCategory = typeof userCustomCategories.$inferInsert
