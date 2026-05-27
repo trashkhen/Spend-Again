@@ -140,6 +140,7 @@ describe('POST /api/users/custom-categories', () => {
     const body = await json(res)
     expect(body['category']).toBe('Food')
     expect(body['subCategory']).toBe('Hawker')
+    expect(body['userId']).toBeUndefined()
   })
 
   it('returns 409 on duplicate (same user, category, subCategory)', async () => {
@@ -182,6 +183,21 @@ describe('POST /api/users/custom-categories', () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ category: 'Food' }),
+    })
+
+    expect(res.status).toBe(400)
+    const body = await json(res)
+    expect(body['code']).toBe('VALIDATION_ERROR')
+  })
+
+  it('returns 400 for an invalid category value', async () => {
+    const db = makeMockDb()
+    const app = makeApp(db)
+
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: 'NotACategory', subCategory: 'Hawker' }),
     })
 
     expect(res.status).toBe(400)

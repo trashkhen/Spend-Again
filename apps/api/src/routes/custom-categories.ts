@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
 import { userCustomCategories } from '@spend-again/db'
+import { CATEGORIES } from '@spend-again/shared'
 import { validateBody } from '../middleware/validate.js'
 import type { DbClient } from '../lib/db.js'
 
@@ -14,7 +15,7 @@ type Env = {
 }
 
 const createSchema = z.object({
-  category: z.string().min(1).max(60),
+  category: z.enum(CATEGORIES as readonly [string, ...string[]]),
   subCategory: z.string().min(1).max(60),
 })
 
@@ -57,7 +58,7 @@ export function createCustomCategoriesRouter(db: DbClient): Hono<Env> {
 
       const row = rows[0]
       if (!row) return c.json({ error: 'Insert failed', code: 'INSERT_FAILED' }, 500)
-      return c.json(row, 201)
+      return c.json({ id: row.id, category: row.category, subCategory: row.subCategory, createdAt: row.createdAt }, 201)
     } catch (err) {
       if (err instanceof Error && err.message.includes('duplicate key')) {
         return c.json({ error: 'Already exists', code: 'CONFLICT' }, 409)
