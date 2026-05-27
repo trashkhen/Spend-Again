@@ -1,7 +1,10 @@
 import { SignJWT, jwtVerify } from 'jose'
+import { createLogger } from '@spend-again/shared'
+
+const log = createLogger('api:jwt')
 
 if (!process.env['JWT_SECRET']) {
-  console.warn('[jwt] JWT_SECRET is not set — using insecure dev fallback. Set JWT_SECRET in production.')
+  log.warn('JWT_SECRET is not set — using insecure dev fallback. Set JWT_SECRET in production.')
 }
 
 const secret = new TextEncoder().encode(

@@ -10,7 +10,9 @@
  */
 
 import type { Context } from 'hono'
-import { isAppError } from '@spend-again/shared'
+import { createLogger, isAppError } from '@spend-again/shared'
+
+const log = createLogger('api:error-handler')
 
 // ── Consistent error response shape ──────────────────────────────────────────
 
@@ -44,7 +46,7 @@ export function globalErrorHandler(err: Error, c: Context): Response {
 
   // Unknown error — log it but return a generic 500 to the client
   // (never expose internal details / stack traces)
-  console.error('[API] Unhandled error:', err)
+  log.error({ err }, 'Unhandled error')
 
   const body: ApiErrorResponse = {
     error: 'An unexpected error occurred',

@@ -1,8 +1,10 @@
 import { InlineKeyboard } from 'grammy'
 import type { CommandContext, Context } from 'grammy'
-import { MSG_WELCOME } from '@spend-again/shared'
+import { MSG_WELCOME, createLogger } from '@spend-again/shared'
 import { mainKeyboard } from '../keyboards/main.js'
 import { loginViaTelegram } from '../lib/api-client.js'
+
+const log = createLogger('bot:start')
 
 export async function startHandler(ctx: CommandContext<Context>): Promise<void> {
   const from = ctx.from
@@ -14,9 +16,9 @@ export async function startHandler(ctx: CommandContext<Context>): Promise<void> 
     const auth = await loginViaTelegram(from, apiUrl)
     if (auth !== null) {
       authedUrl = `${dashboardUrl}/auth?token=${encodeURIComponent(auth.token)}`
-      console.log(`[start] Authenticated user ${from.id} (${from.username ?? 'no username'})`)
+      log.info({ telegramId: from.id, username: from.username ?? null }, 'Authenticated user')
     } else {
-      console.warn(`[start] Could not obtain token for user ${from.id} (API_URL=${apiUrl}) — dashboard link will have no token`)
+      log.warn({ telegramId: from.id, apiUrl }, 'Could not obtain token — dashboard link will have no token')
     }
   }
 

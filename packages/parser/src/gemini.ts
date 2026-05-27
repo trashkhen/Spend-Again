@@ -1,7 +1,9 @@
 import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/generative-ai'
-import { CATEGORY_MAP, GEMINI_MODEL, GEMINI_RPM_LIMIT } from '@spend-again/shared'
+import { CATEGORY_MAP, GEMINI_MODEL, GEMINI_RPM_LIMIT, createLogger } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
+
+const log = createLogger('parser:gemini')
 
 // ---------------------------------------------------------------------------
 // Typed error for rate-limit responses
@@ -208,7 +210,7 @@ export async function parseWithGemini(input: string): Promise<ParseResult | null
     rawText = result.response.text()
   } catch (err) {
     if (err instanceof GoogleGenerativeAIFetchError && (err.status === 429 || err.status === 503)) {
-      console.error(`[gemini] ${err.status} from API:`, err.message, err.errorDetails)
+      log.error({ status: err.status, message: err.message, errorDetails: err.errorDetails }, 'rate limit / unavailable from API')
       throw new GeminiRateLimitError()
     }
     throw err

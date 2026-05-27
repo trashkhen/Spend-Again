@@ -1,5 +1,8 @@
 import { createHmac, createHash } from 'node:crypto'
+import { createLogger } from '@spend-again/shared'
 import type { Category, SubCategory, Transaction } from '@spend-again/shared'
+
+const log = createLogger('bot:api-client')
 
 // ── Analytics response types ───────────────────────────────────────────────────
 
@@ -146,7 +149,10 @@ export async function loginViaTelegram(
     })
 
     if (!res.ok) {
-      console.error('[loginViaTelegram] API login failed:', res.status, await res.text())
+      log.error(
+        { status: res.status, body: (await res.text()).slice(0, 500) },
+        'loginViaTelegram API login failed',
+      )
       return null
     }
 
@@ -155,7 +161,7 @@ export async function loginViaTelegram(
     userIdStore.set(from.id, result.userId)
     return { token: result.token, userId: result.userId }
   } catch (err) {
-    console.error('[loginViaTelegram] API login error:', err)
+    log.error({ err }, 'loginViaTelegram API login error')
     return null
   }
 }
@@ -209,14 +215,17 @@ export class ApiClient {
       })
 
       if (!res.ok) {
-        console.error('[ApiClient] createTransaction failed:', res.status, await res.text())
+        log.error(
+          { status: res.status, body: (await res.text()).slice(0, 500) },
+          'createTransaction failed',
+        )
         return null
       }
 
       const body = (await res.json()) as ApiTransactionResponse
       return { id: body.id }
     } catch (err) {
-      console.error('[ApiClient] createTransaction error:', err)
+      log.error({ err }, 'createTransaction error')
       return null
     }
   }
@@ -237,7 +246,10 @@ export class ApiClient {
       })
 
       if (!res.ok) {
-        console.error('[ApiClient] getRecentTransactions failed:', res.status, await res.text())
+        log.error(
+          { status: res.status, body: (await res.text()).slice(0, 500) },
+          'getRecentTransactions failed',
+        )
         return []
       }
 
@@ -256,7 +268,7 @@ export class ApiClient {
         updatedAt: tx.updatedAt,
       }))
     } catch (err) {
-      console.error('[ApiClient] getRecentTransactions error:', err)
+      log.error({ err }, 'getRecentTransactions error')
       return []
     }
   }
@@ -291,7 +303,7 @@ export class ApiClient {
       })
       return res.ok
     } catch (err) {
-      console.error('[ApiClient] saveLearnedMapping error:', err)
+      log.error({ err }, 'saveLearnedMapping error')
       return false
     }
   }
@@ -313,12 +325,12 @@ export class ApiClient {
 
       const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
       if (!res.ok) {
-        console.error('[ApiClient] getSpendingSummary failed:', res.status)
+        log.error({ status: res.status }, 'getSpendingSummary failed')
         return null
       }
       return (await res.json()) as AnalyticsSummary
     } catch (err) {
-      console.error('[ApiClient] getSpendingSummary error:', err)
+      log.error({ err }, 'getSpendingSummary error')
       return null
     }
   }
@@ -335,12 +347,12 @@ export class ApiClient {
 
       const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
       if (!res.ok) {
-        console.error('[ApiClient] getTopExpense failed:', res.status)
+        log.error({ status: res.status }, 'getTopExpense failed')
         return null
       }
       return (await res.json()) as TopExpense
     } catch (err) {
-      console.error('[ApiClient] getTopExpense error:', err)
+      log.error({ err }, 'getTopExpense error')
       return null
     }
   }
@@ -362,12 +374,12 @@ export class ApiClient {
 
       const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
       if (!res.ok) {
-        console.error('[ApiClient] getCategoryBreakdown failed:', res.status)
+        log.error({ status: res.status }, 'getCategoryBreakdown failed')
         return null
       }
       return (await res.json()) as CategoryBreakdown
     } catch (err) {
-      console.error('[ApiClient] getCategoryBreakdown error:', err)
+      log.error({ err }, 'getCategoryBreakdown error')
       return null
     }
   }
@@ -383,12 +395,12 @@ export class ApiClient {
         headers: this.buildHeaders(),
       })
       if (!res.ok) {
-        console.error('[ApiClient] getBudget failed:', res.status)
+        log.error({ status: res.status }, 'getBudget failed')
         return null
       }
       return (await res.json()) as BudgetData
     } catch (err) {
-      console.error('[ApiClient] getBudget error:', err)
+      log.error({ err }, 'getBudget error')
       return null
     }
   }

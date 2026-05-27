@@ -1,4 +1,7 @@
+import { createLogger } from '@spend-again/shared'
 import { tokenStore } from './api-client.js'
+
+const log = createLogger('bot:dev-mode')
 
 type DevLoginResult = { token: string; userId: string }
 
@@ -17,16 +20,16 @@ export async function initDevMode(
     const res = await fetch(`${apiUrl}/api/auth/dev-login`, { method: 'POST' })
 
     if (!res.ok) {
-      console.warn(`[dev-mode] dev-login returned ${res.status} — dev mode not active`)
+      log.warn({ status: res.status }, 'dev-login non-ok — dev mode not active')
       return null
     }
 
     const body = (await res.json()) as DevLoginResult
     tokenStore.set(telegramId, body.token)
-    console.log(`[dev-mode] Test user linked — userId: ${body.userId}, telegramId: ${telegramId}`)
+    log.info({ userId: body.userId, telegramId }, 'Test user linked')
     return body
   } catch (err) {
-    console.warn('[dev-mode] Failed to reach API for dev-login:', err)
+    log.warn({ err }, 'Failed to reach API for dev-login')
     return null
   }
 }
