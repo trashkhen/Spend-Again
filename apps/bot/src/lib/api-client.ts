@@ -286,6 +286,30 @@ export class ApiClient {
   }
 
   /**
+   * GET /api/learned-mappings/:itemName
+   * Looks up a learned item → category mapping. Returns null if not found.
+   */
+  async getLearnedMapping(
+    itemName: string,
+  ): Promise<{ category: Category; subCategory: SubCategory; confidence: number } | null> {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/learned-mappings/${encodeURIComponent(itemName.toLowerCase())}`,
+        { headers: this.buildHeaders() },
+      )
+      if (res.status === 404) return null
+      if (!res.ok) {
+        log.error({ status: res.status }, 'getLearnedMapping failed')
+        return null
+      }
+      return (await res.json()) as { category: Category; subCategory: SubCategory; confidence: number }
+    } catch (err) {
+      log.error({ err }, 'getLearnedMapping error')
+      return null
+    }
+  }
+
+  /**
    * POST /api/learned-mappings
    * Saves a learned item → category mapping for future lookups.
    */
