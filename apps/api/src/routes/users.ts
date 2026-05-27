@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { eq, sql } from 'drizzle-orm'
 import { users } from '@spend-again/db'
-import { requireAuth } from '../middleware/auth.js'
 import { validateBody } from '../middleware/validate.js'
 import type { DbClient } from '../lib/db.js'
 
@@ -23,7 +22,7 @@ const updateBudgetSchema = z.object({
 export function createUsersRouter(db: DbClient): Hono<UsersEnv> {
   const router = new Hono<UsersEnv>()
 
-  router.get('/budget', requireAuth, async (c) => {
+  router.get('/budget', async (c) => {
     const userId = c.get('userId')
     const rows = await db
       .select({ monthlyBudget: users.monthlyBudget, budgetAlertPct: users.budgetAlertPct })
@@ -40,7 +39,7 @@ export function createUsersRouter(db: DbClient): Hono<UsersEnv> {
     })
   })
 
-  router.put('/budget', requireAuth, validateBody(updateBudgetSchema), async (c) => {
+  router.put('/budget', validateBody(updateBudgetSchema), async (c) => {
     const userId = c.get('userId')
     const input = c.get('validatedBody') as z.infer<typeof updateBudgetSchema>
 

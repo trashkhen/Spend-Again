@@ -5,9 +5,22 @@ vi.mock('@spend-again/db', () => ({
   users: {},
 }))
 
+import { Hono } from 'hono'
 import { createUsersRouter } from '../src/routes/users.js'
 import { signJWT } from '../src/lib/jwt.js'
+import { requireAuth } from '../src/middleware/auth.js'
 import type { DbClient } from '../src/lib/db.js'
+
+// Mirror production wiring: auth middleware lives at the mount point, not in
+// the router itself. Tests wrap the router accordingly so the 401 path is
+// still exercised.
+function mountWithAuth(db: DbClient): Hono {
+  const app = new Hono()
+  app.use('/budget', requireAuth)
+  app.use('/budget/*', requireAuth)
+  app.route('/', createUsersRouter(db))
+  return app
+}
 
 const TEST_USER_ID = '00000000-0000-4000-8000-000000000099'
 const BUDGET_ROW = { monthlyBudget: 100000, budgetAlertPct: 80 }
@@ -42,13 +55,13 @@ function makeUpdateDb(rows: unknown[]): DbClient {
 
 describe('GET /api/users/budget', () => {
   it('returns 401 without auth token', async () => {
-    const app = createUsersRouter(makeSelectDb([BUDGET_ROW]))
+    const app = mountWithAuth(makeSelectDb([BUDGET_ROW]))
     const res = await app.request('/budget', { method: 'GET' })
     expect(res.status).toBe(401)
   })
 
   it('returns budget settings for authenticated user', async () => {
-    const app = createUsersRouter(makeSelectDb([BUDGET_ROW]))
+    const app = mountWithAuth(makeSelectDb([BUDGET_ROW]))
     const token = await signJWT({ userId: TEST_USER_ID })
     const res = await app.request('/budget', {
       method: 'GET',
@@ -61,7 +74,7 @@ describe('GET /api/users/budget', () => {
   })
 
   it('returns 404 when user not found', async () => {
-    const app = createUsersRouter(makeSelectDb([]))
+    const app = mountWithAuth(makeSelectDb([]))
     const token = await signJWT({ userId: TEST_USER_ID })
     const res = await app.request('/budget', {
       method: 'GET',
@@ -71,7 +84,7 @@ describe('GET /api/users/budget', () => {
   })
 
   it('returns budgetAlertPct as 100 when null in DB', async () => {
-    const app = createUsersRouter(makeSelectDb([{ monthlyBudget: null, budgetAlertPct: null }]))
+    const app = mountWithAuth(makeSelectDb([{ monthlyBudget: null, budgetAlertPct: null }]))
     const token = await signJWT({ userId: TEST_USER_ID })
     const res = await app.request('/budget', {
       method: 'GET',
@@ -86,7 +99,7 @@ describe('GET /api/users/budget', () => {
 
 describe('PUT /api/users/budget', () => {
   it('returns 401 without auth token', async () => {
-    const app = createUsersRouter(makeUpdateDb([BUDGET_ROW]))
+    const app = mountWithAuth(makeUpdateDb([BUDGET_ROW]))
     const res = await app.request('/budget', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -96,7 +109,7 @@ describe('PUT /api/users/budget', () => {
   })
 
   it('updates budget and returns new values', async () => {
-    const app = createUsersRouter(makeUpdateDb([BUDGET_ROW]))
+    const app = mountWithAuth(makeUpdateDb([BUDGET_ROW]))
     const token = await signJWT({ userId: TEST_USER_ID })
     const res = await app.request('/budget', {
       method: 'PUT',
@@ -110,7 +123,7 @@ describe('PUT /api/users/budget', () => {
   })
 
   it('accepts null monthlyBudget to clear budget', async () => {
-    const app = createUsersRouter(makeUpdateDb([{ monthlyBudget: null, budgetAlertPct: 100 }]))
+    const app = mountWithAuth(makeUpdateDb([{ monthlyBudget: null, budgetAlertPct: 100 }]))
     const token = await signJWT({ userId: TEST_USER_ID })
     const res = await app.request('/budget', {
       method: 'PUT',
@@ -123,7 +136,7 @@ describe('PUT /api/users/budget', () => {
   })
 
   it('rejects budgetAlertPct of 0', async () => {
-    const app = createUsersRouter(makeUpdateDb([]))
+    const app = mountWithAuth(makeUpdateDb([]))
     const token = await signJWT({ userId: TEST_USER_ID })
     const res = await app.request('/budget', {
       method: 'PUT',
@@ -134,7 +147,7 @@ describe('PUT /api/users/budget', () => {
   })
 
   it('returns 404 when user not found on update', async () => {
-    const app = createUsersRouter(makeUpdateDb([]))
+    const app = mountWithAuth(makeUpdateDb([]))
     const token = await signJWT({ userId: TEST_USER_ID })
     const res = await app.request('/budget', {
       method: 'PUT',
