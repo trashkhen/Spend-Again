@@ -28,19 +28,9 @@ function IconAnalytics() {
   )
 }
 
-function IconSettings() {
-  return (
-    <svg viewBox="0 0 20 20" fill="currentColor">
-      <path fillRule="evenodd" clipRule="evenodd" d="M10 13a3 3 0 100-6 3 3 0 000 6zm0-1.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z"/>
-      <path fillRule="evenodd" clipRule="evenodd" d="M10 2a1 1 0 00-1 1v.28a7.1 7.1 0 00-1.47.61l-.2-.2a1 1 0 00-1.41 0L4.5 5.1a1 1 0 000 1.42l.2.2A7.1 7.1 0 004.09 8.2 7.1 7.1 0 004 9H3a1 1 0 000 2h1.09a7.1 7.1 0 00.61 1.47l-.2.2a1 1 0 000 1.42l1.42 1.41a1 1 0 001.41 0l.2-.2c.46.25.95.45 1.47.61V17a1 1 0 002 0v-1.09a7.1 7.1 0 001.47-.61l.2.2a1 1 0 001.41 0l1.42-1.41a1 1 0 000-1.42l-.2-.2c.25-.46.45-.95.61-1.47H17a1 1 0 000-2h-1.09a7.1 7.1 0 00-.61-1.47l.2-.2a1 1 0 000-1.42l-1.42-1.41a1 1 0 00-1.41 0l-.2.2A7.1 7.1 0 0011 3.28V3a1 1 0 00-1-1z"/>
-    </svg>
-  )
-}
-
 const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
   { path: '/analytics', label: 'Analytics', icon: <IconAnalytics /> },
-  { path: '/settings',  label: 'Settings',  icon: <IconSettings /> },
 ]
 
 type Props = {

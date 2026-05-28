@@ -35,18 +35,19 @@ function formatAmount(amount: string): string {
   return `S$${num.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function formatDate(date: string): string {
-  const parts = date.split('/')
-  if (parts.length !== 3) return date
-  const [d, m, y] = parts
+function formatDate(occurredOn: string): string {
+  // occurredOn is YYYY-MM-DD
+  const parts = occurredOn.split('-')
+  if (parts.length !== 3) return occurredOn
+  const [y, m, d] = parts
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
   const monthName = months[(parseInt(m ?? '1', 10) - 1)] ?? m
   return `${parseInt(d ?? '1', 10)} ${monthName} ${y}`
 }
 
-function parseTransactionDate(date: string): Date {
-  const [d, m, y] = date.split('/').map(Number)
-  return new Date(y ?? 2026, (m ?? 1) - 1, d ?? 1)
+function parseTransactionDate(occurredOn: string): Date {
+  // occurredOn is YYYY-MM-DD
+  return new Date(occurredOn)
 }
 
 function IconEdit() {
@@ -83,7 +84,7 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
         return priceSort === 'asc' ? diff : -diff
       })
     : [...transactions].sort((a, b) =>
-        parseTransactionDate(b.date).getTime() - parseTransactionDate(a.date).getTime()
+        parseTransactionDate(b.occurredOn).getTime() - parseTransactionDate(a.occurredOn).getTime()
       )
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
@@ -142,7 +143,7 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
                   <span className="tx-item-meta">
                     <span className="tx-category-name">{tx.category}</span>
                     {tx.subCategory ? <span className="tx-subcategory"> / {tx.subCategory}</span> : null}
-                    {' · '}{formatDate(tx.date)}
+                    {' · '}{formatDate(tx.occurredOn)}
                   </span>
                 </div>
               </div>

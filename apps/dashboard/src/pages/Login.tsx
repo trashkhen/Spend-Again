@@ -2,7 +2,6 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 
 const BOT_NAME = import.meta.env['VITE_TELEGRAM_BOT_NAME'] ?? 'spend_again_bot'
-const DEV_MODE = import.meta.env['VITE_DEV_MODE'] === 'true'
 
 export function Login() {
   const { authenticated, loading, error, loginAsTestUser } = useAuth()
@@ -56,7 +55,7 @@ export function Login() {
             </>
           )}
 
-          {DEV_MODE && (
+          {import.meta.env.DEV && (
             <div className="login-dev-section">
               <p className="login-dev-label">Dev mode</p>
               <button

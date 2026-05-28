@@ -23,7 +23,6 @@ const BASE_TX: TransactionRow = {
   item: 'chicken rice',
   category: 'Food',
   subCategory: 'Hawker',
-  date: '13/05/2026',
   occurredOn: '2026-05-13',
   source: 'bot',
   tier: 1,
@@ -142,7 +141,7 @@ describe('POST /api/transactions', () => {
     expect(body['category']).toBe('Food')
   })
 
-  it('dual-writes occurredOn in ISO format alongside legacy date field', async () => {
+  it('writes occurredOn in ISO format (converted from DD/MM/YYYY input)', async () => {
     const db = makeMockDb()
     const app = makeApp(db)
 
@@ -156,13 +155,17 @@ describe('POST /api/transactions', () => {
     const body = await json(res)
     // The response reflects the mock return value which includes occurredOn
     expect(body['occurredOn']).toBe('2026-05-13')
-    // Verify the insert was called with occurredOn derived from date
+    // Verify the insert was called with occurredOn derived from date (no legacy date column)
     const insertMock = vi.mocked(db.insert as unknown as () => unknown)
     const valuesMock = (insertMock.mock.results[0]?.value as { values: ReturnType<typeof vi.fn> }).values
     expect(valuesMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        date: '13/05/2026',
         occurredOn: '2026-05-13',
+      }),
+    )
+    expect(valuesMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        date: expect.anything(),
       }),
     )
   })
@@ -393,6 +396,33 @@ describe('PUT /api/transactions/:id', () => {
     expect(res.status).toBe(400)
     const body = await json(res)
     expect(body['code']).toBe('VALIDATION_ERROR')
+  })
+
+  it('converts date DD/MM/YYYY to occurredOn YYYY-MM-DD in the DB patch, and does not pass date field directly', async () => {
+    const db = makeMockDb()
+    const app = makeApp(db)
+
+    const res = await app.request(`/${BASE_TX.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: '13/05/2026' }),
+    })
+
+    expect(res.status).toBe(200)
+
+    // The update set() call should receive occurredOn, not the raw date field
+    const updateMock = vi.mocked(db.update as unknown as () => unknown)
+    const setMock = (updateMock.mock.results[0]?.value as { set: ReturnType<typeof vi.fn> }).set
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        occurredOn: '2026-05-13',
+      }),
+    )
+    expect(setMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        date: expect.anything(),
+      }),
+    )
   })
 })
 

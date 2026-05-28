@@ -25,7 +25,7 @@ export type TopExpense = {
     item: string
     category: string
     subCategory: string
-    date: string
+    occurredOn: string  // YYYY-MM-DD
     source: string
   } | null
 }

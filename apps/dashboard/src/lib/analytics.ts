@@ -10,13 +10,13 @@ function parseAmount(amount: string): number {
   return parseFloat(amount)
 }
 
-/** Parse DD/MM/YYYY string to { day, month, year } */
-function parseDate(date: string): { day: number; month: number; year: number } {
-  const parts = date.split('/')
+/** Parse YYYY-MM-DD (occurredOn) string to { day, month, year } */
+function parseDate(occurredOn: string): { day: number; month: number; year: number } {
+  const parts = occurredOn.split('-')
   return {
-    day: parseInt(parts[0] ?? '1', 10),
+    year: parseInt(parts[0] ?? '2026', 10),
     month: parseInt(parts[1] ?? '1', 10),
-    year: parseInt(parts[2] ?? '2026', 10),
+    day: parseInt(parts[2] ?? '1', 10),
   }
 }
 
@@ -38,7 +38,7 @@ export function computeMonthlySpend(transactions: ApiTransaction[]): MonthlySpen
 
     const total = transactions
       .filter((tx) => {
-        const p = parseDate(tx.date)
+        const p = parseDate(tx.occurredOn)
         return p.month === month && p.year === year
       })
       .reduce((sum, tx) => sum + parseAmount(tx.amount), 0)
@@ -69,7 +69,7 @@ export function computeCategoryBreakdown(
   const targetYear = year ?? now.getFullYear()
 
   const current = transactions.filter((tx) => {
-    const p = parseDate(tx.date)
+    const p = parseDate(tx.occurredOn)
     return p.month === targetMonth && p.year === targetYear
   })
 
@@ -110,13 +110,13 @@ export function computeDailyTrend(
   const targetYear = year ?? now.getFullYear()
 
   const current = transactions.filter((tx) => {
-    const p = parseDate(tx.date)
+    const p = parseDate(tx.occurredOn)
     return p.month === targetMonth && p.year === targetYear
   })
 
   const map = new Map<number, number>()
   for (const tx of current) {
-    const { day } = parseDate(tx.date)
+    const { day } = parseDate(tx.occurredOn)
     map.set(day, (map.get(day) ?? 0) + parseAmount(tx.amount))
   }
 
@@ -150,7 +150,7 @@ export function computeSummary(
   const targetYear = year ?? now.getFullYear()
 
   const current = transactions.filter((tx) => {
-    const p = parseDate(tx.date)
+    const p = parseDate(tx.occurredOn)
     return p.month === targetMonth && p.year === targetYear
   })
 

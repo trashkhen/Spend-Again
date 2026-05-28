@@ -25,11 +25,10 @@ function htmlDateToDDMMYYYY(htmlDate: string): string {
   return `${d ?? '01'}/${m ?? '01'}/${y ?? '2026'}`
 }
 
-function ddmmyyyyToHtmlDate(date: string): string {
-  const parts = date.split('/')
-  if (parts.length !== 3) return todayHtmlDate()
-  const [d, m, y] = parts
-  return `${y}-${m}-${d}`
+function isoToHtmlDate(date: string): string {
+  // occurredOn is already YYYY-MM-DD which is the HTML date input format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date
+  return todayHtmlDate()
 }
 
 function todayHtmlDate(): string {
@@ -58,7 +57,7 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
     transaction?.subCategory ?? CATEGORY_MAP[initCategory][0] ?? 'Other'
   )
   const [date, setDate] = useState(
-    transaction ? ddmmyyyyToHtmlDate(transaction.date) : todayHtmlDate()
+    transaction ? isoToHtmlDate(transaction.occurredOn) : todayHtmlDate()
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)

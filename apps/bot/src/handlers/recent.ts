@@ -5,6 +5,7 @@ import {
   MSG_RECENT_HEADER,
   MSG_RECENT_EMPTY,
   CATEGORY_EMOJI,
+  occurredOnToDisplay,
 } from '@spend-again/shared'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 
@@ -30,7 +31,7 @@ export async function recentHandler(ctx: Context): Promise<void> {
 
   const lines = transactions.map((tx) => {
     const emoji = CATEGORY_EMOJI[tx.category as Category] ?? '\u{1F4B0}'
-    return `${emoji} S$${tx.amount} — ${tx.item} (${tx.date})`
+    return `${emoji} S$${tx.amount} — ${tx.item} (${occurredOnToDisplay(tx.occurredOn)})`
   })
 
   await ctx.reply(MSG_RECENT_HEADER + '\n' + lines.join('\n'))
