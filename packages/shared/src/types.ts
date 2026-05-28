@@ -12,7 +12,6 @@ export type ApiTransaction = {
   item: string
   category: Category | string
   subCategory: SubCategory | string
-  date: string                         // DD/MM/YYYY (legacy; remove when Phase 4 drops the column)
   occurredOn: string                   // YYYY-MM-DD
   source: 'manual' | 'bot' | 'sms' | 'ocr'
   tier?: 1 | 2 | 3

@@ -155,8 +155,8 @@ function filterByDateRange(txs: ApiTransaction[], start: string, end: string): A
   const endDate = parseDDMMYYYY(end)
   if (!startDate || !endDate) return txs
   return txs.filter((tx) => {
-    const d = parseDDMMYYYY(tx.date)
-    return d !== null && d >= startDate && d <= endDate
+    const d = new Date(tx.occurredOn)
+    return d >= startDate && d <= endDate
   })
 }
 
@@ -211,7 +211,7 @@ function buildTrendReply(txs: ApiTransaction[], start: string, end: string): str
 
   const byDay = new Map<string, number>()
   for (const tx of filtered) {
-    byDay.set(tx.date, (byDay.get(tx.date) ?? 0) + amountToCents(tx.amount))
+    byDay.set(tx.occurredOn, (byDay.get(tx.occurredOn) ?? 0) + amountToCents(tx.amount))
   }
 
   const startDate = parseDDMMYYYY(start)
@@ -225,7 +225,7 @@ function buildTrendReply(txs: ApiTransaction[], start: string, end: string): str
     const dd = String(cur.getDate()).padStart(2, '0')
     const mm = String(cur.getMonth() + 1).padStart(2, '0')
     const yyyy = String(cur.getFullYear())
-    const key = `${dd}/${mm}/${yyyy}`
+    const key = `${yyyy}-${mm}-${dd}` // YYYY-MM-DD to match occurredOn
     const cents = byDay.get(key) ?? 0
     if (cents > 0) {
       lines.push(`  ${dd}/${mm}: *${fmtSGD(cents)}*`)
@@ -319,11 +319,13 @@ async function handleTopExpense(userId: string, period: 'week' | 'month'): Promi
 
   const tx = result.transaction
   const periodLabel = period === 'week' ? 'this week' : 'this month'
+  const [yyyy, mm, dd] = tx.occurredOn.split('-')
+  const displayDate = `${dd ?? ''}/${mm ?? ''}/${yyyy ?? ''}`
   return (
     `\u{1F3C6} Your biggest expense ${periodLabel}:\n\n` +
     `\u{1F4B0} *S$${tx.amount}* — ${tx.item}\n` +
     `\u{1F4C2} Category: ${tx.category}/${tx.subCategory}\n` +
-    `\u{1F4C5} Date: ${tx.date}`
+    `\u{1F4C5} Date: ${displayDate}`
   )
 }
 
