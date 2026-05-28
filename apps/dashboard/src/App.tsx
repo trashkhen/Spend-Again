@@ -4,7 +4,6 @@ import { Auth } from './pages/Auth'
 import { Welcome } from './pages/Welcome'
 import { Dashboard } from './pages/Dashboard'
 import { Analytics } from './pages/Analytics'
-import { Settings } from './pages/Settings'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 export default function App() {
@@ -33,15 +32,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <Settings />
-            </ProtectedRoute>
-          }
-        />
-
         {/* Default redirect */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
