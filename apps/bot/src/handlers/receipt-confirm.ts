@@ -13,6 +13,7 @@ import {
 } from '@spend-again/shared'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
+import { DASHBOARD_URL } from '../lib/env.js'
 import { pendingReceiptResults } from './receipt.js'
 
 // ---------------------------------------------------------------------------
@@ -61,15 +62,13 @@ async function handleConfirmAll(
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.editMessageText(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 
   const userId = userIdStore.get(telegramId)
   if (userId === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.editMessageText(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 

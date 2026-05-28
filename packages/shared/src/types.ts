@@ -4,11 +4,18 @@ export type { Category, SubCategory }
 
 // ── API wire types (DTOs over HTTP) ──────────────────────────────────────────
 
-/** Wire shape for a transaction over the API. amount is a decimal string. */
+/**
+ * Wire shape for a transaction over the API.
+ *
+ * Carries BOTH `amountCents` (integer, source of truth for arithmetic) and
+ * `amount` (decimal string, ready for display). Consumers that need to do
+ * math should use `amountCents` directly — never parseFloat(amount).
+ */
 export type ApiTransaction = {
   id: string
   userId: string
-  amount: string                       // decimal SGD, e.g. "10.50"
+  amountCents: number                  // integer cents, source of truth
+  amount: string                       // decimal SGD for display, e.g. "10.50"
   item: string
   category: Category | string
   subCategory: SubCategory | string

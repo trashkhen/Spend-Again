@@ -1,5 +1,6 @@
 import type { Context } from 'grammy'
 import { tokenStore, userIdStore, apiClient } from '../lib/api-client.js'
+import { DASHBOARD_URL } from '../lib/env.js'
 import { MSG_NOT_REGISTERED } from '@spend-again/shared'
 
 function currentMonthYear(): { month: string; year: string } {
@@ -21,13 +22,16 @@ export async function monthlyReportHandler(ctx: Context): Promise<void> {
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-    await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.reply(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 
   apiClient.setToken(token)
-  const userId = userIdStore.get(telegramId) ?? String(telegramId)
+  const userId = userIdStore.get(telegramId)
+  if (userId === undefined) {
+    await ctx.reply(MSG_NOT_REGISTERED(DASHBOARD_URL))
+    return
+  }
   const { month, year } = currentMonthYear()
   const monthName = MONTH_NAMES[Number(month) - 1] ?? month
 

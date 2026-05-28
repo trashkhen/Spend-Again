@@ -24,6 +24,7 @@ function makeTx(occurredOn: string, amount = '10.00', id = occurredOn): ApiTrans
   return {
     id,
     userId: 'user-1',
+    amountCents: Math.round(parseFloat(amount) * 100),
     amount,
     item: 'test item',
     category: 'Food',

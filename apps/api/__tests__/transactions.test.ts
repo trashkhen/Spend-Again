@@ -136,7 +136,7 @@ describe('POST /api/transactions', () => {
     expect(res.status).toBe(201)
     const body = await json(res)
     expect(body['amount']).toBe('10.50')
-    expect(body['amountCents']).toBeUndefined()
+    expect(body['amountCents']).toBe(1050)
     expect(body['item']).toBe('chicken rice')
     expect(body['category']).toBe('Food')
   })
@@ -241,7 +241,7 @@ describe('GET /api/transactions', () => {
     expect(Array.isArray(body)).toBe(true)
     const first = body[0] as Record<string, unknown>
     expect(first['amount']).toBe('10.50')
-    expect(first['amountCents']).toBeUndefined()
+    expect(first['amountCents']).toBe(1050)
   })
 
   it('filters by category query param', async () => {
@@ -321,7 +321,7 @@ describe('GET /api/transactions/:id', () => {
     const body = await json(res)
     expect(body['id']).toBe(BASE_TX.id)
     expect(body['amount']).toBe('10.50')
-    expect(body['amountCents']).toBeUndefined()
+    expect(body['amountCents']).toBe(1050)
   })
 
   it('returns 404 when transaction is not found', async () => {
@@ -351,7 +351,7 @@ describe('PUT /api/transactions/:id', () => {
     const body = await json(res)
     expect(body['item']).toBe('nasi lemak')
     expect(body['amount']).toBe('8.00')
-    expect(body['amountCents']).toBeUndefined()
+    expect(body['amountCents']).toBe(800)
   })
 
   it('returns 404 when transaction does not exist', async () => {

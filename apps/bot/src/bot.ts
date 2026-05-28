@@ -1,6 +1,6 @@
 import { Bot, InlineKeyboard } from 'grammy'
 import { createLogger } from '@spend-again/shared'
-import { BOT_TOKEN, API_URL } from './lib/env.js'
+import { BOT_TOKEN, API_URL, DASHBOARD_URL } from './lib/env.js'
 import { startHandler } from './handlers/start.js'
 import { helpHandler } from './handlers/help.js'
 import { expenseHandler } from './handlers/expense.js'
@@ -43,7 +43,7 @@ bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 
 bot.hears('🌐 Bring me to Site', async (ctx) => {
   const from = ctx.from
-  const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
+  const dashboardUrl = DASHBOARD_URL
 
   if (from === undefined) {
     await ctx.reply(`Visit the dashboard: ${dashboardUrl}`)

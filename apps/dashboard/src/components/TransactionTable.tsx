@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { emojiFor } from '@spend-again/shared'
+import { emojiFor, parseYYYYMMDD } from '@spend-again/shared'
 import type { ApiTransaction } from '../lib/api'
 
 const PAGE_SIZE = 20
@@ -46,8 +46,10 @@ function formatDate(occurredOn: string): string {
 }
 
 function parseTransactionDate(occurredOn: string): Date {
-  // occurredOn is YYYY-MM-DD
-  return new Date(occurredOn)
+  // Parse YYYY-MM-DD as local midnight (not UTC) to stay consistent with
+  // parseDDMMYYYY in the modal and bot. new Date("2026-05-28") would parse
+  // as UTC midnight and skew sorts at SGT day boundaries.
+  return parseYYYYMMDD(occurredOn) ?? new Date(0)
 }
 
 function IconEdit() {
@@ -80,7 +82,7 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
 
   const sorted = priceSort
     ? [...transactions].sort((a, b) => {
-        const diff = parseFloat(a.amount) - parseFloat(b.amount)
+        const diff = a.amountCents - b.amountCents
         return priceSort === 'asc' ? diff : -diff
       })
     : [...transactions].sort((a, b) =>

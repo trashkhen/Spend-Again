@@ -3,12 +3,12 @@ import type { CommandContext, Context } from 'grammy'
 import { MSG_WELCOME, createLogger, requireEnv } from '@spend-again/shared'
 import { mainKeyboard } from '../keyboards/main.js'
 import { loginViaTelegram } from '../lib/api-client.js'
+import { DASHBOARD_URL as dashboardUrl } from '../lib/env.js'
 
 const log = createLogger('bot:start')
 
 export async function startHandler(ctx: CommandContext<Context>): Promise<void> {
   const from = ctx.from
-  const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
   const apiUrl = requireEnv('API_URL')
 
   let authedUrl = dashboardUrl

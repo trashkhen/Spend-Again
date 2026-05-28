@@ -18,7 +18,7 @@ import {
   fmtSGD,
 } from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
-import { BOT_TOKEN } from '../lib/env.js'
+import { BOT_TOKEN, DASHBOARD_URL } from '../lib/env.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 import { buildConfirmationMessage, pendingConfirmations } from './expense.js'
 
@@ -120,8 +120,7 @@ export async function receiptHandler(ctx: Context): Promise<void> {
   // Check if user is linked
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-    await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.reply(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 

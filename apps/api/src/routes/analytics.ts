@@ -148,12 +148,17 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
       })
     }
 
-    // period === 'week' — use occurred_on date column
+    // period === 'week' — use occurred_on date column. Compute in local time
+    // (server TZ; intended to be Asia/Singapore in prod) so the week boundary
+    // matches what the bot considers "today" via getTodayDDMMYYYY().
     const today = new Date()
-    const day = today.getUTCDay()
-    const startOfWeek = new Date(today)
-    startOfWeek.setUTCDate(today.getUTCDate() - day)
-    const startIso = startOfWeek.toISOString().slice(0, 10)
+    const day = today.getDay()
+    const startOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - day)
+    const startIso = [
+      startOfWeek.getFullYear(),
+      String(startOfWeek.getMonth() + 1).padStart(2, '0'),
+      String(startOfWeek.getDate()).padStart(2, '0'),
+    ].join('-')
 
     const rows = await db
       .select()

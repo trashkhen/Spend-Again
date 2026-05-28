@@ -77,12 +77,13 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
   const svc = createTransactionService(db)
 
   // POST /api/transactions
+  // Wire shape: include BOTH amountCents (integer, for math) and amount
+  // (decimal string, for display). Mirrors the analytics endpoints' shape.
   router.post('/', validateBody(createTransactionSchema), async (c) => {
     const userId = c.get('userId')
     const input = c.get('validatedBody') as Omit<CreateTransactionInput, 'userId'>
     const tx = await svc.create({ ...input, userId })
-    const { amountCents, ...rest } = tx
-    return c.json({ ...rest, amount: centsToDecimalString(amountCents) }, 201)
+    return c.json({ ...tx, amount: centsToDecimalString(tx.amountCents) }, 201)
   })
 
   // GET /api/transactions
@@ -91,9 +92,9 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
     const query = c.get('validatedQuery') as Omit<ListTransactionsQuery, 'userId'>
     const txs = await svc.list({ ...query, userId })
     return c.json(
-      txs.map(({ amountCents, ...rest }) => ({
-        ...rest,
-        amount: centsToDecimalString(amountCents),
+      txs.map((tx) => ({
+        ...tx,
+        amount: centsToDecimalString(tx.amountCents),
       })),
     )
   })
@@ -106,8 +107,7 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
     if (!tx) {
       return c.json({ error: 'Transaction not found', code: 'NOT_FOUND' }, 404)
     }
-    const { amountCents, ...rest } = tx
-    return c.json({ ...rest, amount: centsToDecimalString(amountCents) })
+    return c.json({ ...tx, amount: centsToDecimalString(tx.amountCents) })
   })
 
   // PUT /api/transactions/:id
@@ -119,8 +119,7 @@ export function createTransactionsRouter(db: DbClient): Hono<AppEnv> {
     if (!tx) {
       return c.json({ error: 'Transaction not found', code: 'NOT_FOUND' }, 404)
     }
-    const { amountCents, ...rest } = tx
-    return c.json({ ...rest, amount: centsToDecimalString(amountCents) })
+    return c.json({ ...tx, amount: centsToDecimalString(tx.amountCents) })
   })
 
   // DELETE /api/transactions/:id

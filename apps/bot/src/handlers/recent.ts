@@ -8,6 +8,7 @@ import {
   occurredOnToDisplay,
 } from '@spend-again/shared'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
+import { DASHBOARD_URL } from '../lib/env.js'
 
 export async function recentHandler(ctx: Context): Promise<void> {
   const telegramId = ctx.from?.id
@@ -15,13 +16,19 @@ export async function recentHandler(ctx: Context): Promise<void> {
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'http://localhost:5173'
-    await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.reply(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 
   apiClient.setToken(token)
-  const userId = userIdStore.get(telegramId) ?? String(telegramId)
+  const userId = userIdStore.get(telegramId)
+  if (userId === undefined) {
+    // Token exists but UUID mapping was lost (e.g. bot restarted). Force re-link
+    // rather than querying with a numeric Telegram ID that can never match the
+    // transactions.user_id UUID column.
+    await ctx.reply(MSG_NOT_REGISTERED(DASHBOARD_URL))
+    return
+  }
   const transactions = await apiClient.getRecentTransactions(userId, 5)
 
   if (transactions.length === 0) {
