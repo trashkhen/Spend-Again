@@ -30,7 +30,7 @@ export async function recentHandler(ctx: Context): Promise<void> {
 
   const lines = transactions.map((tx) => {
     const emoji = CATEGORY_EMOJI[tx.category as Category] ?? '\u{1F4B0}'
-    const [yyyy, mm, dd] = tx.occurredOn.split('-')
+    const [, mm, dd] = tx.occurredOn.split('-')
     const shortDate = `${dd ?? ''}/${mm ?? ''}`
     return `${emoji} S$${tx.amount} — ${tx.item} (${shortDate})`
   })

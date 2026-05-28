@@ -40,8 +40,9 @@ export function Analytics() {
       const data = await listTransactions({ userId: userId ?? undefined })
 
       const filtered = data.filter((tx) => {
-        const parts = tx.date.split('/')
-        const txYear = parseInt(parts[2] ?? '0', 10)
+        // occurredOn is YYYY-MM-DD
+        const parts = tx.occurredOn.split('-')
+        const txYear = parseInt(parts[0] ?? '0', 10)
         const txMonth = parseInt(parts[1] ?? '0', 10)
         const txDate = new Date(txYear, txMonth - 1, 1)
         return txDate >= sixMonthsAgo
