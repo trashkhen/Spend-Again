@@ -1,4 +1,4 @@
-import { eq, and, like, gte, lt, sql, desc } from 'drizzle-orm'
+import { eq, and, gte, lt, sql, desc } from 'drizzle-orm'
 import { transactions } from '@spend-again/db'
 import type { Transaction } from '@spend-again/db'
 import { ddmmyyyyToIso, monthRange } from '@spend-again/shared'
@@ -97,8 +97,11 @@ export function createTransactionService(db: DbClient): TransactionService {
         conditions.push(gte(transactions.occurredOn, startIso))
         conditions.push(lt(transactions.occurredOn, endIso))
       } else if (query.month) {
-        // Month-only filter (no year): fall back to LIKE on date column as before
-        conditions.push(like(transactions.date, `__/${query.month}/____`))
+        // Month-only filter (no year): use current year with occurred_on
+        const currentYear = String(new Date().getFullYear())
+        const { startIso, endIso } = monthRange(currentYear, query.month)
+        conditions.push(gte(transactions.occurredOn, startIso))
+        conditions.push(lt(transactions.occurredOn, endIso))
       }
 
       const limit = query.limit ?? 50

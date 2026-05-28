@@ -1,7 +1,6 @@
 import type { Context } from 'grammy'
 import { parseReceiptWithOcr, simpleReceiptToParseResult } from '@spend-again/parser/ocr'
 import type { OcrResult, MultiItemReceiptResult } from '@spend-again/parser/ocr'
-import type { Category } from '@spend-again/shared'
 import {
   MSG_NOT_REGISTERED,
   MSG_RECEIPT_PROCESSING,
@@ -15,6 +14,8 @@ import {
   MSG_RECEIPT_MULTI_HEADER,
   MSG_RECEIPT_SAVE_PROMPT,
   OcrRateLimitError,
+  emojiFor,
+  fmtSGD,
 } from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
 import { BOT_TOKEN } from '../lib/env.js'
@@ -84,27 +85,11 @@ async function downloadTelegramFile(fileId: string, botToken: string): Promise<U
 
 /** Format a multi-item receipt as a human-readable Telegram message. */
 function formatMultiReceipt(result: MultiItemReceiptResult): string {
-  const CATEGORY_EMOJI: Record<Category, string> = {
-    Food: '\u{1F35C}',
-    Transport: '\u{1F697}',
-    Groceries: '\u{1F6D2}',
-    Shopping: '\u{1F6CD}',
-    Entertainment: '\u{1F3AE}',
-    Health: '\u{1F48A}',
-    Education: '\u{1F4DA}',
-    Travel: '\u{2708}',
-    Utilities: '\u{1F4A1}',
-    Finance: '\u{1F4B3}',
-    Housing: '\u{1F3E0}',
-    Other: '\u{1F4B0}',
-  }
-
   const lines: string[] = [MSG_RECEIPT_MULTI_HEADER]
 
   for (const item of result.items) {
-    const emoji =
-      item.category !== undefined ? (CATEGORY_EMOJI[item.category] ?? '\u{1F4B0}') : '\u{1F4B0}'
-    const amount = `S$${(item.amount / 100).toFixed(2)}`
+    const emoji = emojiFor(item.category)
+    const amount = fmtSGD(item.amount)
     const cat =
       item.subCategory !== undefined
         ? `${item.category}/${item.subCategory}`
@@ -112,7 +97,7 @@ function formatMultiReceipt(result: MultiItemReceiptResult): string {
     lines.push(`  ${emoji} ${amount} — ${item.item} (${cat})`)
   }
 
-  const total = `S$${(result.total / 100).toFixed(2)}`
+  const total = fmtSGD(result.total)
   lines.push(`\n\u{1F4B0} Total: ${total}`)
   if (result.date !== undefined) {
     lines.push(`\u{1F4C5} Date: ${result.date}`)
