@@ -286,34 +286,6 @@ button {
   margin-left: auto;
 }
 
-.header-bell {
-  position: relative;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.header-bell:hover {
-  background: var(--color-surface-2);
-}
-
-.header-bell-dot {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 8px;
-  height: 8px;
-  background: var(--color-warning);
-  border-radius: 50%;
-  border: 2px solid var(--color-surface);
-}
-
 .header-user {
   display: flex;
   align-items: center;
