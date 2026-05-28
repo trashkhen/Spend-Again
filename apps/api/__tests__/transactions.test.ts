@@ -23,7 +23,6 @@ const BASE_TX: TransactionRow = {
   item: 'chicken rice',
   category: 'Food',
   subCategory: 'Hawker',
-  date: '13/05/2026',
   occurredOn: '2026-05-13',
   source: 'bot',
   tier: 1,
@@ -142,7 +141,7 @@ describe('POST /api/transactions', () => {
     expect(body['category']).toBe('Food')
   })
 
-  it('dual-writes occurredOn in ISO format alongside legacy date field', async () => {
+  it('writes occurredOn in ISO format (converted from DD/MM/YYYY input)', async () => {
     const db = makeMockDb()
     const app = makeApp(db)
 
@@ -156,13 +155,17 @@ describe('POST /api/transactions', () => {
     const body = await json(res)
     // The response reflects the mock return value which includes occurredOn
     expect(body['occurredOn']).toBe('2026-05-13')
-    // Verify the insert was called with occurredOn derived from date
+    // Verify the insert was called with occurredOn derived from date (no legacy date column)
     const insertMock = vi.mocked(db.insert as unknown as () => unknown)
     const valuesMock = (insertMock.mock.results[0]?.value as { values: ReturnType<typeof vi.fn> }).values
     expect(valuesMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        date: '13/05/2026',
         occurredOn: '2026-05-13',
+      }),
+    )
+    expect(valuesMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        date: expect.anything(),
       }),
     )
   })

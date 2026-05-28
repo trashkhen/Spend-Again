@@ -61,7 +61,6 @@ export function createTransactionService(db: DbClient): TransactionService {
           item: input.item,
           category: input.category,
           subCategory: input.subCategory,
-          date: input.date,
           occurredOn: ddmmyyyyToIso(input.date),
           source: input.source,
           tier: input.tier ?? null,
@@ -139,7 +138,6 @@ export function createTransactionService(db: DbClient): TransactionService {
       if (input.category !== undefined) patch['category'] = input.category
       if (input.subCategory !== undefined) patch['subCategory'] = input.subCategory
       if (input.date !== undefined) {
-        patch['date'] = input.date
         patch['occurredOn'] = ddmmyyyyToIso(input.date)
       }
       if (input.source !== undefined) patch['source'] = input.source
