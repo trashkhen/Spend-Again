@@ -18,4 +18,10 @@
 - Test: `pnpm turbo run test`
 - Lint: `pnpm turbo run lint`
 - Add Package: `pnpm add <dep> --filter <package_name>`
-- DB Migrate: `pnpm --filter db migrate`
+
+## Database Migrations
+- **Always apply migrations via the Supabase MCP `apply_migration` tool, not `pnpm --filter db migrate`.**
+  - The local machine's outbound port 5432 is blocked, so direct pg connections (drizzle-kit, pg_dump, `pnpm migrate`) time out.
+  - Supabase MCP `apply_migration` goes over HTTPS to the Management API and records the run in `supabase_migrations.schema_migrations` so it stays visible in the dashboard.
+  - Workflow: edit `packages/db/src/schema.ts`, run `pnpm --filter @spend-again/db generate` to produce the SQL file in `packages/db/drizzle/`, then paste the SQL into `apply_migration` with a snake_case name.
+- One past incident (2026-05-28) shipped Phase 4's `DROP COLUMN date` without the prior `ADD COLUMN occurred_on` + backfill, because `pnpm migrate` had never reached the DB. Don't repeat: verify column/table existence with `list_tables` or `execute_sql` before any DDL.
