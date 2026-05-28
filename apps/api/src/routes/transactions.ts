@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { CATEGORIES } from '@spend-again/shared'
+import { CATEGORIES, centsToDecimalString } from '@spend-again/shared'
 import { validateBody, validateQuery } from '../middleware/validate.js'
 import { createTransactionService } from '../services/transactions.js'
 import type { DbClient } from '../lib/db.js'
@@ -65,15 +65,6 @@ export const listTransactionsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
 })
-
-// ── Response helper ────────────────────────────────────────────────────────────
-
-/**
- * Converts integer cents to a decimal SGD string, e.g. 1050 → "10.50".
- */
-function centsToDecimalString(cents: number): string {
-  return (cents / 100).toFixed(2)
-}
 
 // ── Router factory ─────────────────────────────────────────────────────────────
 
