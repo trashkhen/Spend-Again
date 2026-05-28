@@ -1,31 +1,15 @@
 import type { Context } from 'grammy'
 import { parse, GeminiRateLimitError } from '@spend-again/parser'
 import type { ParseResult } from '@spend-again/parser'
-import type { Category } from '@spend-again/shared'
 import {
   MSG_NOT_REGISTERED,
   MSG_PARSE_FAILED,
   MSG_CONFIRM_PROMPT,
+  CATEGORY_EMOJI,
+  fmtSGD,
 } from '@spend-again/shared'
-import { tokenStore, loginViaTelegram } from '../lib/api-client.js'
+import { tokenStore, loginViaTelegram, apiClient } from '../lib/api-client.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
-
-// ── Category → emoji mapping ───────────────────────────────────────────────────
-
-const CATEGORY_EMOJI: Record<Category, string> = {
-  Food: '\u{1F35C}',
-  Transport: '\u{1F697}',
-  Groceries: '\u{1F6D2}',
-  Shopping: '\u{1F6CD}',
-  Entertainment: '\u{1F3AE}',
-  Health: '\u{1F48A}',
-  Education: '\u{1F4DA}',
-  Travel: '\u{2708}',
-  Utilities: '\u{1F4A1}',
-  Finance: '\u{1F4B3}',
-  Housing: '\u{1F3E0}',
-  Other: '\u{1F4B0}',
-}
 
 // ── Pending confirmation store ─────────────────────────────────────────────────
 
@@ -51,10 +35,6 @@ function looksLikeExpense(text: string): boolean {
 
 // ── Format helpers ────────────────────────────────────────────────────────────
 
-function formatAmount(cents: number): string {
-  return `S$${(cents / 100).toFixed(2)}`
-}
-
 function formatCategory(result: ParseResult): string {
   if (result.category !== undefined && result.subCategory !== undefined) {
     return `${result.category}/${result.subCategory}`
@@ -67,7 +47,7 @@ function formatCategory(result: ParseResult): string {
 
 function getCategoryEmoji(result: ParseResult): string {
   if (result.category !== undefined) {
-    return CATEGORY_EMOJI[result.category]
+    return CATEGORY_EMOJI[result.category] ?? '\u{1F4B0}'
   }
   return '\u{1F4B0}'
 }
@@ -76,7 +56,7 @@ function getCategoryEmoji(result: ParseResult): string {
 
 export function buildConfirmationMessage(result: ParseResult): string {
   const emoji = getCategoryEmoji(result)
-  const amount = formatAmount(result.amount)
+  const amount = fmtSGD(result.amount)
   const category = formatCategory(result)
   return MSG_CONFIRM_PROMPT(emoji, amount, result.item, category)
 }
@@ -114,10 +94,13 @@ export async function expenseHandler(ctx: Context): Promise<void> {
     return
   }
 
+  // Set token on API client so getLearnedMapping can authenticate
+  apiClient.setToken(token)
+
   // Run the 3-tier parser
   let result: ParseResult | null
   try {
-    result = await parse(text)
+    result = await parse(text, { lookupItem: (name) => apiClient.getLearnedMapping(name) })
   } catch (err) {
     if (err instanceof GeminiRateLimitError) {
       await ctx.reply(

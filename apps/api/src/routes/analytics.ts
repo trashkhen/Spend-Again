@@ -1,8 +1,8 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { eq, and, like, sql } from 'drizzle-orm'
+import { eq, and, sql, gte, lt } from 'drizzle-orm'
 import { transactions } from '@spend-again/db'
-import { CATEGORIES } from '@spend-again/shared'
+import { CATEGORIES, monthRange } from '@spend-again/shared'
 import { validateQuery } from '../middleware/validate.js'
 import type { DbClient } from '../lib/db.js'
 
@@ -55,24 +55,6 @@ function getCurrentMonthYear(): { month: string; year: string } {
   return { month, year }
 }
 
-function getCurrentWeekDateRange(): { start: Date; end: Date } {
-  const now = new Date()
-  const dayOfWeek = now.getDay() // 0=Sun, 1=Mon ...
-  const startOfWeek = new Date(now)
-  startOfWeek.setDate(now.getDate() - dayOfWeek)
-  startOfWeek.setHours(0, 0, 0, 0)
-  return { start: startOfWeek, end: now }
-}
-
-/** Convert DD/MM/YYYY to a Date object for comparison. */
-function parseDDMMYYYY(dateStr: string): Date | null {
-  const parts = dateStr.split('/')
-  if (parts.length !== 3) return null
-  const [dd, mm, yyyy] = parts
-  if (!dd || !mm || !yyyy) return null
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd))
-}
-
 // ── Router factory ─────────────────────────────────────────────────────────────
 
 /**
@@ -96,9 +78,12 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
       ? { month: query.month, year: query.year }
       : getCurrentMonthYear()
 
+    const { startIso, endIso } = monthRange(year, month)
+
     const conditions = [
       eq(transactions.userId, userId),
-      like(transactions.date, `__/${month}/${year}`),
+      gte(transactions.occurredOn, startIso),
+      lt(transactions.occurredOn, endIso),
     ]
 
     const rows = await db
@@ -133,16 +118,20 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
     const query = c.get('validatedQuery') as z.infer<typeof topExpenseQuerySchema>
     const period = query.period ?? 'month'
 
-    // Pull all transactions for this user, then filter in JS
-    // (date is stored as text DD/MM/YYYY so we can't use SQL date functions directly)
     const userCondition = eq(transactions.userId, userId)
 
     if (period === 'month') {
       const { month, year } = getCurrentMonthYear()
+      const { startIso, endIso } = monthRange(year, month)
+
       const rows = await db
         .select()
         .from(transactions)
-        .where(and(userCondition, like(transactions.date, `__/${month}/${year}`)))
+        .where(and(
+          userCondition,
+          gte(transactions.occurredOn, startIso),
+          lt(transactions.occurredOn, endIso),
+        ))
         .orderBy(sql`${transactions.amountCents} DESC`)
         .limit(1)
 
@@ -159,21 +148,24 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
       })
     }
 
-    // period === 'week'
-    const { start } = getCurrentWeekDateRange()
-    const allRows = await db
+    // period === 'week' — use occurred_on date column
+    const today = new Date()
+    const day = today.getUTCDay()
+    const startOfWeek = new Date(today)
+    startOfWeek.setUTCDate(today.getUTCDate() - day)
+    const startIso = startOfWeek.toISOString().slice(0, 10)
+
+    const rows = await db
       .select()
       .from(transactions)
-      .where(userCondition)
+      .where(and(
+        userCondition,
+        gte(transactions.occurredOn, startIso),
+      ))
       .orderBy(sql`${transactions.amountCents} DESC`)
+      .limit(1)
 
-    // Filter rows to current week
-    const weekRows = allRows.filter((row) => {
-      const d = parseDDMMYYYY(row.date)
-      return d !== null && d >= start
-    })
-
-    const tx = weekRows[0]
+    const tx = rows[0]
     if (!tx) {
       return c.json({ transaction: null, period })
     }
@@ -199,9 +191,12 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
       ? { month: query.month, year: query.year }
       : getCurrentMonthYear()
 
+    const { startIso, endIso } = monthRange(year, month)
+
     const conditions = [
       eq(transactions.userId, userId),
-      like(transactions.date, `__/${month}/${year}`),
+      gte(transactions.occurredOn, startIso),
+      lt(transactions.occurredOn, endIso),
     ]
 
     const rows = await db

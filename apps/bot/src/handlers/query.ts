@@ -8,20 +8,14 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { Context } from 'grammy'
-import { GEMINI_MODEL, createLogger } from '@spend-again/shared'
-import type { Transaction } from '@spend-again/shared'
+import { GEMINI_MODEL, createLogger, getTodayDDMMYYYY, parseDDMMYYYY, fmtShortDate, fmtSGD, amountToCents } from '@spend-again/shared'
+import type { ApiTransaction } from '@spend-again/shared'
+import { waitForGeminiRpmBudget } from '@spend-again/parser'
 import { tokenStore, userIdStore, apiClient } from '../lib/api-client.js'
 
 const log = createLogger('bot:query')
 
 // ── Date helpers ─────────────────────────────────────────────────────────────
-
-function getTodayDDMMYYYY(): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  return `${dd}/${mm}/${now.getFullYear()}`
-}
 
 function currentMonthYear(): { month: string; year: string } {
   const now = new Date()
@@ -29,20 +23,6 @@ function currentMonthYear(): { month: string; year: string } {
     month: String(now.getMonth() + 1).padStart(2, '0'),
     year: String(now.getFullYear()),
   }
-}
-
-function parseDDMMYYYY(dateStr: string): Date | null {
-  const parts = dateStr.split('/')
-  if (parts.length !== 3) return null
-  const [dd, mm, yyyy] = parts
-  if (!dd || !mm || !yyyy) return null
-  return new Date(Number(yyyy), Number(mm) - 1, Number(dd))
-}
-
-function fmtShortDate(dateStr: string): string {
-  const parts = dateStr.split('/')
-  if (parts.length !== 3) return dateStr
-  return `${parts[0]}/${parts[1]}`
 }
 
 // ── Keyword query classifier ─────────────────────────────────────────────────
@@ -150,6 +130,7 @@ async function parseQueryWithGemini(text: string): Promise<GeminiQueryIntent | n
     `Return ONLY the JSON object, no markdown, no explanation.`
 
   try {
+    await waitForGeminiRpmBudget()
     const client = new GoogleGenerativeAI(apiKey)
     const model = client.getGenerativeModel({ model: GEMINI_MODEL })
     const result = await model.generateContent(prompt)
@@ -169,7 +150,7 @@ async function parseQueryWithGemini(text: string): Promise<GeminiQueryIntent | n
 
 // ── Transaction aggregation helpers ─────────────────────────────────────────
 
-function filterByDateRange(txs: Transaction[], start: string, end: string): Transaction[] {
+function filterByDateRange(txs: ApiTransaction[], start: string, end: string): ApiTransaction[] {
   const startDate = parseDDMMYYYY(start)
   const endDate = parseDDMMYYYY(end)
   if (!startDate || !endDate) return txs
@@ -179,13 +160,9 @@ function filterByDateRange(txs: Transaction[], start: string, end: string): Tran
   })
 }
 
-function fmtSGD(cents: number): string {
-  return `S$${(cents / 100).toFixed(2)}`
-}
-
-function buildSummaryReply(txs: Transaction[], start: string, end: string): string {
+function buildSummaryReply(txs: ApiTransaction[], start: string, end: string): string {
   const filtered = filterByDateRange(txs, start, end)
-  const totalCents = filtered.reduce((sum, tx) => sum + tx.amount, 0)
+  const totalCents = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
 
   if (filtered.length === 0) {
     return `No expenses found between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh! \u{1F44D}`
@@ -200,7 +177,7 @@ function buildSummaryReply(txs: Transaction[], start: string, end: string): stri
   )
 }
 
-function buildBreakdownReply(txs: Transaction[], start: string, end: string): string {
+function buildBreakdownReply(txs: ApiTransaction[], start: string, end: string): string {
   const filtered = filterByDateRange(txs, start, end)
   if (filtered.length === 0) {
     return `No expenses found between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh! \u{1F44D}`
@@ -208,10 +185,10 @@ function buildBreakdownReply(txs: Transaction[], start: string, end: string): st
 
   const byCategory = new Map<string, number>()
   for (const tx of filtered) {
-    byCategory.set(tx.category, (byCategory.get(tx.category) ?? 0) + tx.amount)
+    byCategory.set(tx.category, (byCategory.get(tx.category) ?? 0) + amountToCents(tx.amount))
   }
 
-  const grandTotal = filtered.reduce((sum, tx) => sum + tx.amount, 0)
+  const grandTotal = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
   const sorted = [...byCategory.entries()].sort((a, b) => b[1] - a[1])
 
   const lines = sorted.map(([cat, cents]) => {
@@ -226,7 +203,7 @@ function buildBreakdownReply(txs: Transaction[], start: string, end: string): st
   )
 }
 
-function buildTrendReply(txs: Transaction[], start: string, end: string): string {
+function buildTrendReply(txs: ApiTransaction[], start: string, end: string): string {
   const filtered = filterByDateRange(txs, start, end)
   if (filtered.length === 0) {
     return `No expenses found between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh! \u{1F44D}`
@@ -234,7 +211,7 @@ function buildTrendReply(txs: Transaction[], start: string, end: string): string
 
   const byDay = new Map<string, number>()
   for (const tx of filtered) {
-    byDay.set(tx.date, (byDay.get(tx.date) ?? 0) + tx.amount)
+    byDay.set(tx.date, (byDay.get(tx.date) ?? 0) + amountToCents(tx.amount))
   }
 
   const startDate = parseDDMMYYYY(start)
@@ -260,7 +237,7 @@ function buildTrendReply(txs: Transaction[], start: string, end: string): string
     return `No spending recorded between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh!`
   }
 
-  const totalCents = filtered.reduce((sum, tx) => sum + tx.amount, 0)
+  const totalCents = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
   return (
     `\u{1F4C8} Spending trend (${fmtShortDate(start)} – ${fmtShortDate(end)}):\n\n` +
     lines.join('\n') +
@@ -269,7 +246,7 @@ function buildTrendReply(txs: Transaction[], start: string, end: string): string
 }
 
 function buildCategoryTotalReply(
-  txs: Transaction[],
+  txs: ApiTransaction[],
   category: string,
   start: string,
   end: string,
@@ -282,7 +259,7 @@ function buildCategoryTotalReply(
     return `No *${category}* expenses between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh! \u{1F44D}`
   }
 
-  const totalCents = filtered.reduce((sum, tx) => sum + tx.amount, 0)
+  const totalCents = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
   return (
     `\u{1F4CA} *${category}* spending (${fmtShortDate(start)} – ${fmtShortDate(end)}):\n\n` +
     `\u{1F4B0} Total: *${fmtSGD(totalCents)}*\n` +

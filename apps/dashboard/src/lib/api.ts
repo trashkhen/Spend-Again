@@ -5,25 +5,13 @@
  */
 
 import { authHeader } from './auth'
+import type { ApiTransaction, BudgetSettings, CustomCategory } from '@spend-again/shared'
+
+export type { ApiTransaction, BudgetSettings, CustomCategory }
 
 const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3001'
 
 // ── Response shapes ────────────────────────────────────────────────────────────
-
-export type ApiTransaction = {
-  id: string
-  userId: string
-  amount: string // decimal string, e.g. "10.50"
-  item: string
-  category: string
-  subCategory: string
-  date: string // DD/MM/YYYY
-  source: 'manual' | 'bot' | 'sms' | 'ocr'
-  tier?: 1 | 2 | 3
-  confidence?: string
-  createdAt: string
-  updatedAt: string
-}
 
 export type ApiError = {
   error: string
@@ -121,12 +109,24 @@ export async function deleteTransaction(id: string): Promise<void> {
   await apiFetch<{ success: boolean }>(`/api/transactions/${id}`, { method: 'DELETE' })
 }
 
-// ── Budget endpoints ───────────────────────────────────────────────────────────
+// ── Custom categories endpoints ────────────────────────────────────────────────
 
-export type BudgetSettings = {
-  monthlyBudget: number | null
-  budgetAlertPct: number
+export async function listCustomCategories(): Promise<CustomCategory[]> {
+  return apiFetch<CustomCategory[]>('/api/users/custom-categories')
 }
+
+export async function createCustomCategory(input: { category: string; subCategory: string }): Promise<CustomCategory> {
+  return apiFetch<CustomCategory>('/api/users/custom-categories', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+export async function deleteCustomCategory(id: string): Promise<void> {
+  await apiFetch<{ success: boolean }>(`/api/users/custom-categories/${id}`, { method: 'DELETE' })
+}
+
+// ── Budget endpoints ───────────────────────────────────────────────────────────
 
 export async function getBudget(): Promise<BudgetSettings> {
   return apiFetch<BudgetSettings>('/api/users/budget')

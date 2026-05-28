@@ -178,9 +178,6 @@ importers:
         specifier: ^0.24.1
         version: 0.24.1
     devDependencies:
-      '@spend-again/db':
-        specifier: workspace:*
-        version: link:../db
       '@spend-again/shared':
         specifier: workspace:*
         version: link:../shared

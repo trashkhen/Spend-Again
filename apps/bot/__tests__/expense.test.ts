@@ -4,7 +4,10 @@ vi.mock('../src/lib/api-client.js', () => ({
   loginViaTelegram: vi.fn(),
   tokenStore: new Map<number, string>(),
   userIdStore: new Map<number, string>(),
-  apiClient: {},
+  apiClient: {
+    setToken: vi.fn(),
+    getLearnedMapping: vi.fn().mockResolvedValue(null),
+  },
 }))
 
 vi.mock('@spend-again/parser', () => ({
@@ -63,7 +66,7 @@ describe('expenseHandler — auto-reauth when tokenStore is empty after restart'
 
     expect(loginViaTelegram).toHaveBeenCalledOnce()
     expect(ctx.reply).not.toHaveBeenCalledWith(expect.stringContaining("haven't registered"))
-    expect(parse).toHaveBeenCalledWith(EXPENSE_TEXT)
+    expect(parse).toHaveBeenCalledWith(EXPENSE_TEXT, expect.objectContaining({ lookupItem: expect.any(Function) }))
   })
 
   it('shows "not registered" when tokenStore is empty and re-auth fails (user never signed up)', async () => {
@@ -84,6 +87,6 @@ describe('expenseHandler — auto-reauth when tokenStore is empty after restart'
     await expenseHandler(ctx as never)
 
     expect(loginViaTelegram).not.toHaveBeenCalled()
-    expect(parse).toHaveBeenCalledWith(EXPENSE_TEXT)
+    expect(parse).toHaveBeenCalledWith(EXPENSE_TEXT, expect.objectContaining({ lookupItem: expect.any(Function) }))
   })
 })

@@ -1,12 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@spend-again/parser', () => ({
-  saveMapping: vi.fn().mockResolvedValue(undefined),
-}))
-
 vi.mock('../src/lib/api-client.js', () => ({
   apiClient: {
     setToken: vi.fn(),
+    saveLearnedMapping: vi.fn().mockResolvedValue(true),
     createTransaction: vi.fn(),
     getSpendingSummary: vi.fn().mockResolvedValue(null),
     getBudget: vi.fn().mockResolvedValue(null),
@@ -22,7 +19,6 @@ vi.mock('../src/handlers/expense.js', () => ({
 import { confirmHandler, learnHandler, pendingLearnPrompts } from '../src/handlers/confirm.js'
 import { apiClient, tokenStore, userIdStore } from '../src/lib/api-client.js'
 import { pendingConfirmations } from '../src/handlers/expense.js'
-import { saveMapping } from '@spend-again/parser'
 
 const TELEGRAM_ID = 281882561
 const USER_UUID = '11111111-2222-3333-4444-555555555555'
@@ -84,18 +80,20 @@ describe('learn prompt — callback_data stays within Telegram 64-byte limit', (
     expect(stored?.item).toBe(longItem)
   })
 
-  it('round-trips: learnHandler retrieves the stored mapping and calls saveMapping', async () => {
+  it('round-trips: learnHandler retrieves the stored mapping and calls saveLearnedMapping via apiClient', async () => {
+    tokenStore.set(TELEGRAM_ID, FAKE_TOKEN)
     pendingLearnPrompts.set('deadbeef0000', {
       item: 'LV Hoodie',
       category: 'Shopping' as never,
       subCategory: 'Other' as never,
       createdAt: Date.now(),
+      telegramId: TELEGRAM_ID,
     })
 
     const ctx = makeCtx('learn_yes|deadbeef0000')
     await learnHandler(ctx as never)
 
-    expect(saveMapping).toHaveBeenCalledWith('LV Hoodie', 'Shopping', 'Other', 'user')
+    expect(apiClient.saveLearnedMapping).toHaveBeenCalledWith('LV Hoodie', 'Shopping', 'Other')
     expect(pendingLearnPrompts.size).toBe(0)
   })
 
@@ -103,7 +101,7 @@ describe('learn prompt — callback_data stays within Telegram 64-byte limit', (
     const ctx = makeCtx('learn_yes|unknownid0000')
     await learnHandler(ctx as never)
 
-    expect(saveMapping).not.toHaveBeenCalled()
+    expect(apiClient.saveLearnedMapping).not.toHaveBeenCalled()
     expect(ctx.editMessageText).toHaveBeenCalledWith(expect.stringMatching(/.+/))
   })
 })

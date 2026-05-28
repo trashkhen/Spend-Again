@@ -1,13 +1,16 @@
 // Parser package entry point
 import { parseWithRegex } from './regex.js'
-import { lookupItem } from './learned.js'
-import { parseWithGemini } from './gemini.js'
+import { parseWithGemini, waitForGeminiRpmBudget } from './gemini.js'
+import type { ParseResult } from './regex.js'
+import type { Category, SubCategory } from '@spend-again/shared'
 
 export type { ParseResult } from './regex.js'
 export { parseWithRegex } from './regex.js'
-export { parseWithGemini, buildPrompt } from './gemini.js'
+export { parseWithGemini, buildPrompt, waitForGeminiRpmBudget } from './gemini.js'
 export { GeminiRateLimitError, OcrRateLimitError } from '@spend-again/shared'
-export { lookupItem, saveMapping } from './learned.js'
+
+export type LookupResult = { category: Category; subCategory: SubCategory; confidence: number }
+export type LookupFn = (itemName: string) => Promise<LookupResult | null>
 
 /**
  * Unified 3-tier expense parser.
@@ -19,14 +22,17 @@ export { lookupItem, saveMapping } from './learned.js'
  *   - If regex returns null (no amount found), we continue to Tier 2
  *     using the raw input string.
  *
- * Tier 2 — Learned mappings (DB): looks up item → category from past
- *   corrections/confirmations. If found, merges with any amount/date from
- *   the Tier 1 partial result.
+ * Tier 2 — Learned mappings (via injected lookupItem): looks up item → category
+ *   from past corrections/confirmations. If found, merges with any amount/date
+ *   from the Tier 1 partial result.
  *
  * Tier 3 — Gemini LLM: called only when both previous tiers fail to produce
  *   a fully-resolved result.
  */
-export async function parse(input: string): Promise<ReturnType<typeof parseWithRegex>> {
+export async function parse(
+  input: string,
+  opts: { lookupItem: LookupFn },
+): Promise<ParseResult | null> {
   // Tier 1: regex — no I/O
   const tier1 = parseWithRegex(input)
 
@@ -35,22 +41,26 @@ export async function parse(input: string): Promise<ReturnType<typeof parseWithR
     return tier1
   }
 
-  // Tier 2: learned mappings
+  // Tier 2: learned mappings via injected lookup function
   // Use the item extracted by regex (if any) — it's already stripped of
   // amounts, dates, and prepositions, which improves lookup accuracy.
   const itemToLookup = tier1?.item ?? input
-  const tier2 = await lookupItem(itemToLookup)
+  const tier2 = await opts.lookupItem(itemToLookup)
 
   if (tier2 !== null) {
     // Merge: prefer tier1 amount/date when available; take category from tier2
     return {
-      ...tier2,
-      amount: tier1 !== null && tier1.amount !== 0 ? tier1.amount : tier2.amount,
-      item: tier1?.item ?? tier2.item,
+      amount: tier1 !== null && tier1.amount !== 0 ? tier1.amount : 0,
+      item: tier1?.item ?? input,
+      category: tier2.category,
+      subCategory: tier2.subCategory,
+      confidence: tier2.confidence,
+      tier: 2,
       ...(tier1?.date !== undefined ? { date: tier1.date } : {}),
     }
   }
 
   // Tier 3: Gemini LLM — only when tiers 1 and 2 both fail
+  await waitForGeminiRpmBudget()
   return parseWithGemini(input)
 }

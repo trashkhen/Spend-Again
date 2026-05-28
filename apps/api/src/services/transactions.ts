@@ -1,7 +1,7 @@
-import { eq, and, like, sql, desc } from 'drizzle-orm'
+import { eq, and, gte, lt, sql, desc } from 'drizzle-orm'
 import { transactions } from '@spend-again/db'
 import type { Transaction } from '@spend-again/db'
-import { ddmmyyyyToIso } from '@spend-again/shared'
+import { ddmmyyyyToIso, monthRange } from '@spend-again/shared'
 import type { DbClient } from '../lib/db.js'
 
 // ── Input types (exported for use in routes and tests) ─────────────────────────
@@ -85,14 +85,23 @@ export function createTransactionService(db: DbClient): TransactionService {
         conditions.push(eq(transactions.category, query.category))
       }
 
-      // Date column is stored as "DD/MM/YYYY" text.
-      // Build LIKE patterns to filter by month/year.
+      // Use the occurred_on date column (YYYY-MM-DD) for accurate date filtering.
       if (query.month && query.year) {
-        conditions.push(like(transactions.date, `__/${query.month}/${query.year}`))
-      } else if (query.month) {
-        conditions.push(like(transactions.date, `__/${query.month}/____`))
+        const { startIso, endIso } = monthRange(query.year, query.month)
+        conditions.push(gte(transactions.occurredOn, startIso))
+        conditions.push(lt(transactions.occurredOn, endIso))
       } else if (query.year) {
-        conditions.push(like(transactions.date, `__/__/${query.year}`))
+        // Year-only filter: full year range
+        const startIso = `${query.year}-01-01`
+        const endIso = `${String(Number(query.year) + 1)}-01-01`
+        conditions.push(gte(transactions.occurredOn, startIso))
+        conditions.push(lt(transactions.occurredOn, endIso))
+      } else if (query.month) {
+        // Month-only filter (no year): use current year with occurred_on
+        const currentYear = String(new Date().getFullYear())
+        const { startIso, endIso } = monthRange(currentYear, query.month)
+        conditions.push(gte(transactions.occurredOn, startIso))
+        conditions.push(lt(transactions.occurredOn, endIso))
       }
 
       const limit = query.limit ?? 50
@@ -101,7 +110,7 @@ export function createTransactionService(db: DbClient): TransactionService {
       const base = db.select().from(transactions)
       const filtered = conditions.length > 0 ? base.where(and(...conditions)) : base
       const rows = await filtered
-        .orderBy(desc(transactions.createdAt))
+        .orderBy(desc(transactions.occurredOn), desc(transactions.createdAt))
         .limit(limit)
         .offset(offset)
 

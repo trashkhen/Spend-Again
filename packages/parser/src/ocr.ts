@@ -1,7 +1,8 @@
 import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/generative-ai'
-import { CATEGORY_MAP, GEMINI_MODEL, OcrRateLimitError } from '@spend-again/shared'
+import { CATEGORY_MAP, GEMINI_MODEL, OcrRateLimitError, getTodayDDMMYYYY } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
+import { waitForGeminiRpmBudget } from './gemini.js'
 
 // ---------------------------------------------------------------------------
 // OCR-specific result types
@@ -119,18 +120,6 @@ Respond with ONLY the JSON object.`
 }
 
 // ---------------------------------------------------------------------------
-// Date helpers
-// ---------------------------------------------------------------------------
-
-function getTodayDDMMYYYY(): string {
-  const now = new Date()
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = String(now.getFullYear())
-  return `${dd}/${mm}/${yyyy}`
-}
-
-// ---------------------------------------------------------------------------
 // Response parsing helpers
 // ---------------------------------------------------------------------------
 
@@ -214,6 +203,8 @@ export async function parseReceiptWithOcr(
   const model = client.getGenerativeModel({ model: GEMINI_MODEL })
 
   const prompt = buildOcrPrompt()
+
+  await waitForGeminiRpmBudget()
 
   let rawText: string
   try {

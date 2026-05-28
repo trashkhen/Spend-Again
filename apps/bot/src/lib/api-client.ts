@@ -1,6 +1,6 @@
 import { createHmac, createHash } from 'node:crypto'
 import { createLogger, requireEnv } from '@spend-again/shared'
-import type { Category, SubCategory, Transaction } from '@spend-again/shared'
+import type { ApiTransaction, Category, SubCategory } from '@spend-again/shared'
 import { BOT_TOKEN } from './env.js'
 
 const log = createLogger('bot:api-client')
@@ -64,18 +64,6 @@ export type CreateTransactionInput = {
   confidence?: number
 }
 
-type ApiTransactionResponse = {
-  id: string
-  userId: string
-  amount: string // decimal string from API, e.g. "10.50"
-  item: string
-  category: Category
-  subCategory: SubCategory
-  date: string
-  source: string
-  createdAt: string
-  updatedAt: string
-}
 
 // ── Token + userId stores (keyed by Telegram user ID) ─────────────────────────
 
@@ -224,7 +212,7 @@ export class ApiClient {
         return null
       }
 
-      const body = (await res.json()) as ApiTransactionResponse
+      const body = (await res.json()) as ApiTransaction
       return { id: body.id }
     } catch (err) {
       log.error({ err }, 'createTransaction error')
@@ -236,7 +224,7 @@ export class ApiClient {
    * GET /api/transactions?userId=<userId>&limit=<limit>
    * Returns an array of transactions, or an empty array on failure.
    */
-  async getRecentTransactions(userId: string, limit = 10): Promise<Transaction[]> {
+  async getRecentTransactions(userId: string, limit = 10): Promise<ApiTransaction[]> {
     try {
       const url = new URL(`${this.baseUrl}/api/transactions`)
       url.searchParams.set('userId', userId)
@@ -255,20 +243,7 @@ export class ApiClient {
         return []
       }
 
-      const body = (await res.json()) as ApiTransactionResponse[]
-      // Map the decimal "amount" string back to integer cents for the shared Transaction type
-      return body.map((tx) => ({
-        id: tx.id,
-        userId: tx.userId,
-        amount: Math.round(parseFloat(tx.amount) * 100),
-        item: tx.item,
-        category: tx.category,
-        subCategory: tx.subCategory,
-        date: tx.date,
-        source: tx.source as Transaction['source'],
-        createdAt: tx.createdAt,
-        updatedAt: tx.updatedAt,
-      }))
+      return (await res.json()) as ApiTransaction[]
     } catch (err) {
       log.error({ err }, 'getRecentTransactions error')
       return []
@@ -279,10 +254,34 @@ export class ApiClient {
    * GET /api/transactions?userId=<userId>
    * Returns all transactions for the user (no date filter), or empty array on failure.
    */
-  async getAllTransactions(userId: string): Promise<Transaction[]> {
+  async getAllTransactions(userId: string): Promise<ApiTransaction[]> {
     // Capped at 500 to match the API's new max page size. If callers need more,
     // they should paginate. The previous 10000 was silently truncated server-side.
     return this.getRecentTransactions(userId, 500)
+  }
+
+  /**
+   * GET /api/learned-mappings/:itemName
+   * Looks up a learned item → category mapping. Returns null if not found.
+   */
+  async getLearnedMapping(
+    itemName: string,
+  ): Promise<{ category: Category; subCategory: SubCategory; confidence: number } | null> {
+    try {
+      const res = await fetch(
+        `${this.baseUrl}/api/learned-mappings/${encodeURIComponent(itemName.toLowerCase())}`,
+        { headers: this.buildHeaders() },
+      )
+      if (res.status === 404) return null
+      if (!res.ok) {
+        log.error({ status: res.status }, 'getLearnedMapping failed')
+        return null
+      }
+      return (await res.json()) as { category: Category; subCategory: SubCategory; confidence: number }
+    } catch (err) {
+      log.error({ err }, 'getLearnedMapping error')
+      return null
+    }
   }
 
   /**
