@@ -8,7 +8,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { Context } from 'grammy'
-import { GEMINI_MODEL, createLogger, getTodayDDMMYYYY, parseDDMMYYYY, fmtShortDate, fmtSGD, amountToCents } from '@spend-again/shared'
+import { GEMINI_MODEL, createLogger, getTodayDDMMYYYY, parseDDMMYYYY, parseYYYYMMDD, fmtShortDate, fmtSGD, amountToCents, occurredOnToDisplay, occurredOnToFullDisplay } from '@spend-again/shared'
 import type { ApiTransaction } from '@spend-again/shared'
 import { waitForGeminiRpmBudget } from '@spend-again/parser'
 import { tokenStore, userIdStore, apiClient } from '../lib/api-client.js'
@@ -150,12 +150,13 @@ async function parseQueryWithGemini(text: string): Promise<GeminiQueryIntent | n
 
 // ── Transaction aggregation helpers ─────────────────────────────────────────
 
-function filterByDateRange(txs: ApiTransaction[], start: string, end: string): ApiTransaction[] {
+export function filterByDateRange(txs: ApiTransaction[], start: string, end: string): ApiTransaction[] {
   const startDate = parseDDMMYYYY(start)
   const endDate = parseDDMMYYYY(end)
   if (!startDate || !endDate) return txs
   return txs.filter((tx) => {
-    const d = new Date(tx.occurredOn)
+    const d = parseYYYYMMDD(tx.occurredOn)
+    if (!d) return false
     return d >= startDate && d <= endDate
   })
 }
@@ -203,7 +204,7 @@ function buildBreakdownReply(txs: ApiTransaction[], start: string, end: string):
   )
 }
 
-function buildTrendReply(txs: ApiTransaction[], start: string, end: string): string {
+export function buildTrendReply(txs: ApiTransaction[], start: string, end: string): string {
   const filtered = filterByDateRange(txs, start, end)
   if (filtered.length === 0) {
     return `No expenses found between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh! \u{1F44D}`
@@ -228,7 +229,7 @@ function buildTrendReply(txs: ApiTransaction[], start: string, end: string): str
     const key = `${yyyy}-${mm}-${dd}` // YYYY-MM-DD to match occurredOn
     const cents = byDay.get(key) ?? 0
     if (cents > 0) {
-      lines.push(`  ${dd}/${mm}: *${fmtSGD(cents)}*`)
+      lines.push(`  ${occurredOnToDisplay(key)}: *${fmtSGD(cents)}*`)
     }
     cur.setDate(cur.getDate() + 1)
   }
@@ -319,8 +320,7 @@ async function handleTopExpense(userId: string, period: 'week' | 'month'): Promi
 
   const tx = result.transaction
   const periodLabel = period === 'week' ? 'this week' : 'this month'
-  const [yyyy, mm, dd] = tx.occurredOn.split('-')
-  const displayDate = `${dd ?? ''}/${mm ?? ''}/${yyyy ?? ''}`
+  const displayDate = occurredOnToFullDisplay(tx.occurredOn)
   return (
     `\u{1F3C6} Your biggest expense ${periodLabel}:\n\n` +
     `\u{1F4B0} *S$${tx.amount}* — ${tx.item}\n` +

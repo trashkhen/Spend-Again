@@ -397,6 +397,33 @@ describe('PUT /api/transactions/:id', () => {
     const body = await json(res)
     expect(body['code']).toBe('VALIDATION_ERROR')
   })
+
+  it('converts date DD/MM/YYYY to occurredOn YYYY-MM-DD in the DB patch, and does not pass date field directly', async () => {
+    const db = makeMockDb()
+    const app = makeApp(db)
+
+    const res = await app.request(`/${BASE_TX.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: '13/05/2026' }),
+    })
+
+    expect(res.status).toBe(200)
+
+    // The update set() call should receive occurredOn, not the raw date field
+    const updateMock = vi.mocked(db.update as unknown as () => unknown)
+    const setMock = (updateMock.mock.results[0]?.value as { set: ReturnType<typeof vi.fn> }).set
+    expect(setMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        occurredOn: '2026-05-13',
+      }),
+    )
+    expect(setMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        date: expect.anything(),
+      }),
+    )
+  })
 })
 
 describe('DELETE /api/transactions/:id', () => {
