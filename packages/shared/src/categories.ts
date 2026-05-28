@@ -81,7 +81,7 @@ export type SubCategory =
   // Other (shared fallback)
   | 'Other'
 
-export const CATEGORIES: readonly Category[] = [
+export const CATEGORIES = [
   'Food',
   'Groceries',
   'Transport',
@@ -94,7 +94,7 @@ export const CATEGORIES: readonly Category[] = [
   'Finance',
   'Housing',
   'Other',
-] as const
+] as const satisfies readonly Category[]
 
 export const CATEGORY_MAP: Record<Category, readonly SubCategory[]> = {
   Food: ['Hawker', 'Restaurant', 'Cafe', 'Fast Food', 'Delivery', 'Other'],

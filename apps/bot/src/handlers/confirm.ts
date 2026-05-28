@@ -20,6 +20,7 @@ import {
 } from '@spend-again/shared'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
+import { DASHBOARD_URL } from '../lib/env.js'
 import { pendingConfirmations } from './expense.js'
 
 const log = createLogger('bot:confirm')
@@ -133,8 +134,7 @@ async function handleConfirmYes(
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.editMessageText(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 
@@ -144,8 +144,7 @@ async function handleConfirmYes(
   // Resolve the database UUID for this user (stored at /start login)
   const userId = userIdStore.get(telegramId)
   if (userId === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-    await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.editMessageText(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 
@@ -245,8 +244,7 @@ export async function learnHandler(ctx: Context): Promise<void> {
 
     const token = tokenStore.get(pending.telegramId)
     if (!token) {
-      const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-      await ctx.editMessageText(MSG_NOT_REGISTERED(dashboardUrl))
+      await ctx.editMessageText(MSG_NOT_REGISTERED(DASHBOARD_URL))
       return
     }
     apiClient.setToken(token)

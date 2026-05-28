@@ -24,11 +24,17 @@ const createSchema = z.object({
 export function createLearnedMappingsRouter(_db: DbClient): Hono<Env> {
   const r = new Hono<Env>()
 
+  // NOTE: learned_mappings is intentionally a global table for this single-tenant
+  // deployment (see codex-review-followup-design.md §1 non-goals). When per-user
+  // scoping is required, add `user_id` to the schema and filter here.
   r.get('/:itemName', async (c) => {
     const userId = c.get('userId')
     if (!userId) return c.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, 401)
 
     const itemName = decodeURIComponent(c.req.param('itemName'))
+    if (itemName.length === 0 || itemName.length > 200) {
+      return c.json({ error: 'itemName must be 1–200 chars', code: 'BAD_REQUEST' }, 400)
+    }
     const result = await findMapping(itemName)
     if (result === null) return c.json({ error: 'Not found', code: 'NOT_FOUND' }, 404)
     return c.json(result)

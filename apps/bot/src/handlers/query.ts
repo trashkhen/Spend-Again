@@ -8,10 +8,11 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { Context } from 'grammy'
-import { GEMINI_MODEL, createLogger, getTodayDDMMYYYY, parseDDMMYYYY, parseYYYYMMDD, fmtShortDate, fmtSGD, amountToCents, occurredOnToDisplay, occurredOnToFullDisplay } from '@spend-again/shared'
+import { GEMINI_MODEL, createLogger, getTodayDDMMYYYY, parseDDMMYYYY, parseYYYYMMDD, fmtShortDate, fmtSGD, occurredOnToDisplay, occurredOnToFullDisplay } from '@spend-again/shared'
 import type { ApiTransaction } from '@spend-again/shared'
 import { waitForGeminiRpmBudget } from '@spend-again/parser'
 import { tokenStore, userIdStore, apiClient } from '../lib/api-client.js'
+import { DASHBOARD_URL } from '../lib/env.js'
 
 const log = createLogger('bot:query')
 
@@ -163,7 +164,7 @@ export function filterByDateRange(txs: ApiTransaction[], start: string, end: str
 
 function buildSummaryReply(txs: ApiTransaction[], start: string, end: string): string {
   const filtered = filterByDateRange(txs, start, end)
-  const totalCents = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
+  const totalCents = filtered.reduce((sum, tx) => sum + tx.amountCents, 0)
 
   if (filtered.length === 0) {
     return `No expenses found between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh! \u{1F44D}`
@@ -186,10 +187,10 @@ function buildBreakdownReply(txs: ApiTransaction[], start: string, end: string):
 
   const byCategory = new Map<string, number>()
   for (const tx of filtered) {
-    byCategory.set(tx.category, (byCategory.get(tx.category) ?? 0) + amountToCents(tx.amount))
+    byCategory.set(tx.category, (byCategory.get(tx.category) ?? 0) + tx.amountCents)
   }
 
-  const grandTotal = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
+  const grandTotal = filtered.reduce((sum, tx) => sum + tx.amountCents, 0)
   const sorted = [...byCategory.entries()].sort((a, b) => b[1] - a[1])
 
   const lines = sorted.map(([cat, cents]) => {
@@ -212,7 +213,7 @@ export function buildTrendReply(txs: ApiTransaction[], start: string, end: strin
 
   const byDay = new Map<string, number>()
   for (const tx of filtered) {
-    byDay.set(tx.occurredOn, (byDay.get(tx.occurredOn) ?? 0) + amountToCents(tx.amount))
+    byDay.set(tx.occurredOn, (byDay.get(tx.occurredOn) ?? 0) + tx.amountCents)
   }
 
   const startDate = parseDDMMYYYY(start)
@@ -238,7 +239,7 @@ export function buildTrendReply(txs: ApiTransaction[], start: string, end: strin
     return `No spending recorded between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh!`
   }
 
-  const totalCents = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
+  const totalCents = filtered.reduce((sum, tx) => sum + tx.amountCents, 0)
   return (
     `\u{1F4C8} Spending trend (${fmtShortDate(start)} – ${fmtShortDate(end)}):\n\n` +
     lines.join('\n') +
@@ -260,7 +261,7 @@ function buildCategoryTotalReply(
     return `No *${category}* expenses between ${fmtShortDate(start)} and ${fmtShortDate(end)} leh! \u{1F44D}`
   }
 
-  const totalCents = filtered.reduce((sum, tx) => sum + amountToCents(tx.amount), 0)
+  const totalCents = filtered.reduce((sum, tx) => sum + tx.amountCents, 0)
   return (
     `\u{1F4CA} *${category}* spending (${fmtShortDate(start)} – ${fmtShortDate(end)}):\n\n` +
     `\u{1F4B0} Total: *${fmtSGD(totalCents)}*\n` +
@@ -373,16 +374,24 @@ export async function queryHandler(ctx: Context): Promise<void> {
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
     await ctx.reply(
       `Eh, you haven't registered yet leh! \u{1F64F}\n` +
-        `Please sign up at ${dashboardUrl} first, then come back here lor.`,
+        `Please sign up at ${DASHBOARD_URL} first, then come back here lor.`,
     )
     return
   }
 
   apiClient.setToken(token)
-  const userId = userIdStore.get(telegramId) ?? String(telegramId)
+  const userId = userIdStore.get(telegramId)
+  if (userId === undefined) {
+    // Token cached but UUID mapping was lost (e.g. bot process restart). Tell
+    // the user to re-link instead of querying with a numeric Telegram ID that
+    // can never match the transactions.user_id UUID column.
+    await ctx.reply(
+      `Hmm, your session has expired lah. Please /start again to re-link your account. \u{1F64F}`,
+    )
+    return
+  }
 
   const intent = classifyQuery(text)
 
@@ -400,9 +409,13 @@ export async function queryHandler(ctx: Context): Promise<void> {
       case 'category_breakdown':
         reply = await handleCategoryBreakdown(userId)
         break
+      default: {
+        const _exhaustive: never = intent
+        throw new Error(`Unhandled intent: ${JSON.stringify(_exhaustive)}`)
+      }
     }
 
-    await ctx.reply(reply!, { parse_mode: 'Markdown' })
+    await ctx.reply(reply, { parse_mode: 'Markdown' })
     return
   }
 

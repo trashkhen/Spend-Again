@@ -4,6 +4,7 @@ import { eq, sql } from 'drizzle-orm'
 import { users } from '@spend-again/db'
 import { validateBody } from '../middleware/validate.js'
 import type { DbClient } from '../lib/db.js'
+import { createCustomCategoriesRouter } from './custom-categories.js'
 
 type UsersVariables = {
   validatedBody: unknown
@@ -56,6 +57,12 @@ export function createUsersRouter(db: DbClient): Hono<UsersEnv> {
       budgetAlertPct: rows[0].budgetAlertPct ?? 100,
     })
   })
+
+  // Nested: /api/users/custom-categories. Mounted here so the parent
+  // /api/users/* middleware (requireAuth, rateLimit) only fires once per
+  // request — registering a separate /api/users/custom-categories/* middleware
+  // at the app level caused it to fire twice on every nested-route request.
+  router.route('/custom-categories', createCustomCategoriesRouter(db))
 
   return router
 }

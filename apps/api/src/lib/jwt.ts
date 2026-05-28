@@ -1,7 +1,16 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { requireEnv } from '@spend-again/shared'
 
-const secret = new TextEncoder().encode(requireEnv('JWT_SECRET'))
+// Resolve JWT_SECRET lazily so importing this module from tests that don't
+// exercise auth doesn't require the env var. Production still hard-fails at
+// first sign/verify call.
+let _secret: Uint8Array | undefined
+function secret(): Uint8Array {
+  if (_secret === undefined) {
+    _secret = new TextEncoder().encode(requireEnv('JWT_SECRET'))
+  }
+  return _secret
+}
 
 const ALGORITHM = 'HS256'
 const ISSUER = 'spend-again'
@@ -22,7 +31,7 @@ export async function signJWT(payload: JWTPayload): Promise<string> {
     .setIssuer(ISSUER)
     .setIssuedAt()
     .setExpirationTime(EXPIRY)
-    .sign(secret)
+    .sign(secret())
 }
 
 /**
@@ -30,7 +39,7 @@ export async function signJWT(payload: JWTPayload): Promise<string> {
  */
 export async function verifyJWT(token: string): Promise<JWTPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, secret, { issuer: ISSUER })
+    const { payload } = await jwtVerify(token, secret(), { issuer: ISSUER })
 
     if (typeof payload['userId'] !== 'string') return null
 

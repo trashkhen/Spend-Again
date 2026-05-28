@@ -7,7 +7,6 @@ import { createTransactionsRouter } from './routes/transactions.js'
 import { createAuthRouter } from './routes/auth.js'
 import { createAnalyticsRouter } from './routes/analytics.js'
 import { createUsersRouter } from './routes/users.js'
-import { createCustomCategoriesRouter } from './routes/custom-categories.js'
 import { createLearnedMappingsRouter } from './routes/learned-mappings.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
@@ -67,13 +66,13 @@ app.use('/api/analytics', requireAuth, rateLimitMiddleware)
 app.use('/api/analytics/*', requireAuth, rateLimitMiddleware)
 app.route('/api/analytics', createAnalyticsRouter(db))
 
+// /api/users covers /api/users/budget and /api/users/custom-categories. The
+// custom-categories router is nested INSIDE the users router (see users.ts),
+// so a separate /api/users/custom-categories middleware here would fire the
+// auth + rate-limit chain twice per request.
 app.use('/api/users', requireAuth, rateLimitMiddleware)
 app.use('/api/users/*', requireAuth, rateLimitMiddleware)
 app.route('/api/users', createUsersRouter(db))
-
-app.use('/api/users/custom-categories/*', requireAuth, rateLimitMiddleware)
-app.use('/api/users/custom-categories', requireAuth, rateLimitMiddleware)
-app.route('/api/users/custom-categories', createCustomCategoriesRouter(db))
 
 app.use('/api/learned-mappings/*', requireAuth, rateLimitMiddleware)
 app.use('/api/learned-mappings', requireAuth, rateLimitMiddleware)

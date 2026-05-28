@@ -50,7 +50,7 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
 
   const [item, setItem] = useState(transaction?.item ?? '')
   const [amount, setAmount] = useState(
-    transaction ? parseFloat(transaction.amount).toFixed(2) : ''
+    transaction ? (transaction.amountCents / 100).toFixed(2) : ''
   )
   const [category, setCategory] = useState<string>(initCategory)
   const [subCategory, setSubCategory] = useState(

@@ -3,11 +3,15 @@ export function centsToDecimalString(cents: number): string {
 }
 
 export function parseCents(raw: string): number {
-  const dot = raw.indexOf('.')
-  if (dot === -1) return parseInt(raw, 10) * 100
-  const int = raw.slice(0, dot)
-  const dec = raw.slice(dot + 1).padEnd(2, '0').slice(0, 2)
-  return parseInt(int, 10) * 100 + parseInt(dec, 10)
+  const negative = raw.startsWith('-')
+  const body = negative ? raw.slice(1) : raw
+  const dot = body.indexOf('.')
+  const magnitude =
+    dot === -1
+      ? parseInt(body, 10) * 100
+      : parseInt(body.slice(0, dot) || '0', 10) * 100 +
+        parseInt(body.slice(dot + 1).padEnd(2, '0').slice(0, 2), 10)
+  return negative ? -magnitude : magnitude
 }
 
 export function amountToCents(decimal: string): number {

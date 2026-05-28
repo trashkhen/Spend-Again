@@ -9,6 +9,7 @@ import {
   fmtSGD,
 } from '@spend-again/shared'
 import { tokenStore, loginViaTelegram, apiClient } from '../lib/api-client.js'
+import { DASHBOARD_URL } from '../lib/env.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 
 // ── Pending confirmation store ─────────────────────────────────────────────────
@@ -89,8 +90,7 @@ export async function expenseHandler(ctx: Context): Promise<void> {
     token = auth?.token
   }
   if (token === undefined) {
-    const dashboardUrl = process.env['DASHBOARD_URL'] ?? 'https://spend-again-dashboard.vercel.app'
-    await ctx.reply(MSG_NOT_REGISTERED(dashboardUrl))
+    await ctx.reply(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 

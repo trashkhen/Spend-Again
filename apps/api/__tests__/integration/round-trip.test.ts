@@ -70,8 +70,9 @@ describe.skipIf(!TEST_DB_URL)('integration: bot ↔ API ↔ DB round trip', () =
       }),
     })
     expect(createRes.status).toBe(201)
-    const created = (await createRes.json()) as { amount: string }
+    const created = (await createRes.json()) as { amount: string; amountCents: number }
     expect(created.amount).toBe('10.50')
+    expect(created.amountCents).toBe(1050)
 
     const listRes = await app.request('/api/transactions?userId=' + userId, {
       headers: { Authorization: `Bearer ${token}` },
