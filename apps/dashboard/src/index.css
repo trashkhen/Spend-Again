@@ -390,23 +390,17 @@ button {
   align-items: center;
   gap: 6px;
   height: 36px;
-  padding: 0 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13.5px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
   font-weight: 600;
-  background: var(--color-accent);
+  background: var(--color-coral);
   color: #ffffff;
   flex-shrink: 0;
-  transition: background var(--transition-fast), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: background var(--transition-fast), transform var(--transition-spring);
 }
-
-.btn-add-transaction:hover {
-  background: var(--color-accent-hover);
-}
-
-.btn-add-transaction:active {
-  transform: scale(0.97);
-}
+.btn-add-transaction:hover  { background: var(--color-coral-hover); }
+.btn-add-transaction:active { transform: scale(0.97); }
 
 /* ── Transaction row right side ──────────────────────────────────────────────── */
 
@@ -497,9 +491,9 @@ button {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: var(--blur-sm);
+  -webkit-backdrop-filter: var(--blur-sm);
   z-index: 300;
   display: flex;
   align-items: center;
@@ -508,10 +502,10 @@ button {
 }
 
 .modal {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--color-surface-solid);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-xl);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-xl);
   width: 100%;
   max-width: 480px;
   transform-origin: center;
@@ -519,16 +513,16 @@ button {
 }
 
 .modal-header {
-  padding: 24px 24px 0;
+  padding: 22px 24px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .modal-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--color-accent);
 }
 
 .modal-close {
@@ -540,18 +534,12 @@ button {
   justify-content: center;
   font-size: 20px;
   color: var(--color-text-muted);
-  transition: background var(--transition-fast), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: background var(--transition-fast), transform var(--transition-spring);
   line-height: 1;
 }
 
-.modal-close:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
-
-.modal-close:active {
-  transform: scale(0.92);
-}
+.modal-close:hover { background: var(--color-accent-dim); color: var(--color-accent); }
+.modal-close:active { transform: scale(0.92); }
 
 .modal-body {
   padding: 20px 24px;
@@ -562,21 +550,17 @@ button {
 
 .modal-error {
   background: rgba(239, 68, 68, 0.06);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.20);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   color: var(--color-error);
   font-size: 13px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+.form-group { display: flex; flex-direction: column; gap: 6px; }
 
 .form-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--color-text-muted);
   text-transform: uppercase;
@@ -586,8 +570,8 @@ button {
 .form-input,
 .form-select {
   height: 40px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: rgba(255,255,255,0.60);
+  border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
   color: var(--color-text);
   font-family: inherit;
@@ -599,13 +583,13 @@ button {
 
 .form-input:focus,
 .form-select:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(91, 142, 197, 0.12);
+  border-color: rgba(19,107,76,0.30);
+  box-shadow: 0 0 0 3px rgba(19,107,76,0.10);
 }
 
 .form-select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236B8C7A' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
@@ -628,47 +612,30 @@ button {
 .btn-cancel {
   height: 38px;
   padding: 0 18px;
-  border-radius: var(--radius-sm);
-  font-size: 13.5px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
   font-weight: 500;
   background: transparent;
   color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
-  transition: background var(--transition-fast), color var(--transition-fast), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  border: 1px solid var(--color-border-subtle);
+  transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-spring);
 }
-
-.btn-cancel:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
-
-.btn-cancel:active {
-  transform: scale(0.97);
-}
+.btn-cancel:hover  { background: var(--color-accent-dim); color: var(--color-accent); }
+.btn-cancel:active { transform: scale(0.97); }
 
 .btn-save {
   height: 38px;
   padding: 0 20px;
-  border-radius: var(--radius-sm);
-  font-size: 13.5px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
   font-weight: 600;
-  background: var(--color-accent);
+  background: var(--color-coral);
   color: #ffffff;
-  transition: background var(--transition-fast), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: background var(--transition-fast), transform var(--transition-spring);
 }
-
-.btn-save:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-}
-
-.btn-save:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.btn-save:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btn-save:hover:not(:disabled)  { background: var(--color-coral-hover); }
+.btn-save:active:not(:disabled) { transform: scale(0.97); }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Page sections ──────────────────────────────────────────────────────────── */
 
@@ -686,31 +653,19 @@ button {
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-size: 13px;
   font-weight: 500;
   transition: background var(--transition-fast), opacity var(--transition-fast);
 }
-
-.btn-primary {
-  background: var(--color-accent);
-  color: #ffffff;
-}
-
-.btn-primary:hover {
-  background: var(--color-accent-hover);
-}
-
+.btn-primary { background: var(--color-coral); color: #ffffff; }
+.btn-primary:hover { background: var(--color-coral-hover); }
 .btn-ghost {
   background: transparent;
   color: var(--color-text-muted);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-subtle);
 }
-
-.btn-ghost:hover {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
+.btn-ghost:hover { background: var(--color-accent-dim); color: var(--color-accent); }
 
 /* ── Error banner ────────────────────────────────────────────────────────────── */
 
@@ -769,7 +724,7 @@ button {
   display: inline-block;
   width: 28px;
   height: 28px;
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--color-border-subtle);
   border-top-color: var(--color-accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -1759,27 +1714,17 @@ button {
 .drawer-confirm {
   width: 100%;
   height: 46px;
-  background: var(--color-accent);
+  background: var(--color-coral);
   color: #ffffff;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   font-size: 15px;
   font-weight: 600;
   font-family: inherit;
-  transition: background var(--transition-fast), transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  transition: background var(--transition-fast), transform var(--transition-spring);
 }
-
-.drawer-confirm:hover:not(:disabled) {
-  background: var(--color-accent-hover);
-}
-
-.drawer-confirm:active:not(:disabled) {
-  transform: scale(0.97);
-}
-
-.drawer-confirm:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
+.drawer-confirm:hover:not(:disabled)  { background: var(--color-coral-hover); }
+.drawer-confirm:active:not(:disabled) { transform: scale(0.97); }
+.drawer-confirm:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ── Budget button ───────────────────────────────────────────────────────────── */
 
