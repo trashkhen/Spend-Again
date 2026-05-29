@@ -1275,6 +1275,34 @@ button {
   text-align: center;
 }
 
+.login-bot-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 80%;
+  align-self: center;
+  padding: 12px 20px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.login-bot-link:hover {
+  background: var(--color-accent-hover);
+  transform: translateY(-1px);
+}
+
+.login-bot-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 .login-widget-container {
   display: flex;
   justify-content: center;
