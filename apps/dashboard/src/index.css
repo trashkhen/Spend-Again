@@ -978,7 +978,6 @@ button {
   backdrop-filter: var(--blur-md);
   -webkit-backdrop-filter: var(--blur-md);
   border: 1px solid var(--color-border);
-  border-top: 2px solid var(--color-accent);
   border-radius: var(--radius-md);
   padding: 18px;
   box-shadow: var(--shadow-md);
@@ -1360,6 +1359,18 @@ button {
 
   .app-main {
     padding: 16px;
+  }
+
+  .dashboard-hero {
+    flex-direction: column;
+  }
+
+  .dashboard-hero-img {
+    display: none;
+  }
+
+  .dashboard-main-row {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1769,6 +1780,108 @@ button {
 .kpi-budget--caution  { border-left: 3px solid #facc15; background: rgba(250, 204, 21, 0.06); }
 .kpi-budget--warning  { border-left: 3px solid #fb923c; background: rgba(251, 146, 60, 0.06); }
 .kpi-budget--exceeded { border-left: 3px solid #ef4444; background: rgba(239, 68, 68, 0.08); }
+
+/* KPI card per-column accent tops */
+.kpi-card--coral  { border-top: 2px solid var(--color-coral); }
+.kpi-card--gold   { border-top: 2px solid var(--color-gold); }
+.kpi-card--leaf   { border-top: 2px solid var(--color-accent-mid); }
+
+/* ── Dashboard hero ─────────────────────────────────────────────── */
+
+.dashboard-hero {
+  background: var(--color-surface);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 16px;
+  min-height: 120px;
+}
+
+.dashboard-hero-left {
+  flex: 1;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dashboard-hero-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dashboard-hero-img {
+  width: 240px;
+  flex-shrink: 0;
+  object-fit: contain;
+  object-position: right bottom;
+  display: block;
+  padding: 8px 12px 0 0;
+  pointer-events: none;
+}
+
+/* ── Dashboard main row ─────────────────────────────────────────── */
+
+.dashboard-main-row {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 14px;
+  align-items: start;
+}
+
+.dashboard-spending-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.spending-summary-card {
+  background: var(--color-surface);
+  backdrop-filter: var(--blur-md);
+  -webkit-backdrop-filter: var(--blur-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-md);
+}
+
+.spending-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.spending-summary-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spending-total {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  margin-bottom: 2px;
+}
+
+.spending-label {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
 
 /* ── Budget toast notification ───────────────────────────────────────────────── */
 

@@ -3,6 +3,7 @@ import { Layout } from '../components/Layout'
 import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
 import { TransactionModal } from '../components/TransactionModal'
+import { CategoryBreakdown } from '../components/charts/CategoryBreakdown'
 import {
   listTransactions,
   createTransaction,
@@ -153,6 +154,8 @@ export function Dashboard() {
   const [showBudgetToast, setShowBudgetToast] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
+  const [chartMonth, setChartMonth] = useState(new Date().getMonth() + 1)
+  const [chartYear, setChartYear] = useState(new Date().getFullYear())
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
@@ -234,21 +237,26 @@ export function Dashboard() {
       searchValue={filters.search}
       onSearchChange={(val) => setFilters((prev) => ({ ...prev, search: val, page: 1 }))}
     >
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Welcome back! Here's your financial overview.</p>
+      {/* ── Hero banner ── */}
+      <div className="dashboard-hero">
+        <div className="dashboard-hero-left">
+          <div>
+            <h1 className="page-title">Dashboard 👋</h1>
+            <p className="page-subtitle">Welcome back! Here's your financial overview.</p>
+          </div>
+          <div className="dashboard-hero-actions">
+            <button type="button" className="btn-budget" onClick={() => setBudgetModalOpen(true)}>
+              Budget
+            </button>
+            <button type="button" className="btn-add-transaction" onClick={openCreate}>
+              + Add Transaction
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-          <button type="button" className="btn-budget" onClick={() => setBudgetModalOpen(true)}>
-            Budget
-          </button>
-          <button type="button" className="btn-add-transaction" onClick={openCreate}>
-            + Add Transaction
-          </button>
-        </div>
+        <img src="/banner.png" alt="" className="dashboard-hero-img" aria-hidden="true" />
       </div>
 
+      {/* ── KPI grid ── */}
       <div className="kpi-grid">
         <div className={`kpi-card ${getBudgetTierClass(summary.totalThisMonth, budget)}`}>
           <div className="kpi-card-top">
@@ -262,16 +270,16 @@ export function Dashboard() {
           )}
         </div>
 
-        <div className="kpi-card">
+        <div className="kpi-card kpi-card--coral">
           <div className="kpi-card-top">
-            <div className="kpi-icon kpi-icon--green">📈</div>
+            <div className="kpi-icon kpi-icon--red">📈</div>
             <span className="kpi-trend kpi-trend--up">avg / day</span>
           </div>
           <span className="kpi-label">Daily Average</span>
           <span className="kpi-value">{fmtSGD(summary.averageDaily)}</span>
         </div>
 
-        <div className="kpi-card">
+        <div className="kpi-card kpi-card--gold">
           <div className="kpi-card-top">
             <div className="kpi-icon kpi-icon--orange">🏆</div>
             <span className="kpi-trend" style={{ color: 'var(--color-warning)' }}>top spend</span>
@@ -280,9 +288,9 @@ export function Dashboard() {
           <span className="kpi-value" style={{ fontSize: '17px' }}>{summary.topCategory ?? '—'}</span>
         </div>
 
-        <div className="kpi-card">
+        <div className="kpi-card kpi-card--leaf">
           <div className="kpi-card-top">
-            <div className="kpi-icon kpi-icon--blue">🧾</div>
+            <div className="kpi-icon kpi-icon--green">🧾</div>
             <span className="kpi-trend kpi-trend--up">this month</span>
           </div>
           <span className="kpi-label">Transactions</span>
@@ -290,22 +298,41 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="dashboard-section">
-        <FilterBar filters={filters} onChange={setFilters} />
-        {error && (
-          <div className="error-banner" role="alert">
-            {error}
-            <button type="button" className="error-retry-btn" onClick={() => void fetchTransactions()}>Retry</button>
+      {/* ── Two-column main row ── */}
+      <div className="dashboard-main-row">
+        <div className="dashboard-section">
+          <FilterBar filters={filters} onChange={setFilters} />
+          {error && (
+            <div className="error-banner" role="alert">
+              {error}
+              <button type="button" className="error-retry-btn" onClick={() => void fetchTransactions()}>Retry</button>
+            </div>
+          )}
+          <TransactionTable
+            transactions={filtered}
+            loading={loading}
+            page={filters.page}
+            onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
+        </div>
+
+        <div className="dashboard-spending-overview">
+          <div className="spending-summary-card">
+            <div className="spending-summary-header">
+              <span className="spending-summary-title">Spending Overview</span>
+            </div>
+            <div className="spending-total">{fmtSGD(summary.totalThisMonth)}</div>
+            <div className="spending-label">Total spent this month</div>
           </div>
-        )}
-        <TransactionTable
-          transactions={filtered}
-          loading={loading}
-          page={filters.page}
-          onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-        />
+          <CategoryBreakdown
+            transactions={allTransactions}
+            month={chartMonth}
+            year={chartYear}
+            onMonthChange={(m, y) => { setChartMonth(m); setChartYear(y) }}
+          />
+        </div>
       </div>
 
       {budgetModalOpen && (
