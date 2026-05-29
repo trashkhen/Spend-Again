@@ -237,9 +237,9 @@ export function Dashboard() {
       searchValue={filters.search}
       onSearchChange={(val) => setFilters((prev) => ({ ...prev, search: val, page: 1 }))}
     >
-      {/* ── Hero banner ── */}
-      <div className="dashboard-hero">
-        <div className="dashboard-hero-left">
+      {/* ── Hero row ── */}
+      <div className="dashboard-hero-row">
+        <div className="dashboard-hero">
           <div>
             <h1 className="page-title">Dashboard 👋</h1>
             <p className="page-subtitle">Welcome back! Here's your financial overview.</p>
@@ -253,7 +253,9 @@ export function Dashboard() {
             </button>
           </div>
         </div>
-        <img src="/banner.png" alt="" className="dashboard-hero-img" aria-hidden="true" />
+        <div className="dashboard-hero-banner-card">
+          <img src="/banner.png" alt="" className="dashboard-hero-img" aria-hidden="true" />
+        </div>
       </div>
 
       {/* ── KPI grid ── */}
