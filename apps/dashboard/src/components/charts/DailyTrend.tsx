@@ -60,7 +60,7 @@ export function DailyTrend({ transactions, month, year, onMonthChange }: Props) 
       ) : (
         <ResponsiveContainer width="100%" height={240}>
           <LineChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(19,107,76,0.08)" />
             <XAxis
               dataKey="day"
               tick={{ fill: 'var(--color-text-muted)', fontSize: 12 }}

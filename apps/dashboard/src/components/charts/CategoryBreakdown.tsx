@@ -12,9 +12,9 @@ type Props = {
 }
 
 const PALETTE: readonly string[] = [
-  '#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6',
-  '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#84cc16',
-  '#06b6d4', '#a855f7',
+  '#136B4C', '#27AE60', '#FF6B6B', '#FFC857',
+  '#2A9D8F', '#E9C46A', '#F4A261', '#264653',
+  '#6B8C7A', '#A8C4B4', '#E76F51', '#023047',
 ]
 
 function getLast6Months(): { month: number; year: number; label: string }[] {
