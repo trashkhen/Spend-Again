@@ -25,3 +25,13 @@
   - Supabase MCP `apply_migration` goes over HTTPS to the Management API and records the run in `supabase_migrations.schema_migrations` so it stays visible in the dashboard.
   - Workflow: edit `packages/db/src/schema.ts`, run `pnpm --filter @spend-again/db generate` to produce the SQL file in `packages/db/drizzle/`, then paste the SQL into `apply_migration` with a snake_case name.
 - One past incident (2026-05-28) shipped Phase 4's `DROP COLUMN date` without the prior `ADD COLUMN occurred_on` + backfill, because `pnpm migrate` had never reached the DB. Don't repeat: verify column/table existence with `list_tables` or `execute_sql` before any DDL.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
