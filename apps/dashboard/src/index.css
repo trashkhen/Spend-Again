@@ -1844,44 +1844,6 @@ button {
   gap: 12px;
 }
 
-.spending-summary-card {
-  background: var(--color-surface);
-  backdrop-filter: var(--blur-md);
-  -webkit-backdrop-filter: var(--blur-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: 18px 20px;
-  box-shadow: var(--shadow-md);
-}
-
-.spending-summary-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.spending-summary-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.spending-total {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--color-accent);
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-  margin-bottom: 2px;
-}
-
-.spending-label {
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
 
 /* ── Budget toast notification ───────────────────────────────────────────────── */
 

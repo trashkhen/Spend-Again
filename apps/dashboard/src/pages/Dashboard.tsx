@@ -319,13 +319,6 @@ export function Dashboard() {
         </div>
 
         <div className="dashboard-spending-overview">
-          <div className="spending-summary-card">
-            <div className="spending-summary-header">
-              <span className="spending-summary-title">Spending Overview</span>
-            </div>
-            <div className="spending-total">{fmtSGD(summary.totalThisMonth)}</div>
-            <div className="spending-label">Total spent this month</div>
-          </div>
           <CategoryBreakdown
             transactions={allTransactions}
             month={chartMonth}
