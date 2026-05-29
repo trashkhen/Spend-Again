@@ -1,4 +1,5 @@
 import { useLocation, Link } from 'react-router-dom'
+import { getTelegramDisplayName } from '../lib/auth'
 
 type NavItem = {
   path: string
@@ -23,7 +24,6 @@ function IconAnalytics() {
       <rect x="2" y="12" width="3" height="6" rx="1"/>
       <rect x="7" y="8" width="3" height="10" rx="1"/>
       <rect x="12" y="5" width="3" height="13" rx="1"/>
-      <rect x="17" y="2" width="1" height="16" rx="0.5" opacity="0.3"/>
     </svg>
   )
 }
@@ -40,10 +40,11 @@ type Props = {
 
 export function Sidebar({ isOpen, onClose }: Props) {
   const { pathname } = useLocation()
+  const displayName = getTelegramDisplayName()
+  const avatarInitial = displayName[0]?.toUpperCase() ?? 'U'
 
   return (
     <>
-      {/* Mobile overlay */}
       <div
         className={`layout-sidebar-overlay${isOpen ? ' layout-sidebar-overlay--visible' : ''}`}
         onClick={onClose}
@@ -51,14 +52,8 @@ export function Sidebar({ isOpen, onClose }: Props) {
       />
 
       <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`} aria-label="Sidebar navigation">
-        {/* Logo */}
-        <div className="sidebar-logo">
-          <img src="/logo.png" alt="Spend Again?" className="sidebar-logo-img" />
-          <span className="sidebar-logo-name">Spend Again?</span>
-          <span className="sidebar-logo-sub">AI Finance Tracker</span>
-        </div>
+        <img src="/logo_v2.png" alt="Spend Again?" className="sidebar-logo-img" />
 
-        {/* Navigation */}
         <nav className="sidebar-nav" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.path
@@ -68,18 +63,17 @@ export function Sidebar({ isOpen, onClose }: Props) {
                 to={item.path}
                 className={`nav-item${isActive ? ' nav-item--active' : ''}`}
                 onClick={onClose}
+                aria-label={item.label}
                 aria-current={isActive ? 'page' : undefined}
               >
                 <span className="nav-icon" aria-hidden="true">{item.icon}</span>
-                {item.label}
               </Link>
             )
           })}
         </nav>
 
-        {/* Footer */}
         <div className="sidebar-footer">
-          <p className="sidebar-copyright">© {new Date().getFullYear()} Spend Again</p>
+          <div className="sidebar-avatar" aria-hidden="true">{avatarInitial}</div>
         </div>
       </aside>
     </>
