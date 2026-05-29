@@ -13,10 +13,8 @@ export function Login() {
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-logo">
-          <img src="/logo.png" alt="Spend Again?" className="login-logo-img" />
-          <h1 className="login-title">Spend Again?</h1>
-          <p className="login-subtitle">Your Singapore expense tracker</p>
+        <div className="login-banner-strip">
+          <img src="/banner.png" alt="Spend Again?" className="login-banner-img" />
         </div>
 
         <div className="login-widget-area">
