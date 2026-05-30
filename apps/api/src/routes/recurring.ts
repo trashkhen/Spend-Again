@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { validateBody } from '../middleware/validate.js'
 import { createRecurringService } from '../services/recurring.js'
+import { createTransactionService } from '../services/transactions.js'
 import { centsToDecimalString } from '@spend-again/shared'
 import type { DbClient } from '../lib/db.js'
 
@@ -51,6 +52,15 @@ export function createRecurringRouter(db: DbClient): Hono<AppEnv> {
     const userId = c.get('userId')
     const input = c.get('validatedBody') as z.infer<typeof createRecurringSchema>
     const row = await svc.create({ ...input, userId })
+
+    // If the start date is today or already past, fire processOverdue immediately
+    // so the first transaction is created without waiting for the nightly cron.
+    const today = new Date().toISOString().slice(0, 10)
+    if (input.startDate <= today) {
+      const txService = createTransactionService(db)
+      await svc.processOverdue(txService)
+    }
+
     return c.json(withAmount(row), 201)
   })
 

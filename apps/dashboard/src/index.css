@@ -1458,129 +1458,6 @@ button {
   margin-bottom: 24px;
 }
 
-/* ── Responsive / mobile ─────────────────────────────────────────────────────── */
-
-@media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-  }
-
-  .sidebar--open {
-    transform: translateX(0);
-  }
-
-  .layout-sidebar-overlay--visible {
-    display: block;
-  }
-
-  /* Hamburger now lives inside the header flex row */
-  .sidebar-toggle {
-    display: flex;
-  }
-
-  .app-content {
-    margin-left: 0;
-  }
-
-  /* Tighter header on mobile — hamburger is the first flex item */
-  .app-header {
-    padding: 0 12px;
-    gap: 10px;
-  }
-
-  /* Hide username text on small screens, keep avatar + logout */
-  .header-username {
-    display: none;
-  }
-
-  .kpi-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .charts-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .filter-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .filter-input,
-  .filter-select {
-    min-width: 0;
-    width: 100%;
-  }
-
-  .header-search {
-    max-width: none;
-    flex: 1;
-  }
-
-  .app-main {
-    padding: 16px;
-  }
-
-  /* iOS Safari auto-zooms when any input has font-size < 16px.
-     Setting 16px here prevents that zoom on focus. */
-  .header-search-input,
-  .form-input,
-  .form-select,
-  .filter-input,
-  .filter-select,
-  .drawer-input {
-    font-size: 16px;
-  }
-
-  .dashboard-hero-row {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-hero-banner-card {
-    display: none;
-  }
-
-  .dashboard-main-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1100px) {
-  .kpi-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 600px) {
-  .kpi-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .kpi-card {
-    padding: 10px;
-    gap: 6px;
-  }
-
-  .kpi-icon {
-    width: 28px;
-    height: 28px;
-    font-size: 13px;
-  }
-
-  .kpi-value {
-    font-size: 15px;
-  }
-
-  .kpi-label {
-    font-size: 9px;
-  }
-
-  .app-main {
-    padding: 12px;
-  }
-}
-
 /* ── /auth callback page ─────────────────────────────────────────────────────── */
 
 .auth-error-icon {
@@ -2201,5 +2078,151 @@ button {
   to {
     opacity: 0;
     transform: translateY(-20px);
+  }
+}
+
+/* ── Responsive / mobile ─────────────────────────────────────────────────────── */
+/* IMPORTANT: these blocks must stay AFTER all component declarations so that    */
+/* media-query overrides are not silently undone by later same-specificity rules. */
+
+@media (max-width: 1100px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar--open {
+    transform: translateX(0);
+  }
+
+  .layout-sidebar-overlay--visible {
+    display: block;
+  }
+
+  /* Hamburger now lives inside the header flex row */
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .app-content {
+    margin-left: 0;
+  }
+
+  /* Tighter header on mobile — hamburger is the first flex item */
+  .app-header {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  /* Hide username text on small screens, keep avatar + logout */
+  .header-username {
+    display: none;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-input,
+  .filter-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .header-search {
+    max-width: none;
+    flex: 1;
+  }
+
+  .app-main {
+    padding: 16px;
+  }
+
+  /* iOS Safari auto-zooms when any input has font-size < 16px.
+     Setting 16px here prevents that zoom on focus. */
+  .header-search-input,
+  .form-input,
+  .form-select,
+  .filter-input,
+  .filter-select,
+  .drawer-input {
+    font-size: 16px;
+  }
+
+  .dashboard-hero-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-hero-banner-card {
+    display: none;
+  }
+
+  .dashboard-main-row {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-top-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .kpi-card {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .kpi-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+
+  .kpi-value {
+    font-size: 15px;
+  }
+
+  .kpi-label {
+    font-size: 9px;
+  }
+
+  .app-main {
+    padding: 12px;
+  }
+
+  .tx-row {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .tx-amount {
+    font-size: 12px;
+  }
+
+  .tx-item-name {
+    font-size: 12px;
   }
 }
