@@ -9,6 +9,8 @@ import { recentHandler } from './handlers/recent.js'
 import { receiptHandler } from './handlers/receipt.js'
 import { receiptConfirmHandler } from './handlers/receipt-confirm.js'
 import { queryHandler, looksLikeQuery } from './handlers/query.js'
+import { editCommandHandler, editSelectHandler, handlePendingEdit, pendingEdits } from './handlers/edit.js'
+import { handlePendingInlineEdit, pendingInlineEdits } from './handlers/inline-edit.js'
 import { monthlyReportHandler } from './handlers/monthly-report.js'
 import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
@@ -32,12 +34,14 @@ bot.catch((err) => {
 bot.command('start', startHandler)
 bot.command('help', helpHandler)
 bot.command('recent', recentHandler)
+bot.command('edit', editCommandHandler)
 
 // ── Inline keyboard callback handlers ────────────────────────────────────────
 
 bot.callbackQuery(/^confirm_/, confirmHandler)
 bot.callbackQuery(/^learn_/, learnHandler)
 bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
+bot.callbackQuery(/^edit_select:/, editSelectHandler)
 
 // ── Reply keyboard button handlers ────────────────────────────────────────────
 
@@ -86,7 +90,21 @@ bot.on('message:document', receiptHandler)
 // ── Text message handler — route to query or expense ─────────────────────────
 
 bot.on('message:text', async (ctx) => {
+  const chatId = ctx.chat?.id
   const text = ctx.message.text ?? ''
+
+  // Pending /edit flow (editing a saved transaction)
+  if (chatId !== undefined && pendingEdits.has(chatId)) {
+    await handlePendingEdit(ctx)
+    return
+  }
+
+  // Pending inline-edit flow (correcting a parsed transaction before save)
+  if (chatId !== undefined && pendingInlineEdits.has(chatId)) {
+    await handlePendingInlineEdit(ctx)
+    return
+  }
+
   if (!text.startsWith('/') && looksLikeQuery(text)) {
     await queryHandler(ctx)
   } else {
