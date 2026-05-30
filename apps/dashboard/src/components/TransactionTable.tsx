@@ -141,7 +141,12 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
                   {emoji}
                 </div>
                 <div className="tx-row-text">
-                  <span className="tx-item-name">{tx.item}</span>
+                  <span
+                    className="tx-item-name"
+                    title={tx.description ?? undefined}
+                  >
+                    {tx.item}
+                  </span>
                   <span className="tx-item-meta">
                     <span className="tx-category-name">{tx.category}</span>
                     {tx.subCategory ? <span className="tx-subcategory"> / {tx.subCategory}</span> : null}

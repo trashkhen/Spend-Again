@@ -7,6 +7,7 @@ import { listCustomCategories, createCustomCategory } from '../lib/api'
 export type TransactionFormData = {
   item: string
   amountCents: number
+  description?: string
   category: string
   subCategory: string
   date: string  // DD/MM/YYYY
@@ -59,6 +60,7 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
   const [date, setDate] = useState(
     transaction ? isoToHtmlDate(transaction.occurredOn) : todayHtmlDate()
   )
+  const [description, setDescription] = useState(transaction?.description ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -152,6 +154,7 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
       await onSave({
         item: item.trim(),
         amountCents: Math.round(amountNum * 100),
+        description: description.trim() || undefined,
         category,
         subCategory,
         date: htmlDateToDDMMYYYY(date),
@@ -196,6 +199,19 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
                   onChange={(e) => setItem(e.target.value)}
                   required
                   autoFocus
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="tx-description">Description <span style={{ fontWeight: 400, color: 'var(--color-text-muted)' }}>(optional)</span></label>
+                <textarea
+                  id="tx-description"
+                  className="form-input"
+                  placeholder="e.g. coffee from june coffee"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  style={{ resize: 'vertical', minHeight: '52px' }}
                 />
               </div>
 
