@@ -12,6 +12,19 @@ import { tokenStore, loginViaTelegram, apiClient } from '../lib/api-client.js'
 import { DASHBOARD_URL } from '../lib/env.js'
 import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 
+// ── Description derivation ────────────────────────────────────────────────────
+
+const PRICE_PREFIX_RE = /^(?:S\$|SGD\s*|\$)?\s*\d+(?:\.\d{1,2})?\s*/i
+const PRICE_SUFFIX_RE = /\s*(?:S\$|SGD\s*|\$)\s*\d+(?:\.\d{1,2})?$/i
+
+export function deriveDescription(raw: string): string | undefined {
+  let s = raw.trim()
+  s = s.replace(PRICE_PREFIX_RE, '')
+  s = s.replace(PRICE_SUFFIX_RE, '')
+  s = s.trim()
+  return s.length > 0 ? s : undefined
+}
+
 // ── Pending confirmation store ─────────────────────────────────────────────────
 
 /**
@@ -116,6 +129,9 @@ export async function expenseHandler(ctx: Context): Promise<void> {
     await ctx.reply(MSG_PARSE_FAILED)
     return
   }
+
+  // Attach human-readable description stripped of the price token
+  result.description = deriveDescription(text)
 
   // Store pending confirmation
   pendingConfirmations.set(chatId, result)

@@ -24,7 +24,7 @@ vi.mock('../src/keyboards/confirm.js', () => ({
   buildConfirmKeyboard: vi.fn().mockReturnValue({ inline_keyboard: [] }),
 }))
 
-import { expenseHandler } from '../src/handlers/expense.js'
+import { expenseHandler, deriveDescription } from '../src/handlers/expense.js'
 import { loginViaTelegram, tokenStore } from '../src/lib/api-client.js'
 import { parse } from '@spend-again/parser'
 
@@ -42,6 +42,24 @@ function makeCtx(overrides: { text?: string; telegramId?: number } = {}) {
     reply: vi.fn().mockResolvedValue(undefined),
   }
 }
+
+describe('deriveDescription', () => {
+  it('strips dollar-prefix amount from start', () => {
+    expect(deriveDescription('$3.50 coffee from june coffee')).toBe('coffee from june coffee')
+  })
+  it('strips S$ prefix', () => {
+    expect(deriveDescription('S$8.50 lunch at Amoy')).toBe('lunch at Amoy')
+  })
+  it('strips bare number from start', () => {
+    expect(deriveDescription('8.50 for lunch')).toBe('for lunch')
+  })
+  it('strips trailing currency amount', () => {
+    expect(deriveDescription('coffee S$3.50')).toBe('coffee')
+  })
+  it('returns undefined for amount-only input', () => {
+    expect(deriveDescription('$5')).toBeUndefined()
+  })
+})
 
 describe('expenseHandler — auto-reauth when tokenStore is empty after restart', () => {
   beforeEach(() => {
