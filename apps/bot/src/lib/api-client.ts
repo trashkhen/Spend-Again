@@ -50,6 +50,29 @@ export type BudgetData = {
   budgetAlertPct: number // alert threshold percentage (e.g. 80)
 }
 
+// ── Recurring types ────────────────────────────────────────────────────────────
+
+export type ApiRecurring = {
+  id: string
+  name: string
+  amountCents: number
+  category: string
+  subCategory: string
+  frequency: string
+  nextDueDate: string
+  isActive: number
+}
+
+export type CreateRecurringPayload = {
+  name: string
+  amountCents: number
+  category: string
+  subCategory: string
+  description?: string
+  frequency: string
+  startDate: string // YYYY-MM-DD
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 export type CreateTransactionInput = {
@@ -440,6 +463,55 @@ export class ApiClient {
     } catch (err) {
       log.error({ err }, 'getBudget error')
       return null
+    }
+  }
+
+  async listRecurring(): Promise<ApiRecurring[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/recurring`, { headers: this.buildHeaders() })
+      if (!res.ok) { log.error({ status: res.status }, 'listRecurring failed'); return [] }
+      return (await res.json()) as ApiRecurring[]
+    } catch (err) {
+      log.error({ err }, 'listRecurring error')
+      return []
+    }
+  }
+
+  async createRecurring(data: CreateRecurringPayload): Promise<ApiRecurring | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/recurring`, {
+        method: 'POST',
+        headers: this.buildHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) { log.error({ status: res.status }, 'createRecurring failed'); return null }
+      return (await res.json()) as ApiRecurring
+    } catch (err) {
+      log.error({ err }, 'createRecurring error')
+      return null
+    }
+  }
+
+  async updateRecurring(id: string, data: { isActive?: boolean; frequency?: string; name?: string; amountCents?: number }): Promise<void> {
+    try {
+      await fetch(`${this.baseUrl}/api/recurring/${id}`, {
+        method: 'PUT',
+        headers: this.buildHeaders(),
+        body: JSON.stringify(data),
+      })
+    } catch (err) {
+      log.error({ err }, 'updateRecurring error')
+    }
+  }
+
+  async deleteRecurring(id: string): Promise<void> {
+    try {
+      await fetch(`${this.baseUrl}/api/recurring/${id}`, {
+        method: 'DELETE',
+        headers: this.buildHeaders(),
+      })
+    } catch (err) {
+      log.error({ err }, 'deleteRecurring error')
     }
   }
 }
