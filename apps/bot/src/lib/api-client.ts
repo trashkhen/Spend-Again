@@ -68,6 +68,7 @@ export type CreateTransactionInput = {
 export type UpdateTransactionInput = {
   amountCents?: number
   item?: string
+  description?: string
   category?: string
   subCategory?: string
   date?: string // DD/MM/YYYY

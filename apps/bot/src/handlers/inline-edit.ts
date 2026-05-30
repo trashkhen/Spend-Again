@@ -10,6 +10,12 @@ export async function handlePendingInlineEdit(ctx: Context): Promise<void> {
   const chatId = ctx.chat?.id
   if (text === undefined || chatId === undefined) return
 
+  // Allow any command (e.g. /cancel, /help) to escape the inline-edit loop
+  if (text.startsWith('/')) {
+    pendingInlineEdits.delete(chatId)
+    return
+  }
+
   const parsed = parseStructuredEdit(text)
   if (parsed === null) {
     await ctx.reply(
