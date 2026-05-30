@@ -132,8 +132,38 @@ Two entry points, one shared `parseStructuredEdit()` helper.
 
 ---
 
+---
+
+### 5. Recurring Payments — Bot Integration (PR 2, same branch)
+
+**`/recurring` command:**
+1. Bot fetches the user's active recurring payments.
+2. If none: replies "No recurring payments set up yet. Tap below to add one." with an `➕ Add Recurring` inline button.
+3. If some exist: replies with a list — each line shows name, amount, frequency, next due date. Below the list, an `➕ Add Recurring` inline button.
+
+**Adding a recurring payment via bot (`add_recurring` callback):**
+Conversational multi-step flow (bot asks one question at a time, stores answers in a `pendingRecurring: Map<chatId, Partial<RecurringDraft>>` map):
+1. Bot: *"What's the name of this payment? (e.g. Netflix, Gym, Rent)"*
+2. User replies → stored as `name`
+3. Bot: *"How much? (e.g. 18.98)"*
+4. User replies → stored as `amountCents`
+5. Bot: *"Category? Choose one:"* — inline keyboard with category options
+6. User taps → stored as `category`; bot follows up with sub-category inline keyboard
+7. Bot: *"How often?"* — inline keyboard: Weekly / Fortnightly / Monthly / Quarterly / Yearly
+8. User taps → stored as `frequency`
+9. Bot: *"Starting from? (DD/MM/YYYY or 'today')"*
+10. User replies → stored as `nextDueDate`
+11. Bot shows summary and asks ✅ Confirm / ✗ Cancel
+12. On confirm: `POST /api/recurring` — recurring payment created
+
+**Managing existing recurring payments:**
+- Each item in the `/recurring` list has inline buttons: `⏸ Pause` / `🗑 Delete`.
+- `Pause` calls `PUT /api/recurring/:id` with `{ isActive: false }` and replies "Paused ✓".
+- `Delete` asks "Delete [name]? This won't remove past transactions." with Yes/No buttons.
+
+---
+
 ## Out of Scope
 
-- Bot commands for managing recurring payments (dashboard-only for now).
 - Multi-currency recurring payments.
 - Retroactive backfill if the API server was down on a due date (next check will catch up for the current day only; past dates are skipped after processing).
