@@ -28,9 +28,21 @@ function IconAnalytics() {
   )
 }
 
+function IconRecurring() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 10a6 6 0 0 1 10.5-4"/>
+      <path d="M16 10a6 6 0 0 1-10.5 4"/>
+      <polyline points="14 6 17 6 17 3"/>
+      <polyline points="6 14 3 14 3 17"/>
+    </svg>
+  )
+}
+
 const NAV_ITEMS: NavItem[] = [
-  { path: '/dashboard', label: 'Dashboard', icon: <IconDashboard /> },
+  { path: '/dashboard', label: 'Home', icon: <IconDashboard /> },
   { path: '/analytics', label: 'Analytics', icon: <IconAnalytics /> },
+  { path: '/recurring', label: 'Recurring', icon: <IconRecurring /> },
 ]
 
 type Props = {
@@ -52,7 +64,10 @@ export function Sidebar({ isOpen, onClose }: Props) {
       />
 
       <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`} aria-label="Sidebar navigation">
-        <img src="/logo_v2.png" alt="Spend Again?" className="sidebar-logo-img" />
+        <div className="sidebar-logo-row">
+          <img src="/logo_v2.png" alt="Spend Again?" className="sidebar-logo-img" />
+          <span className="sidebar-logo-name">Spend Again?</span>
+        </div>
 
         <nav className="sidebar-nav" aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
@@ -67,6 +82,7 @@ export function Sidebar({ isOpen, onClose }: Props) {
                 aria-current={isActive ? 'page' : undefined}
               >
                 <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
               </Link>
             )
           })}
