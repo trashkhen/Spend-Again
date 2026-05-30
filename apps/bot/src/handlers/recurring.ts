@@ -1,10 +1,9 @@
 import { InlineKeyboard } from 'grammy'
 import type { Context } from 'grammy'
 import { CATEGORIES, CATEGORY_MAP, fmtSGD } from '@spend-again/shared'
-import type { Category, RecurringFrequency } from '@spend-again/shared'
+import type { Category, RecurringFrequency, ApiRecurring } from '@spend-again/shared'
 import { MSG_NOT_REGISTERED } from '@spend-again/shared'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
-import type { ApiRecurring } from '../lib/api-client.js'
 import { DASHBOARD_URL } from '../lib/env.js'
 
 type RecurringDraft = {
@@ -270,6 +269,9 @@ export async function recDeleteHandler(ctx: Context): Promise<void> {
   const data = ctx.callbackQuery?.data
   if (data === undefined) return
   await ctx.answerCallbackQuery()
+
+  const auth = await requireAuth(ctx)
+  if (auth === null) return
 
   const id = data.replace('rec_delete:', '')
   const items = await apiClient.listRecurring()

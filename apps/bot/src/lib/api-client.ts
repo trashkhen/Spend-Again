@@ -1,6 +1,6 @@
 import { createHmac, createHash } from 'node:crypto'
 import { createLogger, requireEnv } from '@spend-again/shared'
-import type { ApiTransaction, Category, SubCategory } from '@spend-again/shared'
+import type { ApiTransaction, Category, SubCategory, ApiRecurring } from '@spend-again/shared'
 import { BOT_TOKEN } from './env.js'
 
 const log = createLogger('bot:api-client')
@@ -51,17 +51,6 @@ export type BudgetData = {
 }
 
 // ── Recurring types ────────────────────────────────────────────────────────────
-
-export type ApiRecurring = {
-  id: string
-  name: string
-  amountCents: number
-  category: string
-  subCategory: string
-  frequency: string
-  nextDueDate: string
-  isActive: number
-}
 
 export type CreateRecurringPayload = {
   name: string
@@ -494,11 +483,12 @@ export class ApiClient {
 
   async updateRecurring(id: string, data: { isActive?: boolean; frequency?: string; name?: string; amountCents?: number }): Promise<void> {
     try {
-      await fetch(`${this.baseUrl}/api/recurring/${id}`, {
+      const res = await fetch(`${this.baseUrl}/api/recurring/${id}`, {
         method: 'PUT',
         headers: this.buildHeaders(),
         body: JSON.stringify(data),
       })
+      if (!res.ok) { log.error({ status: res.status }, 'updateRecurring failed') }
     } catch (err) {
       log.error({ err }, 'updateRecurring error')
     }
@@ -506,10 +496,11 @@ export class ApiClient {
 
   async deleteRecurring(id: string): Promise<void> {
     try {
-      await fetch(`${this.baseUrl}/api/recurring/${id}`, {
+      const res = await fetch(`${this.baseUrl}/api/recurring/${id}`, {
         method: 'DELETE',
         headers: this.buildHeaders(),
       })
+      if (!res.ok) { log.error({ status: res.status }, 'deleteRecurring failed') }
     } catch (err) {
       log.error({ err }, 'deleteRecurring error')
     }

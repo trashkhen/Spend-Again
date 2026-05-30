@@ -70,6 +70,11 @@ export async function handlePendingEdit(ctx: Context): Promise<boolean> {
   const txId = pendingEdits.get(chatId)
   if (txId === undefined) return false
 
+  if (text.startsWith('/')) {
+    pendingEdits.delete(chatId)
+    return false
+  }
+
   const parsed = parseStructuredEdit(text)
   if (parsed === null) {
     await ctx.reply(

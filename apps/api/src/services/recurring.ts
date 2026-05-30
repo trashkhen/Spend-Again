@@ -1,8 +1,11 @@
 import { eq, and, lte, sql } from 'drizzle-orm'
 import { recurringPayments } from '@spend-again/db'
 import type { RecurringPayment } from '@spend-again/db'
+import { createLogger } from '@spend-again/shared'
 import type { DbClient } from '../lib/db.js'
 import type { TransactionService } from './transactions.js'
+
+const log = createLogger('api:recurring')
 
 export type CreateRecurringInput = {
   userId: string
@@ -160,6 +163,18 @@ export function createRecurringService(db: DbClient): RecurringService {
         )
 
       for (const payment of overdueRows) {
+        const nextDate = advanceByFrequency(today, payment.frequency)
+
+        // Advance date FIRST — prevents duplicate on crash between the two writes.
+        await db
+          .update(recurringPayments)
+          .set({ nextDueDate: nextDate, updatedAt: sql`now()` })
+          .where(eq(recurringPayments.id, payment.id))
+
+        if (payment.nextDueDate < today) {
+          log.warn({ paymentId: payment.id, name: payment.name, missedFrom: payment.nextDueDate, today }, 'recurring payment was overdue; creating one transaction and skipping ahead')
+        }
+
         await txService.create({
           userId: payment.userId,
           amountCents: payment.amountCents,
@@ -170,12 +185,6 @@ export function createRecurringService(db: DbClient): RecurringService {
           date: isoToDDMMYYYY(today),
           source: 'recurring',
         })
-
-        const nextDate = advanceByFrequency(today, payment.frequency)
-        await db
-          .update(recurringPayments)
-          .set({ nextDueDate: nextDate, updatedAt: sql`now()` })
-          .where(eq(recurringPayments.id, payment.id))
       }
     },
   }
