@@ -74,3 +74,21 @@ export type LearnedMapping = {
   usageCount: number
 }
 
+export type RecurringFrequency = 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly'
+
+export type ApiRecurring = {
+  id: string
+  userId: string
+  name: string
+  amountCents: number
+  amount: string          // decimal string e.g. "18.98"
+  category: string
+  subCategory: string
+  description?: string | null
+  frequency: RecurringFrequency
+  nextDueDate: string     // YYYY-MM-DD
+  isActive: number        // 1 = active, 0 = paused
+  createdAt: string
+  updatedAt: string
+}
+
