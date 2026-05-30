@@ -4,6 +4,7 @@ import type { Category, SubCategory } from '@spend-again/shared'
 export type ParseResult = {
   amount: number // integer cents
   item: string
+  description?: string // original input minus price, set by caller
   category?: Category
   subCategory?: SubCategory
   date?: string // DD/MM/YYYY
