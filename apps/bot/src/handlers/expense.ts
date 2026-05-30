@@ -131,7 +131,8 @@ export async function expenseHandler(ctx: Context): Promise<void> {
   }
 
   // Attach human-readable description stripped of the price token
-  result.description = deriveDescription(text)
+  const desc = deriveDescription(text)
+  if (desc !== undefined) result.description = desc
 
   // Store pending confirmation
   pendingConfirmations.set(chatId, result)
