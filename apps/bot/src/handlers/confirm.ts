@@ -7,7 +7,6 @@ import {
   DEFAULT_SUB_CATEGORY,
   MSG_SAVED,
   MSG_SAVE_FAILED,
-  MSG_CONFIRM_EDIT,
   MSG_CONFIRM_CANCELLED,
   MSG_NO_PENDING_EXPENSE,
   MSG_NOT_REGISTERED,
@@ -22,6 +21,7 @@ import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { DASHBOARD_URL } from '../lib/env.js'
 import { pendingConfirmations } from './expense.js'
+import { pendingInlineEdits } from './inline-edit.js'
 
 const log = createLogger('bot:confirm')
 
@@ -206,9 +206,11 @@ async function handleConfirmYes(
 // ── confirm_edit ──────────────────────────────────────────────────────────────
 
 async function handleConfirmEdit(ctx: Context, chatId: number): Promise<void> {
-  // Clear the pending confirmation so the next message starts fresh
-  pendingConfirmations.delete(chatId)
-  await ctx.editMessageText(MSG_CONFIRM_EDIT)
+  pendingInlineEdits.add(chatId)
+  await ctx.editMessageText(
+    `No worries! Send the corrected details:\n\`[price] [item] [category] [sub-category]\`\n\nExample: \`3.50 coffee Food Cafe\`\n\nSub-category is optional.`,
+    { parse_mode: 'Markdown' },
+  )
 }
 
 // ── confirm_no ────────────────────────────────────────────────────────────────
