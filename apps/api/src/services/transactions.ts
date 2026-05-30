@@ -10,25 +10,25 @@ export type CreateTransactionInput = {
   userId: string
   amountCents: number
   item: string
-  description?: string
+  description?: string | undefined
   category: string
   subCategory: string
   date: string // DD/MM/YYYY
   source: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring'
-  tier?: 1 | 2 | 3
-  confidence?: number
+  tier?: 1 | 2 | 3 | undefined
+  confidence?: number | undefined
 }
 
 export type UpdateTransactionInput = {
-  amountCents?: number
-  item?: string
-  description?: string
-  category?: string
-  subCategory?: string
-  date?: string
-  source?: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring'
-  tier?: 1 | 2 | 3
-  confidence?: number
+  amountCents?: number | undefined
+  item?: string | undefined
+  description?: string | undefined
+  category?: string | undefined
+  subCategory?: string | undefined
+  date?: string | undefined
+  source?: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring' | undefined
+  tier?: 1 | 2 | 3 | undefined
+  confidence?: number | undefined
 }
 
 export type ListTransactionsQuery = {

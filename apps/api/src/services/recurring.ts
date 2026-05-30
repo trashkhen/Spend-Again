@@ -13,19 +13,19 @@ export type CreateRecurringInput = {
   amountCents: number
   category: string
   subCategory: string
-  description?: string
+  description?: string | undefined
   frequency: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly'
   startDate: string // YYYY-MM-DD
 }
 
 export type UpdateRecurringInput = {
-  name?: string
-  amountCents?: number
-  category?: string
-  subCategory?: string
-  description?: string
-  frequency?: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly'
-  isActive?: boolean
+  name?: string | undefined
+  amountCents?: number | undefined
+  category?: string | undefined
+  subCategory?: string | undefined
+  description?: string | undefined
+  frequency?: 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'yearly' | undefined
+  isActive?: boolean | undefined
 }
 
 export function advanceByFrequency(dateStr: string, frequency: string): string {
