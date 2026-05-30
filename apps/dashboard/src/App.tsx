@@ -4,6 +4,7 @@ import { Auth } from './pages/Auth'
 import { Welcome } from './pages/Welcome'
 import { Dashboard } from './pages/Dashboard'
 import { Analytics } from './pages/Analytics'
+import { Recurring } from './pages/Recurring'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 export default function App() {
@@ -29,6 +30,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Analytics />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recurring"
+          element={
+            <ProtectedRoute>
+              <Recurring />
             </ProtectedRoute>
           }
         />
