@@ -28,12 +28,13 @@ type AppEnv = {
 export const createTransactionSchema = z.object({
   amountCents: z.number().int().min(1),
   item: z.string().min(1),
+  description: z.string().optional(),
   category: z.enum(CATEGORIES as readonly [string, ...string[]]),
   subCategory: z.string().min(1),
   date: z
     .string()
     .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Date must be in DD/MM/YYYY format'),
-  source: z.enum(['manual', 'bot', 'sms', 'ocr']),
+  source: z.enum(['manual', 'bot', 'sms', 'ocr', 'recurring']),
   tier: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   confidence: z.number().min(0).max(1).optional(),
 })
@@ -41,13 +42,14 @@ export const createTransactionSchema = z.object({
 export const updateTransactionSchema = z.object({
   amountCents: z.number().int().min(1).optional(),
   item: z.string().min(1).optional(),
+  description: z.string().optional(),
   category: z.enum(CATEGORIES as readonly [string, ...string[]]).optional(),
   subCategory: z.string().min(1).optional(),
   date: z
     .string()
     .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Date must be in DD/MM/YYYY format')
     .optional(),
-  source: z.enum(['manual', 'bot', 'sms', 'ocr']).optional(),
+  source: z.enum(['manual', 'bot', 'sms', 'ocr', 'recurring']).optional(),
   tier: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   confidence: z.number().min(0).max(1).optional(),
 })

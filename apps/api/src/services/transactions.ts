@@ -10,10 +10,11 @@ export type CreateTransactionInput = {
   userId: string
   amountCents: number
   item: string
+  description?: string
   category: string
   subCategory: string
   date: string // DD/MM/YYYY
-  source: 'manual' | 'bot' | 'sms' | 'ocr'
+  source: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring'
   tier?: 1 | 2 | 3
   confidence?: number
 }
@@ -21,10 +22,11 @@ export type CreateTransactionInput = {
 export type UpdateTransactionInput = {
   amountCents?: number
   item?: string
+  description?: string
   category?: string
   subCategory?: string
   date?: string
-  source?: 'manual' | 'bot' | 'sms' | 'ocr'
+  source?: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring'
   tier?: 1 | 2 | 3
   confidence?: number
 }
@@ -59,6 +61,7 @@ export function createTransactionService(db: DbClient): TransactionService {
           userId: input.userId,
           amountCents: input.amountCents,
           item: input.item,
+          description: input.description ?? null,
           category: input.category,
           subCategory: input.subCategory,
           occurredOn: ddmmyyyyToIso(input.date),
@@ -135,6 +138,7 @@ export function createTransactionService(db: DbClient): TransactionService {
 
       if (input.amountCents !== undefined) patch['amountCents'] = input.amountCents
       if (input.item !== undefined) patch['item'] = input.item
+      if (input.description !== undefined) patch['description'] = input.description
       if (input.category !== undefined) patch['category'] = input.category
       if (input.subCategory !== undefined) patch['subCategory'] = input.subCategory
       if (input.date !== undefined) {
