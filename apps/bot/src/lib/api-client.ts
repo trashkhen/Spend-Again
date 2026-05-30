@@ -56,12 +56,22 @@ export type CreateTransactionInput = {
   userId: string
   amountCents: number
   item: string
+  description?: string
   category: Category
   subCategory: SubCategory
   date: string // DD/MM/YYYY
   source: 'bot'
   tier?: 1 | 2 | 3
   confidence?: number
+}
+
+export type UpdateTransactionInput = {
+  amountCents?: number
+  item?: string
+  category?: string
+  subCategory?: string
+  date?: string // DD/MM/YYYY
+  source?: 'bot' | 'manual'
 }
 
 
@@ -195,6 +205,7 @@ export class ApiClient {
           userId: data.userId,
           amountCents: data.amountCents,
           item: data.item,
+          description: data.description,
           category: data.category,
           subCategory: data.subCategory,
           date: data.date,
@@ -216,6 +227,29 @@ export class ApiClient {
       return { id: body.id }
     } catch (err) {
       log.error({ err }, 'createTransaction error')
+      return null
+    }
+  }
+
+  /**
+   * PUT /api/transactions/:txId
+   * Updates a transaction. Returns the updated transaction id, or null on failure.
+   */
+  async updateTransaction(txId: string, input: UpdateTransactionInput): Promise<{ id: string } | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/transactions/${txId}`, {
+        method: 'PUT',
+        headers: this.buildHeaders(),
+        body: JSON.stringify(input),
+      })
+      if (!res.ok) {
+        log.error({ status: res.status, body: (await res.text()).slice(0, 500) }, 'updateTransaction failed')
+        return null
+      }
+      const body = (await res.json()) as ApiTransaction
+      return { id: body.id }
+    } catch (err) {
+      log.error({ err }, 'updateTransaction error')
       return null
     }
   }
