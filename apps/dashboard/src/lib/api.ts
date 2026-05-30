@@ -76,6 +76,7 @@ export type CreateTransactionPayload = {
   userId: string
   amountCents: number
   item: string
+  description?: string
   category: string
   subCategory: string
   date: string  // DD/MM/YYYY
@@ -85,6 +86,7 @@ export type CreateTransactionPayload = {
 export type UpdateTransactionPayload = {
   amountCents?: number
   item?: string
+  description?: string
   category?: string
   subCategory?: string
   date?: string  // DD/MM/YYYY

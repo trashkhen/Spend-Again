@@ -17,10 +17,11 @@ export type ApiTransaction = {
   amountCents: number                  // integer cents, source of truth
   amount: string                       // decimal SGD for display, e.g. "10.50"
   item: string
+  description?: string | null
   category: Category | string
   subCategory: SubCategory | string
   occurredOn: string                   // YYYY-MM-DD
-  source: 'manual' | 'bot' | 'sms' | 'ocr'
+  source: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring'
   tier?: 1 | 2 | 3
   confidence?: string
   createdAt: string
