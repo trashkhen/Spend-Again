@@ -8,10 +8,12 @@ import { createAuthRouter } from './routes/auth.js'
 import { createAnalyticsRouter } from './routes/analytics.js'
 import { createUsersRouter } from './routes/users.js'
 import { createLearnedMappingsRouter } from './routes/learned-mappings.js'
+import { createRecurringRouter } from './routes/recurring.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { requireAuth } from './middleware/auth.js'
 import { db } from './lib/db.js'
+import { startRecurringCron } from './lib/recurring-cron.js'
 
 const log = createLogger('api')
 const app = new Hono()
@@ -78,8 +80,14 @@ app.use('/api/learned-mappings/*', requireAuth, rateLimitMiddleware)
 app.use('/api/learned-mappings', requireAuth, rateLimitMiddleware)
 app.route('/api/learned-mappings', createLearnedMappingsRouter(db))
 
+app.use('/api/recurring', requireAuth, rateLimitMiddleware)
+app.use('/api/recurring/*', requireAuth, rateLimitMiddleware)
+app.route('/api/recurring', createRecurringRouter(db))
+
 const port = Number(process.env['PORT'] ?? 3001)
 
 serve({ fetch: app.fetch, port }, (info) => {
   log.info({ port: info.port }, 'API server running')
 })
+
+startRecurringCron(db)
