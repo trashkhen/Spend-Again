@@ -30,6 +30,7 @@ export const transactions = pgTable('transactions', {
   item: text('item').notNull(),
   category: text('category').notNull(),
   subCategory: text('sub_category').notNull(),
+  description: text('description'),
   occurredOn: date('occurred_on', { mode: 'string' }).notNull(),
   source: text('source').notNull(), // manual/bot/sms/ocr
   tier: integer('tier'),
