@@ -11,6 +11,18 @@ import { receiptConfirmHandler } from './handlers/receipt-confirm.js'
 import { queryHandler, looksLikeQuery } from './handlers/query.js'
 import { editCommandHandler, editSelectHandler, handlePendingEdit, pendingEdits } from './handlers/edit.js'
 import { handlePendingInlineEdit, pendingInlineEdits } from './handlers/inline-edit.js'
+import {
+  recurringCommandHandler,
+  addRecurringStart,
+  handlePendingRecurring,
+  recCategoryHandler,
+  recSubCategoryHandler,
+  recFrequencyHandler,
+  recToggleHandler,
+  recDeleteHandler,
+  recDeleteConfirmHandler,
+  pendingRecurring,
+} from './handlers/recurring.js'
 import { monthlyReportHandler } from './handlers/monthly-report.js'
 import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
@@ -35,6 +47,7 @@ bot.command('start', startHandler)
 bot.command('help', helpHandler)
 bot.command('recent', recentHandler)
 bot.command('edit', editCommandHandler)
+bot.command('recurring', recurringCommandHandler)
 
 // ── Inline keyboard callback handlers ────────────────────────────────────────
 
@@ -42,6 +55,14 @@ bot.callbackQuery(/^confirm_/, confirmHandler)
 bot.callbackQuery(/^learn_/, learnHandler)
 bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 bot.callbackQuery(/^edit_select:/, editSelectHandler)
+bot.callbackQuery('add_recurring', addRecurringStart)
+bot.callbackQuery(/^rec_cat:/, recCategoryHandler)
+bot.callbackQuery(/^rec_sub:/, recSubCategoryHandler)
+bot.callbackQuery(/^rec_freq:/, recFrequencyHandler)
+bot.callbackQuery(/^rec_toggle:/, recToggleHandler)
+bot.callbackQuery(/^rec_delete:/, recDeleteHandler)
+bot.callbackQuery(/^rec_delete_yes:/, recDeleteConfirmHandler)
+bot.callbackQuery('rec_delete_cancel', recDeleteConfirmHandler)
 
 // ── Reply keyboard button handlers ────────────────────────────────────────────
 
@@ -92,6 +113,12 @@ bot.on('message:document', receiptHandler)
 bot.on('message:text', async (ctx) => {
   const chatId = ctx.chat?.id
   const text = ctx.message.text ?? ''
+
+  // Pending recurring add flow
+  if (chatId !== undefined && pendingRecurring.has(chatId)) {
+    const consumed = await handlePendingRecurring(ctx)
+    if (consumed) return
+  }
 
   // Pending /edit flow (editing a saved transaction)
   if (chatId !== undefined && pendingEdits.has(chatId)) {
