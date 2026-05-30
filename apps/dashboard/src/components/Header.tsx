@@ -19,17 +19,16 @@ export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
   const avatarInitial = displayName[0]?.toUpperCase() ?? 'U'
 
   return (
-    <>
-      <button
-        type="button"
-        className="sidebar-toggle"
-        onClick={onMenuToggle}
-        aria-label="Toggle navigation menu"
-      >
-        ☰
-      </button>
+    <header className="app-header">
+        <button
+          type="button"
+          className="sidebar-toggle"
+          onClick={onMenuToggle}
+          aria-label="Toggle navigation menu"
+        >
+          ☰
+        </button>
 
-      <header className="app-header">
         <div className="header-search">
           <span className="header-search-icon">
             <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -56,7 +55,6 @@ export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
             </button>
           </div>
         </div>
-      </header>
-    </>
+    </header>
   )
 }

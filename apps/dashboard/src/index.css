@@ -241,13 +241,10 @@ button {
   font-weight: 600;
 }
 
-/* Hamburger toggle (mobile) */
+/* Hamburger toggle (mobile) — sits inside the header flex row, hidden on desktop */
 .sidebar-toggle {
   display: none;
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  z-index: 200;
+  flex-shrink: 0;
   background: var(--color-sidebar);
   border: none;
   border-radius: var(--radius-sm);
@@ -258,6 +255,7 @@ button {
   font-size: 18px;
   color: rgba(255, 255, 255, 0.90);
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────────── */
@@ -1475,12 +1473,24 @@ button {
     display: block;
   }
 
+  /* Hamburger now lives inside the header flex row */
   .sidebar-toggle {
     display: flex;
   }
 
   .app-content {
     margin-left: 0;
+  }
+
+  /* Tighter header on mobile — hamburger is the first flex item */
+  .app-header {
+    padding: 0 12px;
+    gap: 10px;
+  }
+
+  /* Hide username text on small screens, keep avatar + logout */
+  .header-username {
+    display: none;
   }
 
   .kpi-grid {
@@ -1511,6 +1521,17 @@ button {
     padding: 16px;
   }
 
+  /* iOS Safari auto-zooms when any input has font-size < 16px.
+     Setting 16px here prevents that zoom on focus. */
+  .header-search-input,
+  .form-input,
+  .form-select,
+  .filter-input,
+  .filter-select,
+  .drawer-input {
+    font-size: 16px;
+  }
+
   .dashboard-hero-row {
     grid-template-columns: 1fr;
   }
@@ -1530,7 +1551,7 @@ button {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .kpi-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
