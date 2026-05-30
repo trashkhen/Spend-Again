@@ -2,6 +2,7 @@ export { db } from './client.js'
 export type { Database } from './client.js'
 export {
   learnedMappings,
+  recurringPayments,
   transactions,
   userCustomCategories,
   users,
@@ -9,9 +10,11 @@ export {
 export type {
   LearnedMapping,
   NewLearnedMapping,
+  NewRecurringPayment,
   NewTransaction,
   NewUser,
   NewUserCustomCategory,
+  RecurringPayment,
   Transaction,
   User,
   UserCustomCategory,

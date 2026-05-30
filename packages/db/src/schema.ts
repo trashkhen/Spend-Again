@@ -64,6 +64,23 @@ export const userCustomCategories = pgTable('user_custom_categories', {
   uniq: uniqueIndex('user_custom_categories_unique').on(table.userId, table.category, table.subCategory),
 }))
 
+export const recurringPayments = pgTable('recurring_payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  amountCents: integer('amount_cents').notNull(),
+  category: text('category').notNull(),
+  subCategory: text('sub_category').notNull(),
+  description: text('description'),
+  frequency: text('frequency').notNull(), // 'weekly'|'fortnightly'|'monthly'|'quarterly'|'yearly'
+  nextDueDate: date('next_due_date', { mode: 'string' }).notNull(), // YYYY-MM-DD
+  isActive: integer('is_active').notNull().default(1), // 1=active, 0=paused
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Transaction = typeof transactions.$inferSelect
@@ -72,3 +89,5 @@ export type LearnedMapping = typeof learnedMappings.$inferSelect
 export type NewLearnedMapping = typeof learnedMappings.$inferInsert
 export type UserCustomCategory = typeof userCustomCategories.$inferSelect
 export type NewUserCustomCategory = typeof userCustomCategories.$inferInsert
+export type RecurringPayment = typeof recurringPayments.$inferSelect
+export type NewRecurringPayment = typeof recurringPayments.$inferInsert
