@@ -10,6 +10,7 @@ import { createUsersRouter } from './routes/users.js'
 import { createLearnedMappingsRouter } from './routes/learned-mappings.js'
 import { createRecurringRouter } from './routes/recurring.js'
 import { createSpacesRouter } from './routes/spaces.js'
+import { createIouRouter } from './routes/iou.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { requireAuth } from './middleware/auth.js'
@@ -88,6 +89,10 @@ app.route('/api/recurring', createRecurringRouter(db))
 app.use('/api/spaces', requireAuth, rateLimitMiddleware)
 app.use('/api/spaces/*', requireAuth, rateLimitMiddleware)
 app.route('/api/spaces', createSpacesRouter(db))
+
+app.use('/api/iou', requireAuth, rateLimitMiddleware)
+app.use('/api/iou/*', requireAuth, rateLimitMiddleware)
+app.route('/api/iou', createIouRouter(db))
 
 const port = Number(process.env['PORT'] ?? 3001)
 
