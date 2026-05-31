@@ -37,8 +37,8 @@ export function createIouRouter(db: DbClient): Hono<AppEnv> {
     const userId = c.get('userId')
     const { personId, status } = c.req.query()
     return c.json(await svc.listDebts(userId, {
-      personId: personId || undefined,
-      status: (status as DebtStatus) || undefined,
+      ...(personId ? { personId } : {}),
+      ...(status ? { status: status as DebtStatus } : {}),
     }))
   })
 
@@ -52,9 +52,9 @@ export function createIouRouter(db: DbClient): Hono<AppEnv> {
       personId: person.id,
       direction: input.direction,
       amountCents: input.amountCents,
-      description: input.description,
-      linkedTransactionId: input.linkedTransactionId,
-      linkedSpaceId: input.linkedSpaceId,
+      description: input.description ?? null,
+      linkedTransactionId: input.linkedTransactionId ?? null,
+      linkedSpaceId: input.linkedSpaceId ?? null,
       occurredOn: input.occurredOn,
     })
     return c.json({ debt, person }, 201)

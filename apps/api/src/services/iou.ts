@@ -10,9 +10,9 @@ export type CreateDebtInput = {
   personId: string
   direction: DebtDirection
   amountCents: number
-  description?: string | undefined
-  linkedTransactionId?: string | undefined
-  linkedSpaceId?: string | undefined
+  description?: string | null
+  linkedTransactionId?: string | null
+  linkedSpaceId?: string | null
   occurredOn: string // YYYY-MM-DD
 }
 
@@ -101,9 +101,9 @@ export function createIouService(db: DbClient): IouService {
           direction: input.direction,
           originalAmountCents: input.amountCents,
           remainingAmountCents: input.amountCents,
-          description: input.description,
-          linkedTransactionId: input.linkedTransactionId,
-          linkedSpaceId: input.linkedSpaceId,
+          description: input.description ?? null,
+          linkedTransactionId: input.linkedTransactionId ?? null,
+          linkedSpaceId: input.linkedSpaceId ?? null,
           occurredOn: input.occurredOn,
         })
         .returning()
@@ -142,7 +142,7 @@ export function createIouService(db: DbClient): IouService {
       const debt = await this.findDebt(debtId, userId)
       if (!debt) return null
 
-      await db.insert(debtPayments).values({ debtId, userId, amountCents, paidOn, note })
+      await db.insert(debtPayments).values({ debtId, userId, amountCents, paidOn, note: note ?? null })
 
       const newRemaining = Math.max(0, debt.remainingAmountCents - amountCents)
       const newStatus: DebtStatus = newRemaining === 0 ? 'settled' : 'partially_paid'

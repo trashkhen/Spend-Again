@@ -60,10 +60,10 @@ export function createSpacesService(db: DbClient): SpacesService {
         .values({
           userId: input.userId,
           name: input.name,
-          emoji: input.emoji,
-          budgetCents: input.budgetCents,
-          startDate: input.startDate,
-          endDate: input.endDate,
+          emoji: input.emoji ?? null,
+          budgetCents: input.budgetCents ?? null,
+          startDate: input.startDate ?? null,
+          endDate: input.endDate ?? null,
         })
         .returning()
       const row = rows[0]
