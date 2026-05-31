@@ -30,6 +30,10 @@ import {
   handlePendingSpaceCreate,
   pendingSpaceCreate,
 } from './handlers/space.js'
+import {
+  iouHandler, iouCallbackHandler, handlePendingPartialRepay,
+  pendingPartialRepay, detectIouIntent,
+} from './handlers/iou.js'
 import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
 const log = createLogger('bot')
@@ -71,6 +75,7 @@ bot.callbackQuery(/^rec_delete:/, recDeleteHandler)
 bot.callbackQuery(/^rec_delete_yes:/, recDeleteConfirmHandler)
 bot.callbackQuery('rec_delete_cancel', recDeleteConfirmHandler)
 bot.callbackQuery(/^space_/, spaceCallbackHandler)
+bot.callbackQuery(/^iou_/, iouCallbackHandler)
 
 // ── Reply keyboard button handlers ────────────────────────────────────────────
 
@@ -134,6 +139,12 @@ bot.on('message:text', async (ctx) => {
     if (consumed) return
   }
 
+  // Pending IOU partial repayment flow
+  if (chatId !== undefined && pendingPartialRepay.has(chatId)) {
+    const consumed = await handlePendingPartialRepay(ctx)
+    if (consumed) return
+  }
+
   // Pending /edit flow (editing a saved transaction)
   if (chatId !== undefined && pendingEdits.has(chatId)) {
     await handlePendingEdit(ctx)
@@ -144,6 +155,15 @@ bot.on('message:text', async (ctx) => {
   if (chatId !== undefined && pendingInlineEdits.has(chatId)) {
     await handlePendingInlineEdit(ctx)
     return
+  }
+
+  // IOU intent check — before expenseHandler
+  if (!text.startsWith('/')) {
+    const iouIntent = detectIouIntent(text)
+    if (iouIntent !== null) {
+      await iouHandler(ctx)
+      return
+    }
   }
 
   if (!text.startsWith('/') && looksLikeQuery(text)) {
