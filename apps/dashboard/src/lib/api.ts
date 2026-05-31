@@ -5,9 +5,9 @@
  */
 
 import { authHeader } from './auth'
-import type { ApiTransaction, BudgetSettings, CustomCategory } from '@spend-again/shared'
+import type { ApiTransaction, BudgetSettings, CustomCategory, SpaceWithTotal, ApiSpace, PersonWithDebtSummary, DebtWithPerson } from '@spend-again/shared'
 
-export type { ApiTransaction, BudgetSettings, CustomCategory }
+export type { ApiTransaction, BudgetSettings, CustomCategory, SpaceWithTotal, ApiSpace, PersonWithDebtSummary, DebtWithPerson }
 
 const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3001'
 
@@ -139,4 +139,60 @@ export async function updateBudget(data: BudgetSettings): Promise<BudgetSettings
     method: 'PUT',
     body: JSON.stringify(data),
   })
+}
+
+// ── Spaces ─────────────────────────────────────────────────────────────────────
+
+export async function listSpaces(): Promise<SpaceWithTotal[]> {
+  return apiFetch<SpaceWithTotal[]>('/api/spaces')
+}
+
+export async function createSpace(data: {
+  name: string
+  emoji?: string
+  budgetCents?: number
+  startDate?: string
+  endDate?: string
+}): Promise<ApiSpace> {
+  return apiFetch<ApiSpace>('/api/spaces', { method: 'POST', body: JSON.stringify(data) })
+}
+
+export async function updateSpace(
+  id: string,
+  data: Partial<{ name: string; emoji: string; budgetCents: number; startDate: string; endDate: string; status: string }>,
+): Promise<ApiSpace> {
+  return apiFetch<ApiSpace>(`/api/spaces/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+}
+
+export async function archiveSpace(id: string): Promise<void> {
+  await apiFetch(`/api/spaces/${id}`, { method: 'DELETE' })
+}
+
+export async function detachFromSpace(spaceId: string, transactionId: string): Promise<void> {
+  await apiFetch(`/api/spaces/${spaceId}/transactions/${transactionId}`, { method: 'DELETE' })
+}
+
+// ── IOUs ───────────────────────────────────────────────────────────────────────
+
+export async function listPeople(): Promise<PersonWithDebtSummary[]> {
+  return apiFetch<PersonWithDebtSummary[]>('/api/iou/people')
+}
+
+export async function listDebts(params?: { personId?: string; status?: string }): Promise<DebtWithPerson[]> {
+  const qs = params ? new URLSearchParams(params as Record<string, string>).toString() : ''
+  return apiFetch<DebtWithPerson[]>(`/api/iou/debts${qs ? '?' + qs : ''}`)
+}
+
+export async function settleDebt(id: string): Promise<void> {
+  await apiFetch(`/api/iou/debts/${id}/settle`, { method: 'POST' })
+}
+
+export async function createDebt(data: {
+  personName: string
+  direction: string
+  amountCents: number
+  description?: string
+  occurredOn: string
+}): Promise<{ debt: DebtWithPerson; person: PersonWithDebtSummary }> {
+  return apiFetch('/api/iou/debts', { method: 'POST', body: JSON.stringify(data) })
 }
