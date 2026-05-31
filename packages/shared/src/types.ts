@@ -92,3 +92,80 @@ export type ApiRecurring = {
   updatedAt: string
 }
 
+// ── Spaces ─────────────────────────────────────────────────────────────────────
+
+export type SpaceStatus = 'active' | 'archived'
+
+export type ApiSpace = {
+  id: string
+  userId: string
+  name: string
+  emoji: string | null
+  budgetCents: number | null
+  budget: string | null           // decimal display e.g. "500.00"
+  startDate: string | null        // YYYY-MM-DD
+  endDate: string | null          // YYYY-MM-DD
+  status: SpaceStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export type SpaceWithTotal = ApiSpace & {
+  spentCents: number
+  spent: string                   // decimal display
+  transactionCount: number
+}
+
+// ── IOUs / Debts ──────────────────────────────────────────────────────────────
+
+export type DebtDirection = 'they_owe_me' | 'i_owe_them'
+export type DebtStatus = 'open' | 'partially_paid' | 'settled'
+
+export type ApiPerson = {
+  id: string
+  userId: string
+  name: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type PersonWithDebtSummary = ApiPerson & {
+  theyOweMeCents: number
+  iOweThemCents: number
+  theyOweMe: string
+  iOweThem: string
+  openDebtCount: number
+}
+
+export type ApiDebt = {
+  id: string
+  userId: string
+  personId: string
+  direction: DebtDirection
+  originalAmountCents: number
+  originalAmount: string
+  remainingAmountCents: number
+  remainingAmount: string
+  description: string | null
+  linkedTransactionId: string | null
+  linkedSpaceId: string | null
+  status: DebtStatus
+  occurredOn: string              // YYYY-MM-DD
+  settledAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type DebtWithPerson = ApiDebt & {
+  person: ApiPerson
+}
+
+export type ApiDebtPayment = {
+  id: string
+  debtId: string
+  amountCents: number
+  amount: string
+  paidOn: string
+  note: string | null
+  createdAt: string
+}
