@@ -1,10 +1,7 @@
 import type { Context } from 'grammy'
-import { createLogger } from '@spend-again/shared'
 import { apiClient, tokenStore } from '../lib/api-client.js'
 import { buildIouAmbiguousKeyboard, buildIouSettleKeyboard } from '../keyboards/iou.js'
 import type { DebtWithPerson } from '@spend-again/shared'
-
-const _log = createLogger('bot:iou')
 
 type PendingSettle = { personName: string; debts: DebtWithPerson[] }
 export const pendingIouSettle = new Map<number, PendingSettle>()

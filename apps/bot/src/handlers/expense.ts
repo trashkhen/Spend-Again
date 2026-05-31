@@ -30,10 +30,10 @@ export function deriveDescription(raw: string): string | undefined {
 export type PendingConfirmation = {
   result: ParseResult
   rawInput: string
-  activeSpaceId?: string
-  activeSpaceName?: string
-  suggestedSpaceId?: string
-  suggestedSpaceName?: string
+  activeSpaceId?: string | undefined
+  activeSpaceName?: string | undefined
+  suggestedSpaceId?: string | undefined
+  suggestedSpaceName?: string | undefined
 }
 
 /**
@@ -179,7 +179,12 @@ export async function expenseHandler(ctx: Context): Promise<void> {
     // Space lookup failures must never block expense logging
   }
 
-  const pendingEntry = { result, rawInput: text, activeSpaceId, activeSpaceName, suggestedSpaceId, suggestedSpaceName }
+  const pendingEntry: PendingConfirmation = {
+    result,
+    rawInput: text,
+    ...(activeSpaceId ? { activeSpaceId, activeSpaceName } : {}),
+    ...(suggestedSpaceId ? { suggestedSpaceId, suggestedSpaceName } : {}),
+  }
   pendingConfirmations.set(chatId, pendingEntry)
   const confirmationMsg = buildConfirmationMessage(pendingEntry)
   const hasSpaceSuggestion = !!(activeSpaceId ?? suggestedSpaceId)

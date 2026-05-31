@@ -39,6 +39,6 @@ export async function handlePendingInlineEdit(ctx: Context): Promise<void> {
   existing.category = parsed.category
   existing.subCategory = parsed.subCategory
 
-  const msg = buildConfirmationMessage(existing)
+  const msg = buildConfirmationMessage(entry)
   await ctx.reply(msg, { reply_markup: buildConfirmKeyboard() })
 }

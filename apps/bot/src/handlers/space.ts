@@ -41,7 +41,12 @@ function parseSpaceCreate(text: string): {
     endDate = parseDateStr(dateRangeMatch[2])
   }
 
-  return { name, budgetCents, startDate, endDate }
+  return {
+    name,
+    ...(budgetCents !== undefined ? { budgetCents } : {}),
+    ...(startDate !== undefined ? { startDate } : {}),
+    ...(endDate !== undefined ? { endDate } : {}),
+  }
 }
 
 async function ensureToken(telegramId: number): Promise<string | undefined> {

@@ -216,9 +216,10 @@ export async function receiptHandler(ctx: Context): Promise<void> {
   if (ocrResult.type === 'simple') {
     const parseResult = simpleReceiptToParseResult(ocrResult)
     // No raw text for receipts; use item name so lookupKey falls back to it.
-    pendingConfirmations.set(chatId, { result: parseResult, rawInput: parseResult.item })
+    const entry = { result: parseResult, rawInput: parseResult.item }
+    pendingConfirmations.set(chatId, entry)
 
-    const confirmMsg = buildConfirmationMessage(parseResult)
+    const confirmMsg = buildConfirmationMessage(entry)
     const keyboard = buildConfirmKeyboard()
     await ctx.reply(confirmMsg, { reply_markup: keyboard })
     return
