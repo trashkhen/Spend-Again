@@ -120,3 +120,4 @@ export type NewRecurringPayment = typeof recurringPayments.$inferInsert
 export type Space = typeof spaces.$inferSelect
 export type NewSpace = typeof spaces.$inferInsert
 export type TransactionSpace = typeof transactionSpaces.$inferSelect
+export type NewTransactionSpace = typeof transactionSpaces.$inferInsert
