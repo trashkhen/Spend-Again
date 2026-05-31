@@ -112,7 +112,7 @@ export function createTransactionService(db: DbClient): TransactionService {
       const base = db
         .select({
           tx: transactions,
-          spaceId: sql<string | null>`min(${transactionSpaces.spaceId})`,
+          spaceId: sql<string | null>`min(${transactionSpaces.spaceId}::text)`,
         })
         .from(transactions)
         .leftJoin(transactionSpaces, eq(transactionSpaces.transactionId, transactions.id))
@@ -131,7 +131,7 @@ export function createTransactionService(db: DbClient): TransactionService {
       const rows = await db
         .select({
           tx: transactions,
-          spaceId: sql<string | null>`min(${transactionSpaces.spaceId})`,
+          spaceId: sql<string | null>`min(${transactionSpaces.spaceId}::text)`,
         })
         .from(transactions)
         .leftJoin(transactionSpaces, eq(transactionSpaces.transactionId, transactions.id))
