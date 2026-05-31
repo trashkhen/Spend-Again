@@ -9,6 +9,7 @@ import { createAnalyticsRouter } from './routes/analytics.js'
 import { createUsersRouter } from './routes/users.js'
 import { createLearnedMappingsRouter } from './routes/learned-mappings.js'
 import { createRecurringRouter } from './routes/recurring.js'
+import { createSpacesRouter } from './routes/spaces.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
 import { rateLimitMiddleware } from './middleware/rate-limit.js'
 import { requireAuth } from './middleware/auth.js'
@@ -83,6 +84,10 @@ app.route('/api/learned-mappings', createLearnedMappingsRouter(db))
 app.use('/api/recurring', requireAuth, rateLimitMiddleware)
 app.use('/api/recurring/*', requireAuth, rateLimitMiddleware)
 app.route('/api/recurring', createRecurringRouter(db))
+
+app.use('/api/spaces', requireAuth, rateLimitMiddleware)
+app.use('/api/spaces/*', requireAuth, rateLimitMiddleware)
+app.route('/api/spaces', createSpacesRouter(db))
 
 const port = Number(process.env['PORT'] ?? 3001)
 
