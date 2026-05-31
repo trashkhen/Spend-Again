@@ -49,13 +49,16 @@ describe('learn prompt — callback_data stays within Telegram 64-byte limit', (
     userIdStore.set(TELEGRAM_ID, USER_UUID)
     const longItem = 'A' .repeat(200) + ' premium artisan handcrafted thing'
     pendingConfirmations.set(TELEGRAM_ID, {
-      amount: 9900,
-      item: longItem,
-      category: 'Shopping' as never,
-      subCategory: 'Other' as never,
-      date: '21/05/2026',
-      tier: 3,
-      confidence: 0.8,
+      result: {
+        amount: 9900,
+        item: longItem,
+        category: 'Shopping' as never,
+        subCategory: 'Other' as never,
+        date: '21/05/2026',
+        tier: 3,
+        confidence: 0.8,
+      },
+      rawInput: `99 ${longItem}`,
     } as never)
     vi.mocked(apiClient.createTransaction).mockResolvedValue({ id: 'tx-1' } as never)
 
@@ -84,6 +87,7 @@ describe('learn prompt — callback_data stays within Telegram 64-byte limit', (
     tokenStore.set(TELEGRAM_ID, FAKE_TOKEN)
     pendingLearnPrompts.set('deadbeef0000', {
       item: 'LV Hoodie',
+      lookupKey: 'LV Hoodie',
       category: 'Shopping' as never,
       subCategory: 'Other' as never,
       createdAt: Date.now(),

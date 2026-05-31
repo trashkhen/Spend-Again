@@ -27,7 +27,14 @@ export function deriveDescription(raw: string): string | undefined {
 
 // ── Pending confirmation store ─────────────────────────────────────────────────
 
-export type PendingConfirmation = { result: ParseResult; rawInput: string }
+export type PendingConfirmation = {
+  result: ParseResult
+  rawInput: string
+  activeSpaceId?: string
+  activeSpaceName?: string
+  suggestedSpaceId?: string
+  suggestedSpaceName?: string
+}
 
 /**
  * Stores pending parse results (+ raw input) keyed by chat ID while awaiting
@@ -72,11 +79,18 @@ function getCategoryEmoji(result: ParseResult): string {
 
 // ── Confirmation message builder ──────────────────────────────────────────────
 
-export function buildConfirmationMessage(result: ParseResult): string {
+export function buildConfirmationMessage(entry: PendingConfirmation): string {
+  const { result, activeSpaceName, suggestedSpaceName } = entry
   const emoji = getCategoryEmoji(result)
   const amount = fmtSGD(result.amount)
   const category = formatCategory(result)
-  return MSG_CONFIRM_PROMPT(emoji, amount, result.item, category)
+  let msg = MSG_CONFIRM_PROMPT(emoji, amount, result.item, category)
+  if (activeSpaceName) {
+    msg += `\nSpace: ${activeSpaceName}`
+  } else if (suggestedSpaceName) {
+    msg += `\n\nThis falls during ${suggestedSpaceName}.\nAdd to Space?`
+  }
+  return msg
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -138,12 +152,37 @@ export async function expenseHandler(ctx: Context): Promise<void> {
   const desc = deriveDescription(text)
   if (desc !== undefined) result.description = desc
 
-  // Store pending confirmation with raw input so the learn flow can derive
-  // the correct Tier-2 lookup key (regex-extracted item, not Gemini's item).
-  pendingConfirmations.set(chatId, { result, rawInput: text })
+  // Resolve active space or suggest one based on date window
+  let activeSpaceId: string | undefined
+  let activeSpaceName: string | undefined
+  let suggestedSpaceId: string | undefined
+  let suggestedSpaceName: string | undefined
 
-  const confirmationMsg = buildConfirmationMessage(result)
-  const keyboard = buildConfirmKeyboard()
+  try {
+    const activeSpace = await apiClient.getActiveSpace()
+    if (activeSpace) {
+      activeSpaceId = activeSpace.id
+      activeSpaceName = `${activeSpace.emoji ?? '📦'} ${activeSpace.name}`
+    } else if (result.date) {
+      // result.date is DD/MM/YYYY — convert to YYYY-MM-DD for the API
+      const parts = result.date.split('/')
+      if (parts.length === 3) {
+        const isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+        const windowSpaces = await apiClient.findSpacesForDate(isoDate)
+        if (windowSpaces.length > 0 && windowSpaces[0]) {
+          suggestedSpaceId = windowSpaces[0].id
+          suggestedSpaceName = `${windowSpaces[0].emoji ?? '📦'} ${windowSpaces[0].name}`
+        }
+      }
+    }
+  } catch {
+    // Space lookup failures must never block expense logging
+  }
 
-  await ctx.reply(confirmationMsg, { reply_markup: keyboard })
+  const pendingEntry = { result, rawInput: text, activeSpaceId, activeSpaceName, suggestedSpaceId, suggestedSpaceName }
+  pendingConfirmations.set(chatId, pendingEntry)
+  const confirmationMsg = buildConfirmationMessage(pendingEntry)
+  const hasSpaceSuggestion = !!(activeSpaceId ?? suggestedSpaceId)
+
+  await ctx.reply(confirmationMsg, { reply_markup: buildConfirmKeyboard(hasSpaceSuggestion) })
 }

@@ -105,6 +105,21 @@ export async function confirmHandler(ctx: Context): Promise<void> {
     return
   }
 
+  if (callbackData === 'confirm_space_skip') {
+    const entry = pendingConfirmations.get(chatId)
+    if (entry) {
+      pendingConfirmations.set(chatId, {
+        ...entry,
+        activeSpaceId: undefined,
+        activeSpaceName: undefined,
+        suggestedSpaceId: undefined,
+        suggestedSpaceName: undefined,
+      })
+    }
+    await ctx.answerCallbackQuery('Will log to main dashboard only.')
+    return
+  }
+
   // Always acknowledge the callback query to dismiss the spinner
   await ctx.answerCallbackQuery()
 
@@ -173,11 +188,21 @@ async function handleConfirmYes(
 
   const saved = await apiClient.createTransaction(txInput)
 
-  // Clear pending confirmation regardless of save outcome
-  pendingConfirmations.delete(chatId)
-
   if (saved !== null) {
+    // Clear pending FIRST so re-taps are no-ops
+    pendingConfirmations.delete(chatId)
+
     await ctx.editMessageText(MSG_SAVED)
+
+    // Attach to space if active or suggested
+    const spaceIdToAttach = entry.activeSpaceId ?? entry.suggestedSpaceId
+    if (spaceIdToAttach && saved.id) {
+      try {
+        await apiClient.attachTransactionToSpace(saved.id, spaceIdToAttach)
+      } catch (err) {
+        log.error({ err }, 'attachTransactionToSpace failed')
+      }
+    }
 
     // Tier 3 results (Gemini-resolved) — offer to remember the mapping.
     // lookupKey = what Tier 2 will search for next time (regex-extracted item,
@@ -211,6 +236,7 @@ async function handleConfirmYes(
 
     await checkAndSendBudgetAlert(ctx, telegramId, userId)
   } else {
+    pendingConfirmations.delete(chatId)
     await ctx.editMessageText(MSG_SAVE_FAILED)
   }
 }
