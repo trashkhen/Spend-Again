@@ -23,3 +23,10 @@ export function buildSpaceCreatedKeyboard(spaceId: string): InlineKeyboard {
     .text('✅ Set active', `space_activate:${spaceId}`)
     .text('Not now', 'space_created_skip')
 }
+
+export function buildSpaceBudgetChoiceKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text('✅ Yes', 'space_budget_choice:yes')
+    .text('❌ No', 'space_budget_choice:no')
+}
+

@@ -6,7 +6,8 @@ import type { Category, SubCategory } from '@spend-again/shared'
 
 export type { ParseResult } from './regex.js'
 export { parseWithRegex } from './regex.js'
-export { parseWithGemini, buildPrompt, waitForGeminiRpmBudget } from './gemini.js'
+export { parseWithGemini, buildPrompt, waitForGeminiRpmBudget, parseSpaceWithGemini } from './gemini.js'
+export type { ParsedSpaceResult } from './gemini.js'
 export { GeminiRateLimitError, OcrRateLimitError } from '@spend-again/shared'
 
 export type LookupResult = { category: Category; subCategory: SubCategory; confidence: number }

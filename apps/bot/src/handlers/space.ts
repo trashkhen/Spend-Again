@@ -1,11 +1,26 @@
 import type { Context } from 'grammy'
 import { createLogger } from '@spend-again/shared'
+import { parseSpaceWithGemini } from '@spend-again/parser'
+import type { ParsedSpaceResult } from '@spend-again/parser'
 import { apiClient, tokenStore } from '../lib/api-client.js'
-import { buildSpaceListKeyboard, buildSpaceActiveKeyboard, buildSpaceCreatedKeyboard } from '../keyboards/space.js'
+import {
+  buildSpaceListKeyboard,
+  buildSpaceActiveKeyboard,
+  buildSpaceCreatedKeyboard,
+  buildSpaceBudgetChoiceKeyboard,
+} from '../keyboards/space.js'
 
 const log = createLogger('bot:space')
 
 export const pendingSpaceCreate = new Set<number>()
+
+type PendingSpaceDetails = {
+  name: string
+  startDate?: string | null
+  endDate?: string | null
+}
+export const pendingSpaceDetails = new Map<number, PendingSpaceDetails>()
+export const pendingSpaceBudgetInput = new Map<number, PendingSpaceDetails>()
 
 function parseSpaceCreate(text: string): {
   name: string
@@ -153,7 +168,58 @@ export async function spaceCallbackHandler(ctx: Context): Promise<void> {
 
   if (data === 'space_created_skip') {
     await ctx.editMessageText('Space created. Use /space to activate it later.')
+    return
   }
+
+  if (data.startsWith('space_budget_choice:')) {
+    const choice = data.slice('space_budget_choice:'.length)
+    const details = pendingSpaceDetails.get(chatId)
+    pendingSpaceDetails.delete(chatId)
+
+    if (!details) {
+      await ctx.editMessageText('Session expired. Please try creating a space again.')
+      return
+    }
+
+    if (choice === 'no') {
+      await ctx.editMessageText('Proceeding with no budget...')
+      await createSpaceAndPrompt(ctx, {
+        name: details.name,
+        ...(details.startDate ? { startDate: details.startDate } : {}),
+        ...(details.endDate ? { endDate: details.endDate } : {}),
+      })
+      return
+    }
+
+    if (choice === 'yes') {
+      pendingSpaceBudgetInput.set(chatId, details)
+      await ctx.editMessageText('Input amount e.g. 800')
+      return
+    }
+  }
+}
+
+async function createSpaceAndPrompt(
+  ctx: Context,
+  payload: { name: string; budgetCents?: number; startDate?: string; endDate?: string }
+): Promise<void> {
+  const space = await apiClient.createSpace(payload)
+  if (!space) {
+    await ctx.reply('Could not create space. Please try again.')
+    return
+  }
+
+  const dateRange =
+    payload.startDate && payload.endDate ? `\nDates: ${payload.startDate} – ${payload.endDate}` : ''
+  const budgetLine = payload.budgetCents
+    ? `\nBudget: S$${(payload.budgetCents / 100).toFixed(2)}`
+    : ''
+  const label = `${space.emoji ?? '📦'} ${space.name}`
+
+  await ctx.reply(
+    `Created ${label}${dateRange}${budgetLine}\n\nSet as active space?`,
+    { reply_markup: buildSpaceCreatedKeyboard(space.id) },
+  )
 }
 
 export async function handlePendingSpaceCreate(ctx: Context): Promise<boolean> {
@@ -169,7 +235,19 @@ export async function handlePendingSpaceCreate(ctx: Context): Promise<boolean> {
   if (!token) return false
   apiClient.setToken(token)
 
-  const parsed = parseSpaceCreate(text)
+  // Try parsing with Gemini first for dynamic range and extraction
+  let parsed: ParsedSpaceResult | null = null
+  try {
+    parsed = await parseSpaceWithGemini(text)
+  } catch (err) {
+    log.error({ err }, 'Gemini space parsing failed')
+  }
+
+  // Fallback to regex if Gemini returned null or failed
+  if (!parsed) {
+    parsed = parseSpaceCreate(text)
+  }
+
   if (!parsed) {
     await ctx.reply(
       'Could not parse space details. Try: `Bali Trip from 03/06 to 08/06 budget $500`',
@@ -178,23 +256,69 @@ export async function handlePendingSpaceCreate(ctx: Context): Promise<boolean> {
     return true
   }
 
-  const space = await apiClient.createSpace(parsed)
-  if (!space) {
-    await ctx.reply('Could not create space. Please try again.')
+  if (parsed.budgetCents !== undefined && parsed.budgetCents !== null) {
+    await createSpaceAndPrompt(ctx, {
+      name: parsed.name,
+      budgetCents: parsed.budgetCents,
+      ...(parsed.startDate ? { startDate: parsed.startDate } : {}),
+      ...(parsed.endDate ? { endDate: parsed.endDate } : {}),
+    })
     return true
   }
 
-  const dateRange =
-    parsed.startDate && parsed.endDate ? `\nDates: ${parsed.startDate} – ${parsed.endDate}` : ''
-  const budgetLine = parsed.budgetCents
-    ? `\nBudget: S$${(parsed.budgetCents / 100).toFixed(2)}`
-    : ''
-  const label = `${space.emoji ?? '📦'} ${space.name}`
+  // Budget is missing/optional. Prompt: Do you want to set a budget?
+  pendingSpaceDetails.set(chatId, {
+    name: parsed.name,
+    ...(parsed.startDate ? { startDate: parsed.startDate } : {}),
+    ...(parsed.endDate ? { endDate: parsed.endDate } : {}),
+  })
 
   await ctx.reply(
-    `Created ${label}${dateRange}${budgetLine}\n\nSet as active space?`,
-    { reply_markup: buildSpaceCreatedKeyboard(space.id) },
+    `I've got the space details:\n📦 *${parsed.name}*${parsed.startDate && parsed.endDate ? `\nDates: ${parsed.startDate} to ${parsed.endDate}` : ''}\n\nDo you want to set a budget?`,
+    { parse_mode: 'Markdown', reply_markup: buildSpaceBudgetChoiceKeyboard() }
   )
+
+  return true
+}
+
+export async function handlePendingSpaceBudgetInput(ctx: Context): Promise<boolean> {
+  const text = ctx.message?.text
+  const telegramId = ctx.from?.id
+  const chatId = ctx.chat?.id
+  if (!text || !telegramId || !chatId) return false
+  if (!pendingSpaceBudgetInput.has(chatId)) return false
+
+  const details = pendingSpaceBudgetInput.get(chatId)
+  if (!details) return false
+
+  pendingSpaceBudgetInput.delete(chatId)
+
+  const token = await ensureToken(telegramId)
+  if (!token) return false
+  apiClient.setToken(token)
+
+  // Parse numeric budget from input (e.g. "800", "$800", "SGD 800")
+  const amountMatch = text.match(/(?:S?\$|SGD\s*)?(\d+(?:\.\d{1,2})?)/i)
+  const amount = amountMatch?.[1] ? parseFloat(amountMatch[1]) : NaN
+
+  if (isNaN(amount) || amount <= 0) {
+    await ctx.reply('Invalid budget amount. Proceeding with no budget...')
+    await createSpaceAndPrompt(ctx, {
+      name: details.name,
+      ...(details.startDate ? { startDate: details.startDate } : {}),
+      ...(details.endDate ? { endDate: details.endDate } : {}),
+    })
+    return true
+  }
+
+  const budgetCents = Math.round(amount * 100)
+  await createSpaceAndPrompt(ctx, {
+    name: details.name,
+    budgetCents,
+    ...(details.startDate ? { startDate: details.startDate } : {}),
+    ...(details.endDate ? { endDate: details.endDate } : {}),
+  })
+
   return true
 }
 

@@ -29,6 +29,8 @@ import {
   spaceCallbackHandler,
   handlePendingSpaceCreate,
   pendingSpaceCreate,
+  pendingSpaceBudgetInput,
+  handlePendingSpaceBudgetInput,
 } from './handlers/space.js'
 import {
   iouHandler, iouCallbackHandler, handlePendingPartialRepay,
@@ -114,6 +116,8 @@ bot.hears('📊 Monthly Report', monthlyReportHandler)
 
 bot.hears('📝 Recents', recentHandler)
 
+bot.hears('📦 Spaces', spaceCommandHandler)
+
 bot.hears('❓ Help', (ctx) => helpHandler(ctx as Parameters<typeof helpHandler>[0]))
 
 // ── Photo / receipt handler ───────────────────────────────────────────────────
@@ -136,6 +140,12 @@ bot.on('message:text', async (ctx) => {
   // Pending /space create flow
   if (chatId !== undefined && pendingSpaceCreate.has(chatId)) {
     const consumed = await handlePendingSpaceCreate(ctx)
+    if (consumed) return
+  }
+
+  // Pending /space budget input flow
+  if (chatId !== undefined && pendingSpaceBudgetInput.has(chatId)) {
+    const consumed = await handlePendingSpaceBudgetInput(ctx)
     if (consumed) return
   }
 

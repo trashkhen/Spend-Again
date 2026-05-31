@@ -218,3 +218,104 @@ export async function parseWithGemini(input: string): Promise<ParseResult | null
 
   return parseResult
 }
+
+// ---------------------------------------------------------------------------
+// Space Parsing with Gemini
+// ---------------------------------------------------------------------------
+
+export type ParsedSpaceResult = {
+  name: string
+  budgetCents?: number | null
+  startDate?: string | null
+  endDate?: string | null
+}
+
+export function buildSpacePrompt(input: string): string {
+  const today = new Date()
+  const year = today.getFullYear()
+  const todayStr = today.toISOString().split('T')[0] // YYYY-MM-DD
+
+  return `You are a Singapore expense and financial planner assistant. Extract structured Space details from the user's free-text input. A Space represents a trip, project, semester, or budget category.
+
+VALID JSON SHAPE (you MUST return ONLY this JSON shape, nothing else):
+{
+  "name": "string",
+  "budgetCents": number or null,
+  "startDate": "YYYY-MM-DD" or null,
+  "endDate": "YYYY-MM-DD" or null
+}
+
+RULES:
+1. Return ONLY the JSON object — no markdown fences, no code blocks, no explanation.
+2. "name" should be a concise, clean name for the space (e.g. "Bali Trip" or "JB Weekend" or "Exchange").
+3. "budgetCents" must be the budget in integer cents (e.g. 50000 for $500, or 2000000 for $20000). If no budget is specified, return null.
+4. "startDate" and "endDate" must be in YYYY-MM-DD format.
+5. If the input mentions a duration (e.g. "for 5 days from 23 june"), calculate the start date and end date accordingly. E.g., June 23 to June 27 is 5 days inclusive, so startDate is "2026-06-23" and endDate is "2026-06-27".
+6. Assume dates are in the future or present relative to today: ${todayStr} (current year: ${year}). If no year is specified for a date, use the current year ${year} (or the next year if the date has already passed and it makes sense, but default to ${year}).
+
+EXAMPLES:
+Input: "Bali Trip from 03/06 to 08/06 budget $500"
+Output: {"name":"Bali Trip","budgetCents":50000,"startDate":"${year}-06-03","endDate":"${year}-06-08"}
+
+Input: "JB Weekend budget $250"
+Output: {"name":"JB Weekend","budgetCents":25000,"startDate":null,"endDate":null}
+
+Input: "NUS Semester"
+Output: {"name":"NUS Semester","budgetCents":null,"startDate":null,"endDate":null}
+
+Input: "I'm going to bali for 5 days from 23 june"
+Output: {"name":"Bali Trip","budgetCents":null,"startDate":"${year}-06-23","endDate":"${year}-06-27"}
+
+Input: "Exchange from 23 Aug to 31 Dec budget $20000"
+Output: {"name":"Exchange","budgetCents":2000000,"startDate":"${year}-08-23","endDate":"${year}-12-31"}
+
+Now parse this input:
+"${input}"
+
+Respond with ONLY the JSON object.`
+}
+
+export async function parseSpaceWithGemini(input: string): Promise<ParsedSpaceResult | null> {
+  const apiKey = process.env['GEMINI_API_KEY']
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY environment variable is not set')
+  }
+
+  const client = new GoogleGenerativeAI(apiKey)
+  const model = client.getGenerativeModel({ model: GEMINI_MODEL })
+
+  const prompt = buildSpacePrompt(input)
+
+  let rawText: string
+  try {
+    const result = await model.generateContent(prompt)
+    rawText = result.response.text()
+  } catch (err) {
+    if (err instanceof GoogleGenerativeAIFetchError && (err.status === 429 || err.status === 503)) {
+      log.error({ status: err.status, message: err.message, errorDetails: err.errorDetails }, 'rate limit / unavailable from API')
+      throw new GeminiRateLimitError()
+    }
+    throw err
+  }
+
+  const jsonStr = extractJSON(rawText)
+  if (jsonStr === null) return null
+
+  try {
+    const parsed = JSON.parse(jsonStr)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const obj = parsed as Record<string, unknown>
+    
+    const name = typeof obj['name'] === 'string' ? obj['name'] : ''
+    if (!name) return null
+    
+    const budgetCents = typeof obj['budgetCents'] === 'number' ? obj['budgetCents'] : null
+    const startDate = typeof obj['startDate'] === 'string' ? obj['startDate'] : null
+    const endDate = typeof obj['endDate'] === 'string' ? obj['endDate'] : null
+
+    return { name, budgetCents, startDate, endDate }
+  } catch {
+    return null
+  }
+}
+
