@@ -4,6 +4,7 @@ import {
   integer,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -17,6 +18,7 @@ export const users = pgTable('users', {
   telegramUsername: text('telegram_username'),
   monthlyBudget: integer('monthly_budget'),
   budgetAlertPct: integer('budget_alert_pct').default(100),
+  activeSpaceId: uuid('active_space_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
@@ -81,6 +83,30 @@ export const recurringPayments = pgTable('recurring_payments', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })
 
+export const spaces = pgTable('spaces', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  emoji: text('emoji'),
+  budgetCents: integer('budget_cents'),
+  startDate: date('start_date', { mode: 'string' }),
+  endDate: date('end_date', { mode: 'string' }),
+  status: text('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userStatusIdx: index('spaces_user_status_idx').on(table.userId, table.status),
+}))
+
+export const transactionSpaces = pgTable('transaction_spaces', {
+  transactionId: uuid('transaction_id').notNull().references(() => transactions.id, { onDelete: 'cascade' }),
+  spaceId: uuid('space_id').notNull().references(() => spaces.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.transactionId, table.spaceId] }),
+}))
+
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Transaction = typeof transactions.$inferSelect
@@ -91,3 +117,6 @@ export type UserCustomCategory = typeof userCustomCategories.$inferSelect
 export type NewUserCustomCategory = typeof userCustomCategories.$inferInsert
 export type RecurringPayment = typeof recurringPayments.$inferSelect
 export type NewRecurringPayment = typeof recurringPayments.$inferInsert
+export type Space = typeof spaces.$inferSelect
+export type NewSpace = typeof spaces.$inferInsert
+export type TransactionSpace = typeof transactionSpaces.$inferSelect
