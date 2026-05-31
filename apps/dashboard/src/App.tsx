@@ -5,6 +5,8 @@ import { Welcome } from './pages/Welcome'
 import { Dashboard } from './pages/Dashboard'
 import { Analytics } from './pages/Analytics'
 import { Recurring } from './pages/Recurring'
+import { Spaces, SpaceDetail } from './pages/Spaces'
+import { People, PersonDetail } from './pages/People'
 import { ProtectedRoute } from './components/ProtectedRoute'
 
 export default function App() {
@@ -38,6 +40,38 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Recurring />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/spaces"
+          element={
+            <ProtectedRoute>
+              <Spaces />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/spaces/:id"
+          element={
+            <ProtectedRoute>
+              <SpaceDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/people"
+          element={
+            <ProtectedRoute>
+              <People />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/people/:id"
+          element={
+            <ProtectedRoute>
+              <PersonDetail />
             </ProtectedRoute>
           }
         />

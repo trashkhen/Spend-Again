@@ -4,6 +4,8 @@ import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
 import { TransactionModal } from '../components/TransactionModal'
 import { CategoryBreakdown } from '../components/charts/CategoryBreakdown'
+import { SpaceCard } from '../components/SpaceCard'
+import { IouCard } from '../components/IouCard'
 import {
   listTransactions,
   createTransaction,
@@ -327,6 +329,8 @@ export function Dashboard() {
             year={chartYear}
             onMonthChange={(m, y) => { setChartMonth(m); setChartYear(y) }}
           />
+          <SpaceCard />
+          <IouCard />
         </div>
       </div>
 

@@ -39,10 +39,28 @@ function IconRecurring() {
   )
 }
 
+function IconSpaces() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor">
+      <path d="M10 2a8 8 0 1 0 0 16A8 8 0 0 0 10 2zm0 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm0 10c-2.67 0-5.01-1.28-6.46-3.26C4.82 10.47 7.27 9.5 10 9.5s5.18.97 6.46 2.24C14.01 13.72 11.67 15 10 15z"/>
+    </svg>
+  )
+}
+
+function IconIOUs() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor">
+      <path d="M10 1a9 9 0 1 0 0 18A9 9 0 0 0 10 1zm.75 13.5h-1.5v-5.25H7.75v-1.5h3v6.75zm-.75-8.25a1.125 1.125 0 1 1 0-2.25 1.125 1.125 0 0 1 0 2.25z"/>
+    </svg>
+  )
+}
+
 const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Home', icon: <IconDashboard /> },
   { path: '/analytics', label: 'Analytics', icon: <IconAnalytics /> },
   { path: '/recurring', label: 'Recurring', icon: <IconRecurring /> },
+  { path: '/spaces', label: 'Spaces', icon: <IconSpaces /> },
+  { path: '/people', label: 'IOUs', icon: <IconIOUs /> },
 ]
 
 type Props = {
