@@ -1,5 +1,5 @@
 import { eq, and, lte, gte, sql } from 'drizzle-orm'
-import { spaces, transactionSpaces, users } from '@spend-again/db'
+import { spaces, transactionSpaces, users, transactions } from '@spend-again/db'
 import type { Space } from '@spend-again/db'
 import { centsToDecimalString } from '@spend-again/shared'
 import type { SpaceWithTotal, ApiSpace } from '@spend-again/shared'
@@ -75,15 +75,12 @@ export function createSpacesService(db: DbClient): SpacesService {
       const rows = await db
         .select({
           space: spaces,
-          spentCents: sql<number>`coalesce(sum(t.amount_cents), 0)`,
-          txCount: sql<number>`count(distinct ts.transaction_id)`,
+          spentCents: sql<number>`coalesce(sum(${transactions.amountCents}), 0)`,
+          txCount: sql<number>`count(distinct ${transactionSpaces.transactionId})`,
         })
         .from(spaces)
         .leftJoin(transactionSpaces, eq(transactionSpaces.spaceId, spaces.id))
-        .leftJoin(
-          sql`transactions t`,
-          sql`t.id = ${transactionSpaces.transactionId}`,
-        )
+        .leftJoin(transactions, eq(transactions.id, transactionSpaces.transactionId))
         .where(eq(spaces.userId, userId))
         .groupBy(spaces.id)
         .orderBy(spaces.createdAt)
