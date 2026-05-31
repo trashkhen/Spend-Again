@@ -1,7 +1,10 @@
 export { db } from './client.js'
 export type { Database } from './client.js'
 export {
+  debtPayments,
+  debts,
   learnedMappings,
+  people,
   recurringPayments,
   spaces,
   transactions,
@@ -10,14 +13,20 @@ export {
   users,
 } from './schema.js'
 export type {
+  Debt,
+  DebtPayment,
   LearnedMapping,
+  NewDebt,
+  NewDebtPayment,
   NewLearnedMapping,
+  NewPerson,
   NewRecurringPayment,
   NewSpace,
   NewTransaction,
   NewTransactionSpace,
   NewUser,
   NewUserCustomCategory,
+  Person,
   RecurringPayment,
   Space,
   Transaction,
