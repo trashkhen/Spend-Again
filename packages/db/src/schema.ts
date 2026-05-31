@@ -121,3 +121,50 @@ export type Space = typeof spaces.$inferSelect
 export type NewSpace = typeof spaces.$inferInsert
 export type TransactionSpace = typeof transactionSpaces.$inferSelect
 export type NewTransactionSpace = typeof transactionSpaces.$inferInsert
+
+export const people = pgTable('people', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userNameIdx: uniqueIndex('people_user_name_idx').on(table.userId, table.name),
+}))
+
+export const debts = pgTable('debts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  personId: uuid('person_id').notNull().references(() => people.id, { onDelete: 'cascade' }),
+  direction: text('direction').notNull(), // 'they_owe_me' | 'i_owe_them'
+  originalAmountCents: integer('original_amount_cents').notNull(),
+  remainingAmountCents: integer('remaining_amount_cents').notNull(),
+  description: text('description'),
+  linkedTransactionId: uuid('linked_transaction_id').references(() => transactions.id, { onDelete: 'set null' }),
+  linkedSpaceId: uuid('linked_space_id').references(() => spaces.id, { onDelete: 'set null' }),
+  status: text('status').notNull().default('open'), // 'open' | 'partially_paid' | 'settled'
+  occurredOn: date('occurred_on', { mode: 'string' }).notNull(),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  userStatusIdx: index('debts_user_status_idx').on(table.userId, table.status),
+  personIdx: index('debts_person_idx').on(table.personId),
+}))
+
+export const debtPayments = pgTable('debt_payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  debtId: uuid('debt_id').notNull().references(() => debts.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  amountCents: integer('amount_cents').notNull(),
+  paidOn: date('paid_on', { mode: 'string' }).notNull(),
+  note: text('note'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+})
+
+export type Person = typeof people.$inferSelect
+export type NewPerson = typeof people.$inferInsert
+export type Debt = typeof debts.$inferSelect
+export type NewDebt = typeof debts.$inferInsert
+export type DebtPayment = typeof debtPayments.$inferSelect
+export type NewDebtPayment = typeof debtPayments.$inferInsert
