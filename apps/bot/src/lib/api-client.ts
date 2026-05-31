@@ -1,6 +1,6 @@
 import { createHmac, createHash } from 'node:crypto'
 import { createLogger, requireEnv } from '@spend-again/shared'
-import type { ApiTransaction, Category, SubCategory, ApiRecurring } from '@spend-again/shared'
+import type { ApiTransaction, Category, SubCategory, ApiRecurring, ApiSpace, SpaceWithTotal, ApiDebt, ApiPerson, DebtWithPerson } from '@spend-again/shared'
 import { BOT_TOKEN } from './env.js'
 
 const log = createLogger('bot:api-client')
@@ -60,6 +60,27 @@ export type CreateRecurringPayload = {
   description?: string
   frequency: string
   startDate: string // YYYY-MM-DD
+}
+
+// ── Space types ────────────────────────────────────────────────────────────────
+
+export type CreateSpacePayload = {
+  name: string
+  emoji?: string
+  budgetCents?: number
+  startDate?: string  // YYYY-MM-DD
+  endDate?: string    // YYYY-MM-DD
+}
+
+// ── Debt types ────────────────────────────────────────────────────────────────
+
+export type CreateDebtPayload = {
+  personName: string
+  direction: 'they_owe_me' | 'i_owe_them'
+  amountCents: number
+  description?: string
+  linkedSpaceId?: string
+  occurredOn: string  // YYYY-MM-DD
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -504,6 +525,112 @@ export class ApiClient {
     } catch (err) {
       log.error({ err }, 'deleteRecurring error')
     }
+  }
+
+  async listSpaces(): Promise<SpaceWithTotal[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces`, { headers: this.buildHeaders() })
+      if (!res.ok) { log.error({ status: res.status }, 'listSpaces failed'); return [] }
+      return (await res.json()) as SpaceWithTotal[]
+    } catch (err) { log.error({ err }, 'listSpaces error'); return [] }
+  }
+
+  async getActiveSpace(): Promise<ApiSpace | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces/active`, { headers: this.buildHeaders() })
+      if (!res.ok) return null
+      return (await res.json()) as ApiSpace | null
+    } catch (err) { log.error({ err }, 'getActiveSpace error'); return null }
+  }
+
+  async setActiveSpace(spaceId: string | null): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces/active`, {
+        method: 'PUT', headers: this.buildHeaders(),
+        body: JSON.stringify({ spaceId }),
+      })
+      return res.ok
+    } catch (err) { log.error({ err }, 'setActiveSpace error'); return false }
+  }
+
+  async createSpace(data: CreateSpacePayload): Promise<ApiSpace | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces`, {
+        method: 'POST', headers: this.buildHeaders(), body: JSON.stringify(data),
+      })
+      if (!res.ok) return null
+      return (await res.json()) as ApiSpace
+    } catch (err) { log.error({ err }, 'createSpace error'); return null }
+  }
+
+  async attachTransactionToSpace(transactionId: string, spaceId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces/${spaceId}/transactions`, {
+        method: 'POST', headers: this.buildHeaders(),
+        body: JSON.stringify({ transactionId }),
+      })
+      return res.ok
+    } catch (err) { log.error({ err }, 'attachTransactionToSpace error'); return false }
+  }
+
+  async findSpacesForDate(isoDate: string): Promise<ApiSpace[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces/window?date=${encodeURIComponent(isoDate)}`, { headers: this.buildHeaders() })
+      if (!res.ok) return []
+      return (await res.json()) as ApiSpace[]
+    } catch (err) { log.error({ err }, 'findSpacesForDate error'); return [] }
+  }
+
+  async listPeople(): Promise<ApiPerson[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/iou/people`, { headers: this.buildHeaders() })
+      if (!res.ok) return []
+      return (await res.json()) as ApiPerson[]
+    } catch (err) { log.error({ err }, 'listPeople error'); return [] }
+  }
+
+  async listOpenDebts(personName?: string): Promise<DebtWithPerson[]> {
+    try {
+      const url = new URL(`${this.baseUrl}/api/iou/debts`)
+      url.searchParams.set('status', 'open')
+      const res = await fetch(url.toString(), { headers: this.buildHeaders() })
+      if (!res.ok) return []
+      const all = (await res.json()) as DebtWithPerson[]
+      if (personName) {
+        const lower = personName.toLowerCase()
+        return all.filter(d => d.person.name.toLowerCase() === lower)
+      }
+      return all
+    } catch (err) { log.error({ err }, 'listOpenDebts error'); return [] }
+  }
+
+  async createDebt(data: CreateDebtPayload): Promise<{ debt: ApiDebt; person: ApiPerson } | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/iou/debts`, {
+        method: 'POST', headers: this.buildHeaders(), body: JSON.stringify(data),
+      })
+      if (!res.ok) return null
+      return (await res.json()) as { debt: ApiDebt; person: ApiPerson }
+    } catch (err) { log.error({ err }, 'createDebt error'); return null }
+  }
+
+  async settleDebt(debtId: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/iou/debts/${debtId}/settle`, {
+        method: 'POST', headers: this.buildHeaders(), body: '{}',
+      })
+      return res.ok
+    } catch (err) { log.error({ err }, 'settleDebt error'); return false }
+  }
+
+  async addDebtPayment(debtId: string, amountCents: number, paidOn: string, note?: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/iou/debts/${debtId}/payments`, {
+        method: 'POST', headers: this.buildHeaders(),
+        body: JSON.stringify({ amountCents, paidOn, note }),
+      })
+      return res.ok
+    } catch (err) { log.error({ err }, 'addDebtPayment error'); return false }
   }
 }
 
