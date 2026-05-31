@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { CATEGORIES, CATEGORY_MAP } from '@spend-again/shared'
 import type { Category, CustomCategory } from '@spend-again/shared'
-import type { ApiTransaction } from '../lib/api'
+import type { ApiTransaction, SpaceWithTotal } from '../lib/api'
 import { listCustomCategories, createCustomCategory } from '../lib/api'
 
 export type TransactionFormData = {
@@ -12,6 +12,7 @@ export type TransactionFormData = {
   subCategory: string
   date: string  // DD/MM/YYYY
   source: 'manual'
+  spaceId: string | null
 }
 
 type Props = {
@@ -19,6 +20,7 @@ type Props = {
   transaction?: ApiTransaction | undefined
   onSave: (data: TransactionFormData) => Promise<void>
   onClose: () => void
+  spaces: SpaceWithTotal[]
 }
 
 function htmlDateToDDMMYYYY(htmlDate: string): string {
@@ -46,7 +48,7 @@ const DEFAULT_CATEGORY: Category = 'Food'
 
 type DrawerTarget = 'category' | 'subcategory' | null
 
-export function TransactionModal({ mode, transaction, onSave, onClose }: Props) {
+export function TransactionModal({ mode, transaction, onSave, onClose, spaces }: Props) {
   const initCategory = (transaction?.category as Category | undefined) ?? DEFAULT_CATEGORY
 
   const [item, setItem] = useState(transaction?.item ?? '')
@@ -61,6 +63,7 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
     transaction ? isoToHtmlDate(transaction.occurredOn) : todayHtmlDate()
   )
   const [description, setDescription] = useState(transaction?.description ?? '')
+  const [spaceId, setSpaceId] = useState<string>(transaction?.spaceId ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -82,6 +85,9 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
     .map((c) => c.subCategory)
   const baseSubs: string[] = (CATEGORY_MAP[category as Category] ?? ['Other']) as string[]
   const allSubCategories = Array.from(new Set([...baseSubs, ...customSubsForCategory]))
+
+  // Only show active spaces
+  const activeSpaces = spaces.filter(s => s.status === 'active')
 
   // Drawer state
   const [drawerTarget, setDrawerTarget] = useState<DrawerTarget>(null)
@@ -159,6 +165,7 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
         subCategory,
         date: htmlDateToDDMMYYYY(date),
         source: 'manual',
+        spaceId: spaceId || null,
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save transaction')
@@ -284,6 +291,26 @@ export function TransactionModal({ mode, transaction, onSave, onClose }: Props) 
                     <option value={ADD_NEW}>+ Add New</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="form-group form-group--space">
+                <label className="form-label" htmlFor="tx-space">
+                  Space
+                  <span className="space-label-hint">(optional)</span>
+                </label>
+                <select
+                  id="tx-space"
+                  className="form-select"
+                  value={spaceId}
+                  onChange={(e) => setSpaceId(e.target.value)}
+                >
+                  <option value="">None</option>
+                  {activeSpaces.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.emoji ?? '📦'} {s.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 

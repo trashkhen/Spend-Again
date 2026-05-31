@@ -18,26 +18,25 @@ export function IouCard() {
   if (loading || people.length === 0) return null
 
   return (
-    <div className="card">
-      <h3 className="card-title">People / IOUs</h3>
+    <div className="iou-card">
+      <h3 className="iou-card-title">People / IOUs</h3>
       {people.map(p => (
         <div
           key={p.id}
-          style={{
-            display: 'flex', justifyContent: 'space-between',
-            marginBottom: '0.5rem', cursor: 'pointer',
-          }}
+          className="iou-item"
           onClick={() => navigate(`/people/${p.id}`)}
         >
-          <span style={{ fontWeight: 500 }}>{p.name}</span>
+          <div>
+            <span className="iou-item-name">{p.name}</span>
+          </div>
           <span>
             {p.theyOweMeCents > 0 && (
-              <span style={{ color: 'var(--green, #38a169)' }}>
+              <span className="iou-amount--owed">
                 owes you S${p.theyOweMe}
               </span>
             )}
             {p.iOweThemCents > 0 && (
-              <span style={{ color: 'var(--red, #e53e3e)', marginLeft: p.theyOweMeCents > 0 ? '0.5rem' : 0 }}>
+              <span className="iou-amount--owing">
                 you owe S${p.iOweThem}
               </span>
             )}
@@ -45,8 +44,7 @@ export function IouCard() {
         </div>
       ))}
       <button
-        className="btn-link"
-        style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}
+        className="section-manage-link"
         onClick={() => navigate('/people')}
       >
         Manage IOUs →

@@ -1,5 +1,5 @@
 import { eq, and, gte, lt, sql, desc } from 'drizzle-orm'
-import { transactions } from '@spend-again/db'
+import { transactions, transactionSpaces } from '@spend-again/db'
 import type { Transaction } from '@spend-again/db'
 import { ddmmyyyyToIso, monthRange } from '@spend-again/shared'
 import type { DbClient } from '../lib/db.js'
@@ -40,7 +40,7 @@ export type ListTransactionsQuery = {
   offset?: number
 }
 
-export type TransactionRow = Transaction
+export type TransactionRow = Transaction & { spaceId: string | null }
 
 export interface TransactionService {
   create(input: CreateTransactionInput): Promise<TransactionRow>
@@ -73,7 +73,7 @@ export function createTransactionService(db: DbClient): TransactionService {
 
       const row = rows[0]
       if (!row) throw new Error('Insert returned no rows')
-      return row
+      return { ...row, spaceId: null }
     },
 
     async list(query: ListTransactionsQuery): Promise<TransactionRow[]> {
@@ -109,24 +109,38 @@ export function createTransactionService(db: DbClient): TransactionService {
       const limit = query.limit ?? 50
       const offset = query.offset ?? 0
 
-      const base = db.select().from(transactions)
+      const base = db
+        .select({
+          tx: transactions,
+          spaceId: sql<string | null>`min(${transactionSpaces.spaceId})`,
+        })
+        .from(transactions)
+        .leftJoin(transactionSpaces, eq(transactionSpaces.transactionId, transactions.id))
+        .groupBy(transactions.id)
+
       const filtered = conditions.length > 0 ? base.where(and(...conditions)) : base
       const rows = await filtered
         .orderBy(desc(transactions.occurredOn), desc(transactions.createdAt))
         .limit(limit)
         .offset(offset)
 
-      return rows
+      return rows.map(({ tx, spaceId }) => ({ ...tx, spaceId: spaceId ?? null }))
     },
 
     async findById(id: string, userId: string): Promise<TransactionRow | null> {
       const rows = await db
-        .select()
+        .select({
+          tx: transactions,
+          spaceId: sql<string | null>`min(${transactionSpaces.spaceId})`,
+        })
         .from(transactions)
+        .leftJoin(transactionSpaces, eq(transactionSpaces.transactionId, transactions.id))
         .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+        .groupBy(transactions.id)
         .limit(1)
 
-      return rows[0] ?? null
+      const row = rows[0]
+      return row ? { ...row.tx, spaceId: row.spaceId ?? null } : null
     },
 
     async update(
@@ -160,7 +174,9 @@ export function createTransactionService(db: DbClient): TransactionService {
         .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
         .returning()
 
-      return rows[0] ?? null
+      if (!rows[0]) return null
+      // Re-fetch to include spaceId from the join table
+      return this.findById(id, userId)
     },
 
     async remove(id: string, userId: string): Promise<boolean> {

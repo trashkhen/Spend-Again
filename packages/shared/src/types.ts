@@ -24,6 +24,7 @@ export type ApiTransaction = {
   source: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring'
   tier?: 1 | 2 | 3
   confidence?: string
+  spaceId: string | null               // linked space (single-select, from transaction_spaces)
   createdAt: string
   updatedAt: string
 }

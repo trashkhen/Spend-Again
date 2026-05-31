@@ -196,20 +196,22 @@ export function Recurring() {
   return (
     <Layout>
       <div className="app-main page-enter">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div className="page-header">
           <div>
-            <h2 style={{ color: 'var(--color-accent)', marginBottom: 2 }}>Recurring Payments</h2>
+            <h1 className="page-title">Recurring Payments</h1>
             {!loading && activeItems.length > 0 && (
-              <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>
+              <p className="page-subtitle">
                 Monthly cost (active): <strong style={{ color: 'var(--color-accent)' }}>{formatAmount(monthlyCostCents)}</strong>
               </p>
+            )}
+            {(loading || activeItems.length === 0) && (
+              <p className="page-subtitle">Manage your subscriptions and recurring expenses.</p>
             )}
           </div>
           <button
             type="button"
-            className="btn-save"
+            className="btn-add-transaction"
             onClick={() => setModal({ mode: 'create' })}
-            style={{ flexShrink: 0 }}
           >
             + Add Subscription
           </button>

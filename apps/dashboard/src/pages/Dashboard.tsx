@@ -13,10 +13,13 @@ import {
   deleteTransaction,
   getBudget,
   updateBudget,
+  listSpaces,
+  attachToSpace,
+  detachFromSpace,
 } from '../lib/api'
 import { getUserId } from '../lib/auth'
 import { computeSummary } from '../lib/analytics'
-import type { ApiTransaction, BudgetSettings } from '../lib/api'
+import type { ApiTransaction, BudgetSettings, SpaceWithTotal } from '../lib/api'
 import type { Filters } from '../components/FilterBar'
 import type { TransactionFormData } from '../components/TransactionModal'
 
@@ -158,6 +161,7 @@ export function Dashboard() {
   const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
   const [chartMonth, setChartMonth] = useState(new Date().getMonth() + 1)
   const [chartYear, setChartYear] = useState(new Date().getFullYear())
+  const [spaces, setSpaces] = useState<SpaceWithTotal[]>([])
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
@@ -188,6 +192,8 @@ export function Dashboard() {
         // budget is optional
       }
     })()
+    // Fetch spaces once on mount
+    void listSpaces().then(setSpaces).catch(() => {})
   }, [])
 
   const summary = computeSummary(allTransactions)
@@ -221,17 +227,57 @@ export function Dashboard() {
   async function handleSave(data: TransactionFormData) {
     if (modalMode === 'create') {
       if (!userId) throw new Error('Not authenticated')
-      await createTransaction({ ...data, userId })
+      const { spaceId, ...txData } = data
+      const created = await createTransaction({ ...txData, userId })
+      // Attach to space if selected
+      if (spaceId && created.id) {
+        try {
+          await attachToSpace(spaceId, created.id)
+        } catch {
+          // Non-blocking — transaction is still saved
+        }
+      }
     } else if (modalMode === 'edit' && editingTransaction) {
-      await updateTransaction(editingTransaction.id, data)
+      const { spaceId, ...txData } = data
+      await updateTransaction(editingTransaction.id, txData)
+      // Handle space change on edit
+      const oldSpaceId = editingTransaction.spaceId
+      if (spaceId !== oldSpaceId) {
+        try {
+          if (oldSpaceId) await detachFromSpace(oldSpaceId, editingTransaction.id)
+          if (spaceId) await attachToSpace(spaceId, editingTransaction.id)
+        } catch {
+          // Non-blocking
+        }
+      }
     }
     await fetchTransactions()
+    // Refresh spaces to update totals
+    void listSpaces().then(setSpaces).catch(() => {})
     closeModal()
   }
 
   async function handleDelete(id: string) {
     await deleteTransaction(id)
     await fetchTransactions()
+    // Refresh spaces to update totals
+    void listSpaces().then(setSpaces).catch(() => {})
+  }
+
+  async function handleSpaceChange(txId: string, newSpaceId: string | null, oldSpaceId: string | null) {
+    try {
+      if (oldSpaceId) await detachFromSpace(oldSpaceId, txId)
+      if (newSpaceId) await attachToSpace(newSpaceId, txId)
+      // Optimistic update: patch the local transaction list
+      setAllTransactions(prev =>
+        prev.map(tx => tx.id === txId ? { ...tx, spaceId: newSpaceId } : tx)
+      )
+      // Refresh spaces to update spent totals
+      void listSpaces().then(setSpaces).catch(() => {})
+    } catch {
+      // Revert: re-fetch to get true state
+      void fetchTransactions()
+    }
   }
 
   return (
@@ -319,6 +365,8 @@ export function Dashboard() {
             onPageChange={(p) => setFilters((prev) => ({ ...prev, page: p }))}
             onEdit={openEdit}
             onDelete={handleDelete}
+            spaces={spaces}
+            onSpaceChange={handleSpaceChange}
           />
         </div>
 
@@ -352,6 +400,7 @@ export function Dashboard() {
           transaction={editingTransaction ?? undefined}
           onSave={handleSave}
           onClose={closeModal}
+          spaces={spaces}
         />
       )}
 

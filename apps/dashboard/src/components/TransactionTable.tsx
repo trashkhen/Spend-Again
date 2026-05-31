@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { emojiFor, parseYYYYMMDD } from '@spend-again/shared'
-import type { ApiTransaction } from '../lib/api'
+import type { ApiTransaction, SpaceWithTotal } from '../lib/api'
 
 const PAGE_SIZE = 20
 
@@ -13,6 +13,8 @@ type Props = {
   onPageChange: (page: number) => void
   onEdit: (tx: ApiTransaction) => void
   onDelete: (id: string) => Promise<void>
+  spaces: SpaceWithTotal[]
+  onSpaceChange: (txId: string, newSpaceId: string | null, oldSpaceId: string | null) => Promise<void>
 }
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -71,10 +73,11 @@ function IconTrash() {
   )
 }
 
-export function TransactionTable({ transactions, loading, page, onPageChange, onEdit, onDelete }: Props) {
+export function TransactionTable({ transactions, loading, page, onPageChange, onEdit, onDelete, spaces, onSpaceChange }: Props) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [priceSort, setPriceSort] = useState<PriceSort>(null)
+  const [changingSpaceTxId, setChangingSpaceTxId] = useState<string | null>(null)
 
   function cyclePriceSort() {
     setPriceSort((cur) => cur === null ? 'asc' : cur === 'asc' ? 'desc' : null)
@@ -92,6 +95,9 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
   const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const sliced = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
+  // Only show active spaces in the dropdown
+  const activeSpaces = spaces.filter(s => s.status === 'active')
+
   async function handleDeleteConfirm(id: string) {
     setDeletingId(id)
     try {
@@ -99,6 +105,17 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
     } finally {
       setDeletingId(null)
       setConfirmDeleteId(null)
+    }
+  }
+
+  async function handleSpaceSelect(txId: string, newSpaceId: string, oldSpaceId: string | null) {
+    const target = newSpaceId === '' ? null : newSpaceId
+    if (target === oldSpaceId) return
+    setChangingSpaceTxId(txId)
+    try {
+      await onSpaceChange(txId, target, oldSpaceId)
+    } finally {
+      setChangingSpaceTxId(null)
     }
   }
 
@@ -131,6 +148,7 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
         {sliced.map((tx) => {
           const isConfirmingDelete = confirmDeleteId === tx.id
           const isDeleting = deletingId === tx.id
+          const isChangingSpace = changingSpaceTxId === tx.id
           const emoji = emojiFor(tx.category)
           const iconBg = CATEGORY_COLOR[tx.category] ?? 'rgba(148,163,184,0.10)'
 
@@ -151,6 +169,22 @@ export function TransactionTable({ transactions, loading, page, onPageChange, on
                     <span className="tx-category-name">{tx.category}</span>
                     {tx.subCategory ? <span className="tx-subcategory"> / {tx.subCategory}</span> : null}
                     {' · '}{formatDate(tx.occurredOn)}
+                    {' · '}
+                    <select
+                      className={`tx-space-select ${tx.spaceId == null ? 'tx-space-select--empty' : ''}`}
+                      value={tx.spaceId ?? ''}
+                      onChange={(e) => { void handleSpaceSelect(tx.id, e.target.value, tx.spaceId) }}
+                      disabled={isChangingSpace}
+                      aria-label={`Space for ${tx.item}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <option value="">No space</option>
+                      {activeSpaces.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.emoji ?? '📦'} {s.name}
+                        </option>
+                      ))}
+                    </select>
                   </span>
                 </div>
               </div>

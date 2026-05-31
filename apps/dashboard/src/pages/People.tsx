@@ -17,38 +17,52 @@ export function People() {
 
   return (
     <Layout>
-      <h2>People / IOUs</h2>
-      {loading && <p>Loading…</p>}
-      {!loading && people.length === 0 && (
-        <p style={{ color: 'var(--muted)' }}>
-          No IOUs yet. Try saying <code>lent Ben $12</code> in Telegram.
-        </p>
-      )}
-      {people.map(p => (
-        <div
-          key={p.id}
-          className="card"
-          style={{ marginBottom: '1rem', cursor: 'pointer' }}
-          onClick={() => navigate(`/people/${p.id}`)}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <strong>{p.name}</strong>
-            <span>
-              {p.theyOweMeCents > 0 && (
-                <span style={{ color: 'var(--green, #38a169)' }}>owes S${p.theyOweMe}</span>
-              )}
-              {p.iOweThemCents > 0 && (
-                <span style={{ color: 'var(--red, #e53e3e)', marginLeft: '0.5rem' }}>
-                  you owe S${p.iOweThem}
-                </span>
-              )}
-            </span>
+      <div className="app-main page-enter">
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">People / IOUs</h1>
+            <p className="page-subtitle">Track who owes what and settle debts.</p>
           </div>
-          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: '0.25rem 0 0' }}>
-            {p.openDebtCount} open IOU{p.openDebtCount !== 1 ? 's' : ''}
-          </p>
         </div>
-      ))}
+
+        {loading && (
+          <div className="table-state"><span className="spinner" aria-label="Loading…" /></div>
+        )}
+        {!loading && people.length === 0 && (
+          <div className="table-state table-state--empty">
+            <p className="table-empty-message">
+              No IOUs yet. Try saying <code>lent Ben $12</code> in Telegram.
+            </p>
+          </div>
+        )}
+        {people.map(p => (
+          <div
+            key={p.id}
+            className="iou-card"
+            style={{ marginBottom: 14, cursor: 'pointer' }}
+            onClick={() => navigate(`/people/${p.id}`)}
+          >
+            <div className="iou-item" style={{ borderBottom: 'none', padding: 0 }}>
+              <div>
+                <span className="iou-item-name" style={{ fontSize: 15 }}>{p.name}</span>
+                <div className="iou-item-meta">
+                  {p.openDebtCount} open IOU{p.openDebtCount !== 1 ? 's' : ''}
+                </div>
+              </div>
+              <span>
+                {p.theyOweMeCents > 0 && (
+                  <span className="iou-amount--owed">owes S${p.theyOweMe}</span>
+                )}
+                {p.iOweThemCents > 0 && (
+                  <span className="iou-amount--owing">
+                    you owe S${p.iOweThem}
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
     </Layout>
   )
 }
@@ -83,7 +97,9 @@ export function PersonDetail() {
   if (!person) {
     return (
       <Layout>
-        <p>Loading…</p>
+        <div className="app-main page-enter">
+          <div className="table-state"><span className="spinner" aria-label="Loading…" /></div>
+        </div>
       </Layout>
     )
   }
@@ -93,62 +109,65 @@ export function PersonDetail() {
 
   return (
     <Layout>
-      <button
-        onClick={() => navigate('/people')}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', marginBottom: '1rem' }}
-      >
-        ← Back
-      </button>
-      <h2>{person.name}</h2>
-      {person.theyOweMeCents > 0 && (
-        <p style={{ color: 'var(--green, #38a169)' }}>Owes you: S${person.theyOweMe}</p>
-      )}
-      {person.iOweThemCents > 0 && (
-        <p style={{ color: 'var(--red, #e53e3e)' }}>You owe: S${person.iOweThem}</p>
-      )}
-
-      <h3>Open ({openDebts.length})</h3>
-      {openDebts.length === 0 && <p style={{ color: 'var(--muted)' }}>No open IOUs.</p>}
-      {openDebts.map(d => (
-        <div key={d.id} className="card" style={{ marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>
-              {d.direction === 'they_owe_me'
-                ? `${person.name} owes you S$${d.remainingAmount}`
-                : `You owe ${person.name} S$${d.remainingAmount}`}
-            </span>
-            <button onClick={() => void handleSettle(d.id)}>Settle</button>
-          </div>
-          {d.description != null && (
-            <p style={{ fontSize: '0.8rem', margin: '0.25rem 0 0', color: 'var(--muted)' }}>
-              {d.description}
-            </p>
-          )}
-          <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '0.25rem 0 0' }}>
-            {d.occurredOn}
-          </p>
+      <div className="app-main page-enter">
+        <button
+          className="space-back-btn"
+          onClick={() => navigate('/people')}
+        >
+          ← Back
+        </button>
+        <div className="page-header" style={{ marginBottom: 20 }}>
+          <h1 className="page-title">{person.name}</h1>
         </div>
-      ))}
 
-      {settledDebts.length > 0 && (
-        <>
-          <h3>Settled ({settledDebts.length})</h3>
-          {settledDebts.map(d => (
-            <div
-              key={d.id}
-              style={{
-                padding: '0.5rem 0', color: 'var(--muted)', fontSize: '0.85rem',
-                borderBottom: '1px solid var(--border)',
-              }}
-            >
-              {d.direction === 'they_owe_me'
-                ? `${person.name} paid S$${d.originalAmount}`
-                : `You paid S$${d.originalAmount}`}
-              {d.description != null && ` · ${d.description}`}
+        {person.theyOweMeCents > 0 && (
+          <p className="iou-summary--owed">Owes you: S${person.theyOweMe}</p>
+        )}
+        {person.iOweThemCents > 0 && (
+          <p className="iou-summary--owing">You owe: S${person.iOweThem}</p>
+        )}
+
+        <section className="dashboard-section" style={{ marginTop: 20 }}>
+          <h2 className="section-heading">Open ({openDebts.length})</h2>
+          {openDebts.length === 0 && (
+            <p className="space-detail-info">No open IOUs.</p>
+          )}
+          {openDebts.map(d => (
+            <div key={d.id} className="debt-item">
+              <div className="debt-item-row">
+                <span>
+                  {d.direction === 'they_owe_me'
+                    ? `${person.name} owes you S$${d.remainingAmount}`
+                    : `You owe ${person.name} S$${d.remainingAmount}`}
+                </span>
+                <button className="btn btn-primary" onClick={() => void handleSettle(d.id)}>
+                  Settle
+                </button>
+              </div>
+              {d.description != null && (
+                <p className="debt-item-desc">{d.description}</p>
+              )}
+              <p className="debt-item-date">{d.occurredOn}</p>
             </div>
           ))}
-        </>
-      )}
+        </section>
+
+        {settledDebts.length > 0 && (
+          <section className="dashboard-section" style={{ marginTop: 20 }}>
+            <h2 className="section-heading">Settled ({settledDebts.length})</h2>
+            {settledDebts.map(d => (
+              <div key={d.id} className="debt-item debt-item--settled">
+                <span className="debt-item-desc" style={{ marginTop: 0 }}>
+                  {d.direction === 'they_owe_me'
+                    ? `${person.name} paid S$${d.originalAmount}`
+                    : `You paid S$${d.originalAmount}`}
+                  {d.description != null && ` · ${d.description}`}
+                </span>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
     </Layout>
   )
 }

@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from 'vitest'
 vi.mock('@spend-again/db', () => ({
   db: {},
   transactions: {},
+  transactionSpaces: {},
   users: {},
   learnedMappings: {},
 }))
@@ -27,6 +28,7 @@ const BASE_TX: TransactionRow = {
   source: 'bot',
   tier: 1,
   confidence: '0.95',
+  spaceId: null,
   createdAt: new Date('2026-05-13T10:00:00Z'),
   updatedAt: new Date('2026-05-13T10:00:00Z'),
 }
@@ -45,18 +47,20 @@ function makeMockDb(overrides: Partial<{
   const deleteReturn = overrides.deleteReturn ?? [{ id: BASE_TX.id }]
 
   // Build a chainable query builder mock.
-  // Supports: .from().where().orderBy().limit().offset() (await-able at any point)
-  // and the findById style: .from().where().limit(1).
+  // The service now calls db.select({tx, spaceId}).from().leftJoin().groupBy().where()...
+  // so the mock wraps rows into { tx, spaceId } shape when select receives arguments.
   const makeSelectorChain = (rows: TransactionRow[]) => {
+    // Wrap rows as { tx: Transaction, spaceId } — matching the service's select shape.
+    const wrappedRows = rows.map(r => ({ tx: r, spaceId: r.spaceId ?? null }))
+
     const chain: Record<string, unknown> = {
       from: vi.fn().mockReturnThis(),
+      leftJoin: vi.fn().mockReturnThis(),
+      groupBy: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
       orderBy: vi.fn().mockReturnThis(),
       limit: vi.fn().mockImplementation((n: number) => {
-        // findById uses .where(...).limit(1) (no orderBy) and awaits.
-        // list uses .orderBy(...).limit(N).offset(M) and awaits offset.
-        const sliced = rows.slice(0, n)
-        // Return a chain that still supports .offset() but is also awaitable.
+        const sliced = wrappedRows.slice(0, n)
         const tail: Record<string, unknown> = {
           offset: vi.fn().mockImplementation((skip: number) =>
             Promise.resolve(sliced.slice(skip)),
@@ -64,7 +68,7 @@ function makeMockDb(overrides: Partial<{
         }
         Object.defineProperty(tail, 'then', {
           get() {
-            return (resolve: (v: TransactionRow[]) => void) => resolve(sliced)
+            return (resolve: (v: unknown[]) => void) => resolve(sliced)
           },
         })
         return tail
@@ -72,7 +76,7 @@ function makeMockDb(overrides: Partial<{
     }
     Object.defineProperty(chain, 'then', {
       get() {
-        return (resolve: (v: TransactionRow[]) => void) => resolve(rows)
+        return (resolve: (v: unknown[]) => void) => resolve(wrappedRows)
       },
     })
     return chain
@@ -338,7 +342,8 @@ describe('GET /api/transactions/:id', () => {
 describe('PUT /api/transactions/:id', () => {
   it('updates a transaction and returns updated data with amount as decimal string', async () => {
     const updated: TransactionRow = { ...BASE_TX, item: 'nasi lemak', amountCents: 800 }
-    const db = makeMockDb({ updateReturn: updated })
+    // After update, service calls findById() which uses select() — provide updated row
+    const db = makeMockDb({ updateReturn: updated, selectReturn: [updated] })
     const app = makeApp(db)
 
     const res = await app.request(`/${BASE_TX.id}`, {

@@ -172,6 +172,13 @@ export async function detachFromSpace(spaceId: string, transactionId: string): P
   await apiFetch(`/api/spaces/${spaceId}/transactions/${transactionId}`, { method: 'DELETE' })
 }
 
+export async function attachToSpace(spaceId: string, transactionId: string): Promise<void> {
+  await apiFetch(`/api/spaces/${spaceId}/transactions`, {
+    method: 'POST',
+    body: JSON.stringify({ transactionId }),
+  })
+}
+
 // ── IOUs ───────────────────────────────────────────────────────────────────────
 
 export async function listPeople(): Promise<PersonWithDebtSummary[]> {
