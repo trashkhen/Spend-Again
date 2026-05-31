@@ -24,6 +24,12 @@ import {
   pendingRecurring,
 } from './handlers/recurring.js'
 import { monthlyReportHandler } from './handlers/monthly-report.js'
+import {
+  spaceCommandHandler,
+  spaceCallbackHandler,
+  handlePendingSpaceCreate,
+  pendingSpaceCreate,
+} from './handlers/space.js'
 import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
 const log = createLogger('bot')
@@ -48,6 +54,7 @@ bot.command('help', helpHandler)
 bot.command('recent', recentHandler)
 bot.command('edit', editCommandHandler)
 bot.command('recurring', recurringCommandHandler)
+bot.command('space', spaceCommandHandler)
 
 // ── Inline keyboard callback handlers ────────────────────────────────────────
 
@@ -63,6 +70,7 @@ bot.callbackQuery(/^rec_toggle:/, recToggleHandler)
 bot.callbackQuery(/^rec_delete:/, recDeleteHandler)
 bot.callbackQuery(/^rec_delete_yes:/, recDeleteConfirmHandler)
 bot.callbackQuery('rec_delete_cancel', recDeleteConfirmHandler)
+bot.callbackQuery(/^space_/, spaceCallbackHandler)
 
 // ── Reply keyboard button handlers ────────────────────────────────────────────
 
@@ -117,6 +125,12 @@ bot.on('message:text', async (ctx) => {
   // Pending recurring add flow
   if (chatId !== undefined && pendingRecurring.has(chatId)) {
     const consumed = await handlePendingRecurring(ctx)
+    if (consumed) return
+  }
+
+  // Pending /space create flow
+  if (chatId !== undefined && pendingSpaceCreate.has(chatId)) {
+    const consumed = await handlePendingSpaceCreate(ctx)
     if (consumed) return
   }
 
