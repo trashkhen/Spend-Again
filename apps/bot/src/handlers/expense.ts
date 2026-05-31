@@ -27,11 +27,15 @@ export function deriveDescription(raw: string): string | undefined {
 
 // ── Pending confirmation store ─────────────────────────────────────────────────
 
+export type PendingConfirmation = { result: ParseResult; rawInput: string }
+
 /**
- * Stores pending parse results keyed by chat ID while awaiting user confirmation.
- * Exported so confirm.ts can read and clear entries.
+ * Stores pending parse results (+ raw input) keyed by chat ID while awaiting
+ * user confirmation. rawInput is the original message text, needed by the
+ * learn flow to derive the Tier-2 lookup key (regex item) so the saved
+ * mapping key matches what the parser will search for next time.
  */
-export const pendingConfirmations = new Map<number, ParseResult>()
+export const pendingConfirmations = new Map<number, PendingConfirmation>()
 
 // ── Expense heuristic ─────────────────────────────────────────────────────────
 
@@ -134,8 +138,9 @@ export async function expenseHandler(ctx: Context): Promise<void> {
   const desc = deriveDescription(text)
   if (desc !== undefined) result.description = desc
 
-  // Store pending confirmation
-  pendingConfirmations.set(chatId, result)
+  // Store pending confirmation with raw input so the learn flow can derive
+  // the correct Tier-2 lookup key (regex-extracted item, not Gemini's item).
+  pendingConfirmations.set(chatId, { result, rawInput: text })
 
   const confirmationMsg = buildConfirmationMessage(result)
   const keyboard = buildConfirmKeyboard()

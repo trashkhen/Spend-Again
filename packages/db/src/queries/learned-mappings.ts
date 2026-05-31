@@ -61,6 +61,12 @@ export async function upsertMapping(
     .onConflictDoUpdate({
       target: learnedMappings.itemName,
       set: {
+        // Update category/subCategory/confidence/source so re-saves can correct
+        // wrong mappings. usageCount accumulates across all saves.
+        category: sql`excluded.category`,
+        subCategory: sql`excluded.sub_category`,
+        confidence: sql`excluded.confidence`,
+        source: sql`excluded.source`,
         usageCount: sql`${learnedMappings.usageCount} + 1`,
         updatedAt: sql`now()`,
       },

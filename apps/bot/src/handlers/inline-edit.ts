@@ -27,12 +27,13 @@ export async function handlePendingInlineEdit(ctx: Context): Promise<void> {
 
   pendingInlineEdits.delete(chatId)
 
-  const existing = pendingConfirmations.get(chatId)
-  if (existing === undefined) {
+  const entry = pendingConfirmations.get(chatId)
+  if (entry === undefined) {
     await ctx.reply('No pending transaction found leh. Start again!')
     return
   }
 
+  const existing = entry.result
   existing.amount = parsed.amountCents
   existing.item = parsed.item
   existing.category = parsed.category

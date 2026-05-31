@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import type { Context } from 'grammy'
 import { createLogger, getTodayDDMMYYYY } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
+import { parseWithRegex } from '@spend-again/parser'
 import {
   DEFAULT_CATEGORY,
   DEFAULT_SUB_CATEGORY,
@@ -40,6 +41,10 @@ const budgetAlertSentStore = new Map<number, string>()
 // never taps a button.
 type PendingLearn = {
   item: string
+  // The key actually stored in learned_mappings — equals the regex-extracted
+  // item (or raw input when regex found no amount). Must match what Tier 2
+  // looks up next time so the cache actually hits.
+  lookupKey: string
   category: Category
   subCategory: SubCategory
   createdAt: number
@@ -126,11 +131,12 @@ async function handleConfirmYes(
   telegramId: number,
   chatId: number,
 ): Promise<void> {
-  const result = pendingConfirmations.get(chatId)
-  if (result === undefined) {
+  const entry = pendingConfirmations.get(chatId)
+  if (entry === undefined) {
     await ctx.editMessageText(MSG_NO_PENDING_EXPENSE)
     return
   }
+  const { result, rawInput } = entry
 
   const token = tokenStore.get(telegramId)
   if (token === undefined) {
@@ -173,13 +179,19 @@ async function handleConfirmYes(
   if (saved !== null) {
     await ctx.editMessageText(MSG_SAVED)
 
-    // Tier 3 results (Gemini-resolved) — offer to remember the mapping
+    // Tier 3 results (Gemini-resolved) — offer to remember the mapping.
+    // lookupKey = what Tier 2 will search for next time (regex-extracted item,
+    // or full raw input when regex found no amount). Saving under this key
+    // ensures the cache actually hits instead of relying on Gemini's item name
+    // which may differ from what the regex extractor produces.
     if (result.tier === 3) {
       const now = Date.now()
       evictStaleLearnPrompts(now)
       const learnId = makeLearnId()
+      const lookupKey = parseWithRegex(rawInput)?.item ?? rawInput
       pendingLearnPrompts.set(learnId, {
         item: result.item,
+        lookupKey,
         category,
         subCategory,
         createdAt: now,
@@ -252,7 +264,9 @@ export async function learnHandler(ctx: Context): Promise<void> {
     apiClient.setToken(token)
 
     try {
-      const ok = await apiClient.saveLearnedMapping(pending.item, pending.category, pending.subCategory)
+      // Save under lookupKey (not pending.item) so the DB key matches what
+      // Tier 2 will search for next time the same input arrives.
+      const ok = await apiClient.saveLearnedMapping(pending.lookupKey, pending.category, pending.subCategory)
       if (!ok) throw new Error('save failed')
       await ctx.editMessageText(MSG_LEARN_SAVED(pending.item, pending.category, pending.subCategory))
     } catch {
