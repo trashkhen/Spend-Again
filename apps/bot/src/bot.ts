@@ -33,6 +33,7 @@ import {
   handlePendingSpaceBudgetInput,
   pendingSpaceNameEdit,
   handlePendingSpaceNameEdit,
+  pendingSpaceNameConfirm,
 } from './handlers/space.js'
 import {
   iouHandler, iouCallbackHandler, handlePendingPartialRepay,
@@ -145,6 +146,12 @@ bot.on('message:text', async (ctx) => {
   if (chatId !== undefined && pendingSpaceNameEdit.has(chatId)) {
     const consumed = await handlePendingSpaceNameEdit(ctx)
     if (consumed) return
+  }
+
+  // Clear stale name-confirm entry if user sends a message instead of tapping the button
+  if (chatId !== undefined && pendingSpaceNameConfirm.has(chatId)
+      && !pendingSpaceNameEdit.has(chatId)) {
+    pendingSpaceNameConfirm.delete(chatId)
   }
 
   // Pending /space create flow

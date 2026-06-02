@@ -74,10 +74,12 @@ export async function iouCommandHandler(ctx: Context): Promise<void> {
   const telegramId = ctx.from?.id
   const chatId = ctx.chat?.id
   if (!telegramId || !chatId) return
-  if (!await ensureAuth(telegramId)) {
+  const token = tokenStore.get(telegramId)
+  if (!token) {
     await ctx.reply('Please /start to register first.')
     return
   }
+  apiClient.setToken(token)
 
   const debts = await apiClient.listAllDebts()
   const openDebts = debts.filter(d => d.status === 'open' || d.status === 'partially_paid')
