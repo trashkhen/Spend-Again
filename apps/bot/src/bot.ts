@@ -36,7 +36,7 @@ import {
 } from './handlers/space.js'
 import {
   iouHandler, iouCallbackHandler, handlePendingPartialRepay,
-  pendingPartialRepay, detectIouIntent,
+  pendingPartialRepay, detectIouIntent, iouCommandHandler, pendingIouNew,
 } from './handlers/iou.js'
 import { tokenStore, loginViaTelegram } from './lib/api-client.js'
 
@@ -63,6 +63,8 @@ bot.command('recent', recentHandler)
 bot.command('edit', editCommandHandler)
 bot.command('recurring', recurringCommandHandler)
 bot.command('space', spaceCommandHandler)
+bot.command('iou', iouCommandHandler)
+bot.hears('💸 IOUs', iouCommandHandler)
 
 // ── Inline keyboard callback handlers ────────────────────────────────────────
 
@@ -172,6 +174,13 @@ bot.on('message:text', async (ctx) => {
   // Pending inline-edit flow (correcting a parsed transaction before save)
   if (chatId !== undefined && pendingInlineEdits.has(chatId)) {
     await handlePendingInlineEdit(ctx)
+    return
+  }
+
+  // Pending /iou new entry flow
+  if (chatId !== undefined && pendingIouNew.has(chatId)) {
+    pendingIouNew.delete(chatId)
+    await iouHandler(ctx)
     return
   }
 
