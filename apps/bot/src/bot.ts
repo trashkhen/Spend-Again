@@ -31,6 +31,8 @@ import {
   pendingSpaceCreate,
   pendingSpaceBudgetInput,
   handlePendingSpaceBudgetInput,
+  pendingSpaceNameEdit,
+  handlePendingSpaceNameEdit,
 } from './handlers/space.js'
 import {
   iouHandler, iouCallbackHandler, handlePendingPartialRepay,
@@ -134,6 +136,12 @@ bot.on('message:text', async (ctx) => {
   // Pending recurring add flow
   if (chatId !== undefined && pendingRecurring.has(chatId)) {
     const consumed = await handlePendingRecurring(ctx)
+    if (consumed) return
+  }
+
+  // Pending /space name edit flow
+  if (chatId !== undefined && pendingSpaceNameEdit.has(chatId)) {
+    const consumed = await handlePendingSpaceNameEdit(ctx)
     if (consumed) return
   }
 
