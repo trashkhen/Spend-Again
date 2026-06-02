@@ -205,9 +205,9 @@ export async function spaceCallbackHandler(ctx: Context): Promise<void> {
     if (choice === 'yes') {
       pendingSpaceBudgetInput.set(chatId, {
         name: details.name,
-        emoji: details.emoji,
-        startDate: details.startDate,
-        endDate: details.endDate,
+        emoji: details.emoji ?? null,
+        startDate: details.startDate ?? null,
+        endDate: details.endDate ?? null,
       })
       await ctx.editMessageText('Input amount e.g. 800')
       return
@@ -223,8 +223,8 @@ export async function spaceCallbackHandler(ctx: Context): Promise<void> {
       await ctx.editMessageText('Creating space…')
       await createSpaceAndPrompt(ctx, {
         name: details.name,
-        emoji: details.emoji,
-        budgetCents: details.budgetCents,
+        emoji: details.emoji ?? null,
+        budgetCents: details.budgetCents ?? undefined,
         ...(details.startDate ? { startDate: details.startDate } : {}),
         ...(details.endDate ? { endDate: details.endDate } : {}),
       })
@@ -232,9 +232,9 @@ export async function spaceCallbackHandler(ctx: Context): Promise<void> {
     }
     pendingSpaceDetails.set(chatId, {
       name: details.name,
-      emoji: details.emoji,
-      startDate: details.startDate,
-      endDate: details.endDate,
+      emoji: details.emoji ?? null,
+      startDate: details.startDate ?? null,
+      endDate: details.endDate ?? null,
     })
     const label = details.emoji ? `${details.emoji} ${details.name}` : details.name
     await ctx.editMessageText(
