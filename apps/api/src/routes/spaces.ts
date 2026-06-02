@@ -67,6 +67,20 @@ export function createSpacesRouter(db: DbClient): Hono<AppEnv> {
     return c.json(space)
   })
 
+  // GET /api/spaces/:id/transactions
+  router.get('/:id/transactions', async (c) => {
+    const userId = c.get('userId')
+    const txs = await svc.getTransactions(c.req.param('id'), userId)
+    return c.json(txs)
+  })
+
+  // GET /api/spaces/:id/breakdown
+  router.get('/:id/breakdown', async (c) => {
+    const userId = c.get('userId')
+    const breakdown = await svc.getBreakdown(c.req.param('id'), userId)
+    return c.json(breakdown)
+  })
+
   // PATCH /api/spaces/:id
   router.patch('/:id', validateBody(updateSpaceSchema), async (c) => {
     const userId = c.get('userId')
@@ -74,6 +88,14 @@ export function createSpacesRouter(db: DbClient): Hono<AppEnv> {
     const space = await svc.update(c.req.param('id'), userId, input)
     if (!space) return c.json({ error: 'Not found', code: 'NOT_FOUND' }, 404)
     return c.json(space)
+  })
+
+  // DELETE /api/spaces/:id/permanent  (hard delete — keeps transactions)
+  router.delete('/:id/permanent', async (c) => {
+    const userId = c.get('userId')
+    const ok = await svc.hardDelete(c.req.param('id'), userId)
+    if (!ok) return c.json({ error: 'Not found', code: 'NOT_FOUND' }, 404)
+    return c.json({ ok: true })
   })
 
   // DELETE /api/spaces/:id  (archives, not hard delete)
