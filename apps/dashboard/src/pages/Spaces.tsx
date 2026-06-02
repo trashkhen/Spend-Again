@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Layout } from '../components/Layout'
-import { listSpaces, archiveSpace } from '../lib/api'
+import {
+  listSpaces, deactivateSpace, reactivateSpace, permanentDeleteSpace,
+} from '../lib/api'
 import type { SpaceWithTotal } from '../lib/api'
 
 // ── Spaces list ───────────────────────────────────────────────────────────────
@@ -9,20 +11,39 @@ import type { SpaceWithTotal } from '../lib/api'
 export function Spaces() {
   const [spaces, setSpaces] = useState<SpaceWithTotal[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     listSpaces().then(setSpaces).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
-  async function handleArchive(id: string) {
+  async function handleDeactivate(id: string) {
     try {
-      await archiveSpace(id)
-      setSpaces(prev => prev.filter(s => s.id !== id))
-    } catch {
-      // error silently ignored in MVP
-    }
+      await deactivateSpace(id)
+      setSpaces(prev => prev.map(s => s.id === id ? { ...s, status: 'archived' as const } : s))
+    } catch { /* silent */ }
   }
+
+  async function handleReactivate(id: string) {
+    try {
+      await reactivateSpace(id)
+      setSpaces(prev => prev.map(s => s.id === id ? { ...s, status: 'active' as const } : s))
+    } catch { /* silent */ }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await permanentDeleteSpace(id)
+      setSpaces(prev => prev.filter(s => s.id !== id))
+      setConfirmDeleteId(null)
+    } catch { /* silent */ }
+  }
+
+  const shown = spaces.filter(s => s.status === activeTab)
+  const activeCount = spaces.filter(s => s.status === 'active').length
+  const archivedCount = spaces.filter(s => s.status === 'archived').length
 
   return (
     <Layout>
@@ -34,50 +55,93 @@ export function Spaces() {
           </div>
         </div>
 
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+          {(['active', 'archived'] as const).map(tab => (
+            <button
+              key={tab}
+              className="btn btn-ghost"
+              style={{
+                borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+                borderRadius: 0,
+                color: activeTab === tab ? 'var(--accent)' : 'var(--text-muted)',
+                padding: '8px 16px',
+              }}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === 'active' ? `Active (${activeCount})` : `Archived (${archivedCount})`}
+            </button>
+          ))}
+        </div>
+
         {loading && (
           <div className="table-state"><span className="spinner" aria-label="Loading…" /></div>
         )}
-        {!loading && spaces.length === 0 && (
+        {!loading && shown.length === 0 && (
           <div className="table-state table-state--empty">
             <p className="table-empty-message">
-              No spaces yet. Create one via Telegram: <code>/space</code>
+              {activeTab === 'active'
+                ? <>No active spaces. Create one via Telegram: <code>/space</code></>
+                : 'No archived spaces.'}
             </p>
           </div>
         )}
-        {spaces.map(s => (
+
+        {shown.map(s => (
           <div key={s.id} className="space-card" style={{ marginBottom: 14 }}>
-            <div className="space-item-row">
-              <span className="space-item-name" style={{ fontSize: 15 }}>
-                {s.emoji ?? '📦'} {s.name}
-              </span>
-              <span
-                className={`space-status-badge ${s.status === 'active' ? 'space-status-badge--active' : 'space-status-badge--archived'}`}
-              >
-                {s.status}
-              </span>
-            </div>
-            {s.startDate != null && (
-              <p className="space-meta">
-                {s.startDate} – {s.endDate}
-              </p>
+            {confirmDeleteId === s.id ? (
+              <div>
+                <p style={{ marginBottom: 8, fontSize: 14 }}>
+                  Permanently remove <strong>{s.emoji ?? '📦'} {s.name}</strong>? Transactions are kept.
+                </p>
+                <div className="space-actions">
+                  <button className="btn btn-danger" onClick={() => { void handleDelete(s.id) }}>
+                    Yes, delete
+                  </button>
+                  <button className="btn btn-ghost" onClick={() => setConfirmDeleteId(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="space-item-row">
+                  <span className="space-item-name" style={{ fontSize: 15 }}>
+                    {s.emoji ?? '📦'} {s.name}
+                  </span>
+                  <span className={`space-status-badge space-status-badge--${s.status}`}>
+                    {s.status}
+                  </span>
+                </div>
+                {s.startDate != null && (
+                  <p className="space-meta">{s.startDate} – {s.endDate}</p>
+                )}
+                <p className="space-meta">
+                  Spent: <strong>S${s.spent}</strong>
+                  {s.budget != null ? ` / S$${s.budget}` : ''} ({s.transactionCount} transactions)
+                </p>
+                <div className="space-actions">
+                  <button className="btn btn-ghost" onClick={() => navigate(`/spaces/${s.id}`)}>
+                    View →
+                  </button>
+                  {s.status === 'active' ? (
+                    <button className="btn btn-ghost" onClick={() => { void handleDeactivate(s.id) }}>
+                      Deactivate
+                    </button>
+                  ) : (
+                    <button className="btn btn-ghost" onClick={() => { void handleReactivate(s.id) }}>
+                      Reactivate
+                    </button>
+                  )}
+                  <button
+                    className="btn btn-ghost"
+                    style={{ color: 'var(--danger, #f87171)' }}
+                    onClick={() => setConfirmDeleteId(s.id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </>
             )}
-            <p className="space-meta">
-              Spent: <strong>S${s.spent}</strong>
-              {s.budget != null ? ` / S$${s.budget}` : ''} ({s.transactionCount} transactions)
-            </p>
-            <div className="space-actions">
-              <button className="btn btn-ghost" onClick={() => navigate(`/spaces/${s.id}`)}>
-                View →
-              </button>
-              {s.status === 'active' && (
-                <button
-                  className="btn btn-ghost"
-                  onClick={() => { void handleArchive(s.id) }}
-                >
-                  Archive
-                </button>
-              )}
-            </div>
           </div>
         ))}
       </div>
