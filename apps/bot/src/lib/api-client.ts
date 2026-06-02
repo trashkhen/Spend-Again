@@ -581,6 +581,38 @@ export class ApiClient {
     } catch (err) { log.error({ err }, 'findSpacesForDate error'); return [] }
   }
 
+  async updateSpace(id: string, data: { status?: 'active' | 'archived'; name?: string; emoji?: string | null }): Promise<ApiSpace | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces/${id}`, {
+        method: 'PATCH',
+        headers: this.buildHeaders(),
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) { log.error({ status: res.status }, 'updateSpace failed'); return null }
+      return res.json() as Promise<ApiSpace>
+    } catch (err) { log.error({ err }, 'updateSpace error'); return null }
+  }
+
+  async hardDeleteSpace(id: string): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/spaces/${id}/permanent`, {
+        method: 'DELETE',
+        headers: this.buildHeaders(),
+      })
+      return res.ok
+    } catch (err) { log.error({ err }, 'hardDeleteSpace error'); return false }
+  }
+
+  async listAllDebts(): Promise<DebtWithPerson[]> {
+    try {
+      const res = await fetch(`${this.baseUrl}/api/iou/debts`, {
+        headers: this.buildHeaders(),
+      })
+      if (!res.ok) { log.error({ status: res.status }, 'listAllDebts failed'); return [] }
+      return res.json() as Promise<DebtWithPerson[]>
+    } catch (err) { log.error({ err }, 'listAllDebts error'); return [] }
+  }
+
   async listPeople(): Promise<ApiPerson[]> {
     try {
       const res = await fetch(`${this.baseUrl}/api/iou/people`, { headers: this.buildHeaders() })
