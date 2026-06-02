@@ -288,4 +288,64 @@ describe('createSpacesService', () => {
       expect(result).toBe(false)
     })
   })
+
+  describe('hardDelete', () => {
+    it('returns true when space exists', async () => {
+      const svc = createSpacesService(makeMockDb({ deleteReturn: [{ id: BASE_SPACE.id }] }))
+      const result = await svc.hardDelete(BASE_SPACE.id, BASE_SPACE.userId)
+      expect(result).toBe(true)
+    })
+
+    it('returns false when space not found', async () => {
+      const svc = createSpacesService(makeMockDb({ deleteReturn: [] }))
+      const result = await svc.hardDelete('non-existent', BASE_SPACE.userId)
+      expect(result).toBe(false)
+    })
+  })
+
+  describe('getBreakdown', () => {
+    it('returns empty array when no transactions', async () => {
+      // Use a mock db that returns [] for the breakdown query
+      const svc = createSpacesService({
+        ...makeMockDb(),
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              innerJoin: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                  groupBy: vi.fn().mockResolvedValue([]),
+                }),
+              }),
+            }),
+          }),
+        }),
+      } as unknown as DbClient)
+      const result = await svc.getBreakdown(BASE_SPACE.id, BASE_SPACE.userId)
+      expect(result).toEqual([])
+    })
+
+    it('calculates percentage correctly', async () => {
+      const rows = [
+        { category: 'Food', totalCents: 600 },
+        { category: 'Transport', totalCents: 400 },
+      ]
+      const svc = createSpacesService({
+        select: vi.fn().mockReturnValue({
+          from: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              innerJoin: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                  groupBy: vi.fn().mockResolvedValue(rows),
+                }),
+              }),
+            }),
+          }),
+        }),
+      } as unknown as DbClient)
+      const result = await svc.getBreakdown(BASE_SPACE.id, BASE_SPACE.userId)
+      expect(result).toHaveLength(2)
+      expect(result.find(r => r.category === 'Food')?.pct).toBe(60)
+      expect(result.find(r => r.category === 'Transport')?.pct).toBe(40)
+    })
+  })
 })

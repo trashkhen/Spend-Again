@@ -1,8 +1,8 @@
-import { eq, and, lte, gte, sql } from 'drizzle-orm'
+import { eq, and, lte, gte, sql, desc } from 'drizzle-orm'
 import { spaces, transactionSpaces, users, transactions } from '@spend-again/db'
 import type { Space } from '@spend-again/db'
 import { centsToDecimalString } from '@spend-again/shared'
-import type { SpaceWithTotal, ApiSpace } from '@spend-again/shared'
+import type { SpaceWithTotal, ApiSpace, ApiTransaction } from '@spend-again/shared'
 import type { DbClient } from '../lib/db.js'
 
 export type CreateSpaceInput = {
@@ -39,12 +39,36 @@ function toApiSpace(s: Space): ApiSpace {
   }
 }
 
+function toApiTx(
+  row: typeof transactions.$inferSelect,
+  spaceId: string,
+): ApiTransaction {
+  return {
+    id: row.id,
+    userId: row.userId,
+    amountCents: row.amountCents,
+    amount: centsToDecimalString(row.amountCents),
+    item: row.item,
+    description: row.description ?? null,
+    category: row.category,
+    subCategory: row.subCategory,
+    occurredOn: row.occurredOn,
+    source: row.source as ApiTransaction['source'],
+    spaceId,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  }
+}
+
 export interface SpacesService {
   create(input: CreateSpaceInput): Promise<ApiSpace>
   list(userId: string): Promise<SpaceWithTotal[]>
   findById(id: string, userId: string): Promise<ApiSpace | null>
   update(id: string, userId: string, input: UpdateSpaceInput): Promise<ApiSpace | null>
   archive(id: string, userId: string): Promise<boolean>
+  hardDelete(id: string, userId: string): Promise<boolean>
+  getTransactions(id: string, userId: string): Promise<ApiTransaction[]>
+  getBreakdown(id: string, userId: string): Promise<{ category: string; totalCents: number; pct: number }[]>
   attachTransaction(transactionId: string, spaceId: string, userId: string): Promise<boolean>
   detachTransaction(transactionId: string, spaceId: string, userId: string): Promise<boolean>
   findByDateWindow(userId: string, isoDate: string): Promise<ApiSpace[]>
@@ -126,6 +150,44 @@ export function createSpacesService(db: DbClient): SpacesService {
         .where(and(eq(spaces.id, id), eq(spaces.userId, userId)))
         .returning()
       return rows.length > 0
+    },
+
+    async hardDelete(id, userId) {
+      const rows = await db
+        .delete(spaces)
+        .where(and(eq(spaces.id, id), eq(spaces.userId, userId)))
+        .returning()
+      return rows.length > 0
+    },
+
+    async getTransactions(id, userId) {
+      const rows = await db
+        .select({ tx: transactions })
+        .from(transactionSpaces)
+        .innerJoin(transactions, eq(transactions.id, transactionSpaces.transactionId))
+        .innerJoin(spaces, eq(spaces.id, transactionSpaces.spaceId))
+        .where(and(eq(transactionSpaces.spaceId, id), eq(spaces.userId, userId)))
+        .orderBy(desc(transactions.occurredOn))
+      return rows.map(r => toApiTx(r.tx, id))
+    },
+
+    async getBreakdown(id, userId) {
+      const rows = await db
+        .select({
+          category: transactions.category,
+          totalCents: sql<number>`sum(${transactions.amountCents})`,
+        })
+        .from(transactionSpaces)
+        .innerJoin(transactions, eq(transactions.id, transactionSpaces.transactionId))
+        .innerJoin(spaces, eq(spaces.id, transactionSpaces.spaceId))
+        .where(and(eq(transactionSpaces.spaceId, id), eq(spaces.userId, userId)))
+        .groupBy(transactions.category)
+      const grandTotal = rows.reduce((s, r) => s + Number(r.totalCents), 0)
+      return rows.map(r => ({
+        category: r.category,
+        totalCents: Number(r.totalCents),
+        pct: grandTotal > 0 ? Math.round((Number(r.totalCents) / grandTotal) * 100) : 0,
+      }))
     },
 
     async attachTransaction(transactionId, spaceId, userId) {
