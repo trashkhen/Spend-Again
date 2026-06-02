@@ -57,17 +57,11 @@ export function Spaces() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+        <div className="page-tabs">
           {(['active', 'archived'] as const).map(tab => (
             <button
               key={tab}
-              className="btn btn-ghost"
-              style={{
-                borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
-                borderRadius: 0,
-                color: activeTab === tab ? 'var(--accent)' : 'var(--text-muted)',
-                padding: '8px 16px',
-              }}
+              className={`page-tab${activeTab === tab ? ' page-tab--active' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
               {tab === 'active' ? `Active (${activeCount})` : `Archived (${archivedCount})`}
@@ -213,14 +207,14 @@ export function SpaceDetail() {
           {editMode ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
               <input
-                className="mock-input"
+                className="form-input"
                 value={editValue}
                 onChange={e => setEditValue(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') void handleSaveName() }}
                 autoFocus
-                style={{ flex: 1, fontSize: 18 }}
+                style={{ flex: 1, fontSize: 15, height: 38 }}
               />
-              <button className="btn btn-primary" onClick={() => { void handleSaveName() }}>Save</button>
+              <button className="btn btn-ghost" style={{ color: 'var(--color-accent)', borderColor: 'var(--color-accent)' }} onClick={() => { void handleSaveName() }}>Save</button>
               <button className="btn btn-ghost" onClick={() => setEditMode(false)}>Cancel</button>
             </div>
           ) : (
@@ -263,18 +257,11 @@ export function SpaceDetail() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+        <div className="page-tabs">
           {(['overview', 'transactions'] as const).map(tab => (
             <button
               key={tab}
-              className="btn btn-ghost"
-              style={{
-                borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
-                borderRadius: 0,
-                color: activeTab === tab ? 'var(--accent)' : 'var(--text-muted)',
-                padding: '8px 16px',
-                textTransform: 'capitalize',
-              }}
+              className={`page-tab${activeTab === tab ? ' page-tab--active' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
               {tab}
@@ -284,9 +271,7 @@ export function SpaceDetail() {
 
         {activeTab === 'overview' && (
           <div>
-            <h3 style={{ marginBottom: 12, fontSize: 14, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Spending by Category
-            </h3>
+            <p className="section-label">Spending by Category</p>
             <SpaceDonutChart data={breakdown} />
           </div>
         )}
@@ -297,12 +282,12 @@ export function SpaceDetail() {
               <p className="space-meta">No transactions in this space yet.</p>
             ) : (
               txs.map(tx => (
-                <div key={tx.id} className="space-card" style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={tx.id} className="tx-row">
                   <div>
-                    <div style={{ fontSize: 14 }}>{tx.item}</div>
-                    <div className="space-meta">{tx.occurredOn} · {tx.category}</div>
+                    <div className="tx-row-item">{tx.item}</div>
+                    <div className="tx-row-meta">{tx.occurredOn} · {tx.category}</div>
                   </div>
-                  <div style={{ fontWeight: 600 }}>S${tx.amount}</div>
+                  <div className="tx-row-amount">S${tx.amount}</div>
                 </div>
               ))
             )}
