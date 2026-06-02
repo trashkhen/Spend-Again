@@ -18,7 +18,7 @@ import {
   detachFromSpace,
 } from '../lib/api'
 import { getUserId } from '../lib/auth'
-import { computeSummary } from '../lib/analytics'
+import { computeMonthComparison, computeSummary, previousMonthOf } from '../lib/analytics'
 import type { ApiTransaction, BudgetSettings, SpaceWithTotal } from '../lib/api'
 import type { Filters } from '../components/FilterBar'
 import type { TransactionFormData } from '../components/TransactionModal'
@@ -33,6 +33,16 @@ const DEFAULT_FILTERS: Filters = {
 
 function fmtSGD(amount: number): string {
   return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function getEffectiveMonthYear(month: string, year: string): { month: number; year: number } {
+  const now = new Date()
+  const parsedMonth = parseInt(month, 10)
+  const parsedYear = parseInt(year, 10)
+  return {
+    month: Number.isFinite(parsedMonth) ? parsedMonth : now.getMonth() + 1,
+    year: Number.isFinite(parsedYear) ? parsedYear : now.getFullYear(),
+  }
 }
 
 function getBudgetTierClass(totalThisMonth: number, budget: BudgetSettings | null): string {
@@ -162,18 +172,32 @@ export function Dashboard() {
   const [chartMonth, setChartMonth] = useState(new Date().getMonth() + 1)
   const [chartYear, setChartYear] = useState(new Date().getFullYear())
   const [spaces, setSpaces] = useState<SpaceWithTotal[]>([])
+  const [previousMonthTotal, setPreviousMonthTotal] = useState(0)
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const data = await listTransactions({
+      const { month: currentMonth, year: currentYear } = getEffectiveMonthYear(filters.month, filters.year)
+      const previous = previousMonthOf(currentMonth, currentYear)
+      const listParams = {
         category: filters.category || undefined,
         month: filters.month || undefined,
         year: filters.year || undefined,
         userId: userId ?? undefined,
-      })
+      }
+      const previousListParams = {
+        category: filters.category || undefined,
+        month: String(previous.month).padStart(2, '0'),
+        year: String(previous.year),
+        userId: userId ?? undefined,
+      }
+      const [data, previousData] = await Promise.all([
+        listTransactions(listParams),
+        listTransactions(previousListParams),
+      ])
       setAllTransactions(data)
+      setPreviousMonthTotal(computeSummary(previousData, previous.month, previous.year).totalThisMonth)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transactions')
     } finally {
@@ -197,6 +221,14 @@ export function Dashboard() {
   }, [])
 
   const summary = computeSummary(allTransactions)
+  const { month: selectedMonth, year: selectedYear } = getEffectiveMonthYear(filters.month, filters.year)
+  const previousMonth = previousMonthOf(selectedMonth, selectedYear)
+  const monthComparison = computeMonthComparison(
+    summary.totalThisMonth,
+    previousMonthTotal,
+    previousMonth.month,
+    previousMonth.year,
+  )
 
   useEffect(() => {
     if (budget?.monthlyBudget == null) return
@@ -311,7 +343,9 @@ export function Dashboard() {
         <div className={`kpi-card ${getBudgetTierClass(summary.totalThisMonth, budget)}`}>
           <div className="kpi-card-top">
             <div className="kpi-icon kpi-icon--blue">💳</div>
-            <span className="kpi-trend kpi-trend--up">↑ this month</span>
+            <span className={`kpi-trend kpi-trend--${monthComparison.tone}`}>
+              {monthComparison.label}
+            </span>
           </div>
           <span className="kpi-label">Monthly Spending</span>
           <span className="kpi-value">{fmtSGD(summary.totalThisMonth)}</span>

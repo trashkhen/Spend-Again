@@ -2931,6 +2931,23 @@ textarea {
   border-radius: var(--radius-pill);
   padding: 3px 8px;
   line-height: 1;
+  max-width: 160px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.kpi-trend--up {
+  color: var(--color-success);
+}
+
+.kpi-trend--down {
+  color: var(--color-error);
+  background: rgba(255, 107, 107, 0.08);
+  border-color: rgba(255, 107, 107, 0.22);
+}
+
+.kpi-trend--flat {
+  color: var(--color-text-muted);
 }
 
 .kpi-label {
@@ -3373,6 +3390,23 @@ textarea {
 
 .welcome-option:hover {
   background: rgba(255, 243, 216, 0.72);
+}
+
+.welcome-option--primary {
+  background: var(--color-coral);
+  border-color: var(--color-coral);
+  color: var(--color-paper);
+}
+
+.welcome-option--primary:hover {
+  background: var(--color-coral-hover);
+  border-color: var(--color-coral-hover);
+  color: var(--color-paper);
+}
+
+.welcome-option--primary .welcome-option-icon {
+  background: rgba(255, 251, 239, 0.18);
+  color: var(--color-paper);
 }
 
 .budget-toast {

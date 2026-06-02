@@ -27,6 +27,48 @@ export type MonthlySpend = {
   total: number // in SGD
 }
 
+export type MonthComparison = {
+  label: string
+  tone: 'up' | 'down' | 'flat'
+}
+
+export function previousMonthOf(month: number, year: number): { month: number; year: number } {
+  if (month <= 1) return { month: 12, year: year - 1 }
+  return { month: month - 1, year }
+}
+
+function formatSGDDelta(amount: number): string {
+  return `S$${amount.toLocaleString('en-SG', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function monthShortName(month: number, year: number): string {
+  return new Date(year, month - 1, 1).toLocaleString('en-SG', { month: 'short' })
+}
+
+export function computeMonthComparison(
+  currentTotal: number,
+  previousTotal: number,
+  previousMonth: number,
+  previousYear: number,
+): MonthComparison {
+  const previousLabel = monthShortName(previousMonth, previousYear)
+  const delta = Math.round((currentTotal - previousTotal) * 100) / 100
+  if (previousTotal === 0 && currentTotal > 0) {
+    return { label: `New vs ${previousLabel}`, tone: 'up' }
+  }
+  if (delta === 0) {
+    return { label: `Same vs ${previousLabel}`, tone: 'flat' }
+  }
+  const direction = delta > 0 ? '↑' : '↓'
+  return {
+    label: `${direction} ${formatSGDDelta(Math.abs(delta))} vs ${previousLabel}`,
+    tone: delta > 0 ? 'up' : 'down',
+  }
+}
+
 export function computeMonthlySpend(transactions: ApiTransaction[]): MonthlySpend[] {
   const now = new Date()
   const result: MonthlySpend[] = []
