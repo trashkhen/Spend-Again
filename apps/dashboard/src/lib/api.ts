@@ -168,6 +168,38 @@ export async function archiveSpace(id: string): Promise<void> {
   await apiFetch(`/api/spaces/${id}`, { method: 'DELETE' })
 }
 
+export type SpaceBreakdownItem = {
+  category: string
+  totalCents: number
+  pct: number
+}
+
+export async function deactivateSpace(id: string): Promise<void> {
+  await apiFetch(`/api/spaces/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'archived' }),
+  })
+}
+
+export async function reactivateSpace(id: string): Promise<void> {
+  await apiFetch(`/api/spaces/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status: 'active' }),
+  })
+}
+
+export async function permanentDeleteSpace(id: string): Promise<void> {
+  await apiFetch(`/api/spaces/${id}/permanent`, { method: 'DELETE' })
+}
+
+export async function getSpaceTransactions(id: string): Promise<ApiTransaction[]> {
+  return apiFetch<ApiTransaction[]>(`/api/spaces/${id}/transactions`)
+}
+
+export async function getSpaceBreakdown(id: string): Promise<SpaceBreakdownItem[]> {
+  return apiFetch<SpaceBreakdownItem[]>(`/api/spaces/${id}/breakdown`)
+}
+
 export async function detachFromSpace(spaceId: string, transactionId: string): Promise<void> {
   await apiFetch(`/api/spaces/${spaceId}/transactions/${transactionId}`, { method: 'DELETE' })
 }
