@@ -18,24 +18,47 @@ export const MSG_WELCOME = (dashboardUrl: string): string =>
 
 export const MSG_HELP =
   `How to use Spend Again? \u{1F914}\n\n` +
+
   `*Log an expense* — Just type it:\n` +
   `  "8.50 chicken rice Maxwell"\n` +
   `  "$12 grab home"\n` +
   `  "25 NTUC groceries"\n\n` +
+
   `*Snap a receipt* — Send a photo \u{1F4F8}\n\n` +
+
   `*Ask about your spending:*\n` +
   `  "How much did I spend this month?"\n` +
-  `  "Show my spending trend for the past 2 weeks"\n` +
-  `  "Breakdown of expenditure last month by category"\n\n` +
+  `  "Show breakdown by category last week"\n\n` +
+
+  `*Spaces* — Organise expenses into trips or budgets:\n` +
+  `  /space — View + switch spaces\n` +
+  `  "Bali Trip from 03/06 to 08/06 budget $500" — Create a space\n` +
+  `  \u{1F4E6} Spaces button — Quick access\n` +
+  `  Tap a space to set it active; new expenses are tagged automatically\n` +
+  `  In a space menu: Deactivate to archive, Delete to remove permanently\n\n` +
+
+  `*IOUs* — Track who owes who:\n` +
+  `  /iou — View all open IOUs\n` +
+  `  \u{1F4B8} IOUs button — Quick access\n` +
+  `  "I lent Alex $20 for lunch" — Record IOU\n` +
+  `  "I owe Jun $50" — Record what you owe\n` +
+  `  "Alex paid me back" — Mark as settled\n\n` +
+
   `*Commands:*\n` +
   `/start — Welcome message\n` +
   `/help — Show this help\n` +
-  `/recent — Last 5 transactions\n\n` +
+  `/recent — Last 5 transactions\n` +
+  `/space — Manage spaces\n` +
+  `/iou — View & record IOUs\n\n` +
+
   `*Keyboard buttons:*\n` +
   `\u{1F310} Bring me to Site — Open your dashboard\n` +
   `\u{1F4CA} Monthly Report — Current month summary\n` +
-  `\u{1F4DD} Recents — Show last 5 transactions\n` +
+  `\u{1F4DD} Recents — Last 5 transactions\n` +
+  `\u{1F4E6} Spaces — Manage your spaces\n` +
+  `\u{1F4B8} IOUs — View open debts\n` +
   `\u{2753} Help — Show this message\n\n` +
+
   `Can lah, you got this! \u{1F44A}`
 
 // ---------------------------------------------------------------------------
