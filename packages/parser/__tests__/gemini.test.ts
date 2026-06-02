@@ -36,7 +36,7 @@ vi.mock('@google/generative-ai', () => {
 // Import the module under test AFTER the mock is registered.
 // ---------------------------------------------------------------------------
 
-import { GeminiRateLimitError, buildPrompt, buildSpacePrompt, parseWithGemini } from '../src/gemini.js'
+import { GeminiRateLimitError, buildPrompt, buildSpacePrompt, parseWithGemini, parseSpaceWithGemini } from '../src/gemini.js'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -331,5 +331,63 @@ describe('buildSpacePrompt', () => {
   it('includes emoji in the JSON shape', () => {
     const prompt = buildSpacePrompt('Bali Trip from 03/06 to 08/06')
     expect(prompt).toContain('"emoji"')
+  })
+})
+
+describe('parseSpaceWithGemini', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    process.env['GEMINI_API_KEY'] = 'test-key'
+  })
+
+  it('returns the emoji when Gemini returns a valid emoji string', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({
+        name: 'Beach Holiday',
+        emoji: '🏖️',
+        budgetCents: 50000,
+        startDate: '2026-06-03',
+        endDate: '2026-06-08',
+      }),
+    )
+
+    const result = await parseSpaceWithGemini('Bali Trip from 03/06 to 08/06 budget $500')
+
+    expect(result).not.toBeNull()
+    expect(result?.emoji).toBe('🏖️')
+  })
+
+  it('returns null for emoji when Gemini returns an empty string', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({
+        name: 'Mystery Trip',
+        emoji: '',
+        budgetCents: null,
+        startDate: null,
+        endDate: null,
+      }),
+    )
+
+    const result = await parseSpaceWithGemini('some vague trip')
+
+    expect(result).not.toBeNull()
+    expect(result?.emoji).toBeNull()
+  })
+
+  it('returns null for emoji when Gemini returns null', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({
+        name: 'NUS Semester',
+        emoji: null,
+        budgetCents: null,
+        startDate: null,
+        endDate: null,
+      }),
+    )
+
+    const result = await parseSpaceWithGemini('NUS Semester')
+
+    expect(result).not.toBeNull()
+    expect(result?.emoji).toBeNull()
   })
 })
