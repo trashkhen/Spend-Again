@@ -1,11 +1,13 @@
+import { InlineKeyboard } from 'grammy'
 import type { Context } from 'grammy'
 import { apiClient, tokenStore } from '../lib/api-client.js'
-import { buildIouAmbiguousKeyboard, buildIouSettleKeyboard } from '../keyboards/iou.js'
+import { buildIouAmbiguousKeyboard, buildIouListKeyboard, buildIouSettleKeyboard } from '../keyboards/iou.js'
 import type { DebtWithPerson } from '@spend-again/shared'
 
 type PendingSettle = { personName: string; debts: DebtWithPerson[] }
 export const pendingIouSettle = new Map<number, PendingSettle>()
 export const pendingPartialRepay = new Map<number, string>() // chatId → debtId
+export const pendingIouNew = new Set<number>()
 
 // ── Intent detection ──────────────────────────────────────────────────────────
 
@@ -66,6 +68,38 @@ async function ensureAuth(telegramId: number): Promise<boolean> {
   if (!token) return false
   apiClient.setToken(token)
   return true
+}
+
+export async function iouCommandHandler(ctx: Context): Promise<void> {
+  const telegramId = ctx.from?.id
+  const chatId = ctx.chat?.id
+  if (!telegramId || !chatId) return
+  if (!await ensureAuth(telegramId)) {
+    await ctx.reply('Please /start to register first.')
+    return
+  }
+
+  const debts = await apiClient.listAllDebts()
+  const openDebts = debts.filter(d => d.status === 'open' || d.status === 'partially_paid')
+
+  if (openDebts.length === 0) {
+    await ctx.reply(
+      'No open IOUs! Record one naturally:\n• "I lent Alex $20 for lunch"\n• "I owe Jun $50"',
+      { reply_markup: new InlineKeyboard().text('➕ Record new IOU', 'iou_new') },
+    )
+    return
+  }
+
+  const lines = openDebts.map(d =>
+    d.direction === 'they_owe_me'
+      ? `👤 ${d.person.name} owes you S$${d.remainingAmount}`
+      : `👤 You owe ${d.person.name} S$${d.remainingAmount}`
+  ).join('\n')
+
+  await ctx.reply(
+    `💸 Open IOUs:\n\n${lines}\n\nTap a row to settle, or record a new one.`,
+    { reply_markup: buildIouListKeyboard(openDebts) },
+  )
 }
 
 export async function iouHandler(ctx: Context): Promise<void> {
@@ -177,6 +211,35 @@ export async function iouCallbackHandler(ctx: Context): Promise<void> {
   if (data === 'iou_cancel') {
     pendingIouSettle.delete(chatId)
     await ctx.editMessageText('Cancelled.')
+    return
+  }
+
+  if (data === 'iou_new') {
+    const chatId = ctx.chat?.id
+    if (chatId === undefined) return
+    pendingIouNew.add(chatId)
+    await ctx.editMessageText(
+      'Tell me the IOU:\n• "I lent Alex $20 for lunch"\n• "I owe Jun $50"\n• "Sam owes me $15"',
+    )
+    return
+  }
+
+  if (data.startsWith('iou_settle_single:')) {
+    const chatId = ctx.chat?.id
+    if (chatId === undefined) return
+    const debtId = data.slice('iou_settle_single:'.length)
+    const debts = await apiClient.listAllDebts()
+    const debt = debts.find(d => d.id === debtId)
+    if (!debt) { await ctx.editMessageText('Debt not found.'); return }
+    pendingIouSettle.set(chatId, { personName: debt.person.name, debts: [debt] })
+    const desc = debt.description ? ` for ${debt.description}` : ''
+    const label = debt.direction === 'they_owe_me'
+      ? `${debt.person.name} owes you S$${debt.remainingAmount}${desc}`
+      : `You owe ${debt.person.name} S$${debt.remainingAmount}${desc}`
+    await ctx.editMessageText(
+      `${label}\nMark as paid?`,
+      { reply_markup: buildIouSettleKeyboard([debt]) },
+    )
     return
   }
 

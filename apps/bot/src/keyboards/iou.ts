@@ -20,3 +20,15 @@ export function buildIouSettleKeyboard(debts: DebtWithPerson[]): InlineKeyboard 
   kb.text('Cancel', 'iou_cancel')
   return kb
 }
+
+export function buildIouListKeyboard(debts: DebtWithPerson[]): InlineKeyboard {
+  const kb = new InlineKeyboard()
+  for (const d of debts) {
+    const label = d.direction === 'they_owe_me'
+      ? `👤 ${d.person.name} owes you S$${d.remainingAmount}`
+      : `👤 You owe ${d.person.name} S$${d.remainingAmount}`
+    kb.text(label, `iou_settle_single:${d.id}`).row()
+  }
+  kb.text('➕ Record new IOU', 'iou_new')
+  return kb
+}
