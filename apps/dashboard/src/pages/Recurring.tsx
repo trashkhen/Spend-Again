@@ -76,15 +76,19 @@ function RecurringModal({
     setSaving(true)
     setError(null)
     try {
-      await onSave({
+      const trimmedDescription = description.trim()
+      const payload: Parameters<typeof createRecurring>[0] = {
         name: name.trim(),
         amountCents: Math.round(amountNum * 100),
         category,
         subCategory,
-        description: description.trim() || undefined,
         frequency,
         startDate,
-      })
+      }
+      if (trimmedDescription) {
+        payload.description = trimmedDescription
+      }
+      await onSave(payload)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
       setSaving(false)
@@ -267,7 +271,7 @@ export function Recurring() {
       {modal !== null && (
         <RecurringModal
           mode={modal.mode}
-          item={modal.item}
+          {...(modal.item ? { item: modal.item } : {})}
           onSave={handleSave}
           onClose={() => setModal(null)}
         />

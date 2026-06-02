@@ -23,11 +23,14 @@ export function SpaceDonutChart({ data }: Props) {
           paddingAngle={2}
         >
           {chartData.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+            <Cell key={i} fill={COLORS[i % COLORS.length] ?? COLORS[0] ?? '#136B4C'} />
           ))}
         </Pie>
         <Tooltip
-          formatter={(value: number) => [`S$${(value / 100).toFixed(2)}`, 'Spent']}
+          formatter={(value) => {
+            const cents = typeof value === 'number' ? value : Number(value ?? 0)
+            return [`S$${(cents / 100).toFixed(2)}`, 'Spent']
+          }}
         />
         <Legend
           layout="vertical"

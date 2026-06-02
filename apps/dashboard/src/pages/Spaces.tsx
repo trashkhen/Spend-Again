@@ -176,7 +176,11 @@ export function SpaceDetail() {
     const emoji = emojiMatch?.[0] ?? null
     const name = emoji ? trimmed.slice(emoji.length).trim() : trimmed
     if (!name) return
-    const updated = await updateSpace(id, { name, emoji: emoji ?? undefined })
+    const payload: { name: string; emoji?: string } = { name }
+    if (emoji) {
+      payload.emoji = emoji
+    }
+    const updated = await updateSpace(id, payload)
     if (updated) {
       setSpace(prev => prev ? { ...prev, name: updated.name, emoji: updated.emoji } : prev)
       setEditValue(`${updated.emoji ?? ''} ${updated.name}`.trim())

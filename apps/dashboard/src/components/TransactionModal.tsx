@@ -157,16 +157,20 @@ export function TransactionModal({ mode, transaction, onSave, onClose, spaces }:
     setSaving(true)
     setError(null)
     try {
-      await onSave({
+      const trimmedDescription = description.trim()
+      const payload: TransactionFormData = {
         item: item.trim(),
         amountCents: Math.round(amountNum * 100),
-        description: description.trim() || undefined,
         category,
         subCategory,
         date: htmlDateToDDMMYYYY(date),
         source: 'manual',
         spaceId: spaceId || null,
-      })
+      }
+      if (trimmedDescription) {
+        payload.description = trimmedDescription
+      }
+      await onSave(payload)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save transaction')
       setSaving(false)
