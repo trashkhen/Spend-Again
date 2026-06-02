@@ -135,8 +135,7 @@ export function Spaces() {
                     </button>
                   )}
                   <button
-                    className="btn btn-ghost"
-                    style={{ color: 'var(--danger, #f87171)' }}
+                    className="btn btn-danger"
                     onClick={() => setConfirmDeleteId(s.id)}
                   >
                     Delete
