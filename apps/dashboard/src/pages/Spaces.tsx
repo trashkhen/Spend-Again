@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Layout } from '../components/Layout'
+import { SpaceDonutChart } from '../components/SpaceDonutChart'
 import {
   listSpaces, deactivateSpace, reactivateSpace, permanentDeleteSpace,
+  updateSpace, getSpaceTransactions, getSpaceBreakdown,
 } from '../lib/api'
-import type { SpaceWithTotal } from '../lib/api'
+import type { SpaceWithTotal, ApiTransaction, SpaceBreakdownItem } from '../lib/api'
 
 // ── Spaces list ───────────────────────────────────────────────────────────────
 
@@ -154,14 +156,40 @@ export function Spaces() {
 export function SpaceDetail() {
   const { id } = useParams<{ id: string }>()
   const [space, setSpace] = useState<SpaceWithTotal | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editValue, setEditValue] = useState('')
+  const [activeTab, setActiveTab] = useState<'overview' | 'transactions'>('overview')
+  const [breakdown, setBreakdown] = useState<SpaceBreakdownItem[]>([])
+  const [txs, setTxs] = useState<ApiTransaction[]>([])
   const navigate = useNavigate()
 
   useEffect(() => {
     if (!id) return
     listSpaces()
-      .then(all => setSpace(all.find(s => s.id === id) ?? null))
+      .then(all => {
+        const found = all.find(s => s.id === id) ?? null
+        setSpace(found)
+        if (found) setEditValue(`${found.emoji ?? ''} ${found.name}`.trim())
+      })
       .catch(() => {})
+    getSpaceBreakdown(id).then(setBreakdown).catch(() => {})
+    getSpaceTransactions(id).then(setTxs).catch(() => {})
   }, [id])
+
+  async function handleSaveName() {
+    if (!id || !space) return
+    const trimmed = editValue.trim()
+    const emojiMatch = trimmed.match(/^(\p{Emoji_Presentation}|\p{Emoji}️)/u)
+    const emoji = emojiMatch?.[0] ?? null
+    const name = emoji ? trimmed.slice(emoji.length).trim() : trimmed
+    if (!name) return
+    const updated = await updateSpace(id, { name, emoji: emoji ?? undefined })
+    if (updated) {
+      setSpace(prev => prev ? { ...prev, name: updated.name, emoji: updated.emoji } : prev)
+      setEditValue(`${updated.emoji ?? ''} ${updated.name}`.trim())
+    }
+    setEditMode(false)
+  }
 
   if (!space) {
     return (
@@ -173,31 +201,47 @@ export function SpaceDetail() {
     )
   }
 
-  const budgetPct =
-    space.budgetCents != null
-      ? Math.round((space.spentCents / space.budgetCents) * 100)
-      : null
+  const budgetPct = space.budgetCents != null
+    ? Math.round((space.spentCents / space.budgetCents) * 100)
+    : null
 
   return (
     <Layout>
       <div className="app-main page-enter">
-        <button
-          className="space-back-btn"
-          onClick={() => navigate('/spaces')}
-        >
-          ← Back
-        </button>
-        <div className="page-header" style={{ marginBottom: 20 }}>
-          <h1 className="page-title">
-            {space.emoji ?? '📦'} {space.name}
-          </h1>
+        <button className="space-back-btn" onClick={() => navigate('/spaces')}>← Back</button>
+
+        <div className="page-header" style={{ marginBottom: 20, alignItems: 'center' }}>
+          {editMode ? (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+              <input
+                className="mock-input"
+                value={editValue}
+                onChange={e => setEditValue(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') void handleSaveName() }}
+                autoFocus
+                style={{ flex: 1, fontSize: 18 }}
+              />
+              <button className="btn btn-primary" onClick={() => { void handleSaveName() }}>Save</button>
+              <button className="btn btn-ghost" onClick={() => setEditMode(false)}>Cancel</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h1 className="page-title">{space.emoji ?? '📦'} {space.name}</h1>
+              <button
+                className="btn btn-ghost"
+                style={{ fontSize: 16, padding: '2px 8px' }}
+                onClick={() => setEditMode(true)}
+                title="Edit name"
+              >✏️</button>
+            </div>
+          )}
         </div>
+
         {space.startDate != null && (
-          <p className="space-meta" style={{ marginBottom: 16 }}>
-            {space.startDate} – {space.endDate}
-          </p>
+          <p className="space-meta" style={{ marginBottom: 16 }}>{space.startDate} – {space.endDate}</p>
         )}
-        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+
+        <div className="kpi-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginBottom: 20 }}>
           <div className="kpi-card">
             <div className="kpi-label">Spent</div>
             <div className="kpi-value">S${space.spent}</div>
@@ -219,9 +263,52 @@ export function SpaceDetail() {
             <div className="kpi-value">{space.transactionCount}</div>
           </div>
         </div>
-        <p className="space-detail-info" style={{ marginTop: 20 }}>
-          Full transaction list filtering by space coming in a future update. Use Telegram to browse expenses in this space.
-        </p>
+
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+          {(['overview', 'transactions'] as const).map(tab => (
+            <button
+              key={tab}
+              className="btn btn-ghost"
+              style={{
+                borderBottom: activeTab === tab ? '2px solid var(--accent)' : '2px solid transparent',
+                borderRadius: 0,
+                color: activeTab === tab ? 'var(--accent)' : 'var(--text-muted)',
+                padding: '8px 16px',
+                textTransform: 'capitalize',
+              }}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'overview' && (
+          <div>
+            <h3 style={{ marginBottom: 12, fontSize: 14, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Spending by Category
+            </h3>
+            <SpaceDonutChart data={breakdown} />
+          </div>
+        )}
+
+        {activeTab === 'transactions' && (
+          <div>
+            {txs.length === 0 ? (
+              <p className="space-meta">No transactions in this space yet.</p>
+            ) : (
+              txs.map(tx => (
+                <div key={tx.id} className="space-card" style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontSize: 14 }}>{tx.item}</div>
+                    <div className="space-meta">{tx.occurredOn} · {tx.category}</div>
+                  </div>
+                  <div style={{ fontWeight: 600 }}>S${tx.amount}</div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </Layout>
   )
