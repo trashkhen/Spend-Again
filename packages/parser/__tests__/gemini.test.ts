@@ -36,7 +36,7 @@ vi.mock('@google/generative-ai', () => {
 // Import the module under test AFTER the mock is registered.
 // ---------------------------------------------------------------------------
 
-import { GeminiRateLimitError, buildPrompt, parseWithGemini } from '../src/gemini.js'
+import { GeminiRateLimitError, buildPrompt, buildSpacePrompt, parseWithGemini } from '../src/gemini.js'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -324,5 +324,12 @@ describe('parseWithGemini', () => {
     for (const cat of categories) {
       expect(promptStr).toContain(cat)
     }
+  })
+})
+
+describe('buildSpacePrompt', () => {
+  it('includes emoji in the JSON shape', () => {
+    const prompt = buildSpacePrompt('Bali Trip from 03/06 to 08/06')
+    expect(prompt).toContain('"emoji"')
   })
 })

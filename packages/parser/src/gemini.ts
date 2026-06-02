@@ -225,6 +225,7 @@ export async function parseWithGemini(input: string): Promise<ParseResult | null
 
 export type ParsedSpaceResult = {
   name: string
+  emoji?: string | null
   budgetCents?: number | null
   startDate?: string | null
   endDate?: string | null
@@ -240,6 +241,7 @@ export function buildSpacePrompt(input: string): string {
 VALID JSON SHAPE (you MUST return ONLY this JSON shape, nothing else):
 {
   "name": "string",
+  "emoji": "single emoji or null",
   "budgetCents": number or null,
   "startDate": "YYYY-MM-DD" or null,
   "endDate": "YYYY-MM-DD" or null
@@ -251,23 +253,24 @@ RULES:
 3. "budgetCents" must be the budget in integer cents (e.g. 50000 for $500, or 2000000 for $20000). If no budget is specified, return null.
 4. "startDate" and "endDate" must be in YYYY-MM-DD format.
 5. If the input mentions a duration (e.g. "for 5 days from 23 june"), calculate the start date and end date accordingly. E.g., June 23 to June 27 is 5 days inclusive, so startDate is "2026-06-23" and endDate is "2026-06-27".
-6. Assume dates are in the future or present relative to today: ${todayStr} (current year: ${year}). If no year is specified for a date, use the current year ${year} (or the next year if the date has already passed and it makes sense, but default to ${year}).
+6. "emoji" should be a single emoji character that best represents the space theme (e.g. "🏖️" for beach/holiday, "🎓" for school/university, "🛫" for travel, "🎉" for events, "🍽️" for food outings). If no clear emoji fits, return null.
+7. Assume dates are in the future or present relative to today: ${todayStr} (current year: ${year}). If no year is specified for a date, use the current year ${year} (or the next year if the date has already passed and it makes sense, but default to ${year}).
 
 EXAMPLES:
 Input: "Bali Trip from 03/06 to 08/06 budget $500"
-Output: {"name":"Bali Trip","budgetCents":50000,"startDate":"${year}-06-03","endDate":"${year}-06-08"}
+Output: {"name":"Bali Trip","emoji":"🏖️","budgetCents":50000,"startDate":"${year}-06-03","endDate":"${year}-06-08"}
 
 Input: "JB Weekend budget $250"
-Output: {"name":"JB Weekend","budgetCents":25000,"startDate":null,"endDate":null}
+Output: {"name":"JB Weekend","emoji":"🛫","budgetCents":25000,"startDate":null,"endDate":null}
 
 Input: "NUS Semester"
-Output: {"name":"NUS Semester","budgetCents":null,"startDate":null,"endDate":null}
+Output: {"name":"NUS Semester","emoji":"🎓","budgetCents":null,"startDate":null,"endDate":null}
 
 Input: "I'm going to bali for 5 days from 23 june"
-Output: {"name":"Bali Trip","budgetCents":null,"startDate":"${year}-06-23","endDate":"${year}-06-27"}
+Output: {"name":"Bali Trip","emoji":"🏖️","budgetCents":null,"startDate":"${year}-06-23","endDate":"${year}-06-27"}
 
 Input: "Exchange from 23 Aug to 31 Dec budget $20000"
-Output: {"name":"Exchange","budgetCents":2000000,"startDate":"${year}-08-23","endDate":"${year}-12-31"}
+Output: {"name":"Exchange","emoji":"🎓","budgetCents":2000000,"startDate":"${year}-08-23","endDate":"${year}-12-31"}
 
 Now parse this input:
 "${input}"
@@ -308,12 +311,16 @@ export async function parseSpaceWithGemini(input: string): Promise<ParsedSpaceRe
     
     const name = typeof obj['name'] === 'string' ? obj['name'] : ''
     if (!name) return null
-    
+
+    const emoji = typeof obj['emoji'] === 'string' && obj['emoji'].length > 0
+      ? obj['emoji']
+      : null
+
     const budgetCents = typeof obj['budgetCents'] === 'number' ? obj['budgetCents'] : null
     const startDate = typeof obj['startDate'] === 'string' ? obj['startDate'] : null
     const endDate = typeof obj['endDate'] === 'string' ? obj['endDate'] : null
 
-    return { name, budgetCents, startDate, endDate }
+    return { name, emoji, budgetCents, startDate, endDate }
   } catch {
     return null
   }
