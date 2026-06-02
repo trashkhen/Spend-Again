@@ -26,6 +26,7 @@ import {
   pendingSpaceCreate,
   pendingSpaceDetails,
   pendingSpaceBudgetInput,
+  pendingSpaceNameConfirm,
 } from '../src/handlers/space.js'
 import { apiClient } from '../src/lib/api-client.js'
 import { parseSpaceWithGemini } from '@spend-again/parser'
@@ -60,6 +61,7 @@ describe('Space Handler Flow', () => {
     pendingSpaceCreate.clear()
     pendingSpaceDetails.clear()
     pendingSpaceBudgetInput.clear()
+    pendingSpaceNameConfirm.clear()
   })
 
   describe('spaceCommandHandler', () => {
@@ -139,9 +141,9 @@ describe('Space Handler Flow', () => {
   })
 
   describe('handlePendingSpaceCreate', () => {
-    it('should call Gemini parser and create space directly if budget is present', async () => {
+    it('should call Gemini parser and show name+emoji confirmation (even if budget is present)', async () => {
       pendingSpaceCreate.add(987654321)
-      
+
       vi.mocked(parseSpaceWithGemini).mockResolvedValue({
         name: 'Bali Trip',
         budgetCents: 50000,
@@ -149,31 +151,29 @@ describe('Space Handler Flow', () => {
         endDate: '2026-06-27',
       })
 
-      vi.mocked(apiClient.createSpace).mockResolvedValue({
-        id: 's3', name: 'Bali Trip', emoji: '🌴'
-      } as any)
-
       const ctx = makeCtx({ message: { text: "Bali Trip from 23/06 to 27/06 budget $500" } })
 
       const handled = await handlePendingSpaceCreate(ctx as any)
 
       expect(handled).toBe(true)
       expect(parseSpaceWithGemini).toHaveBeenCalled()
-      expect(apiClient.createSpace).toHaveBeenCalledWith({
+      expect(apiClient.createSpace).not.toHaveBeenCalled()
+      expect(pendingSpaceNameConfirm.has(987654321)).toBe(true)
+      expect(pendingSpaceNameConfirm.get(987654321)).toMatchObject({
         name: 'Bali Trip',
         budgetCents: 50000,
         startDate: '2026-06-23',
         endDate: '2026-06-27',
       })
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('Created 🌴 Bali Trip'),
+        expect.stringContaining('Use this name and emoji?'),
         expect.any(Object)
       )
     })
 
-    it('should prompt user if no budget is found in input', async () => {
+    it('should show name+emoji confirmation when no budget is found in input', async () => {
       pendingSpaceCreate.add(987654321)
-      
+
       vi.mocked(parseSpaceWithGemini).mockResolvedValue({
         name: 'Bali Trip',
         budgetCents: null,
@@ -187,9 +187,15 @@ describe('Space Handler Flow', () => {
 
       expect(handled).toBe(true)
       expect(apiClient.createSpace).not.toHaveBeenCalled()
-      expect(pendingSpaceDetails.has(987654321)).toBe(true)
+      expect(pendingSpaceNameConfirm.has(987654321)).toBe(true)
+      expect(pendingSpaceNameConfirm.get(987654321)).toMatchObject({
+        name: 'Bali Trip',
+        budgetCents: null,
+        startDate: '2026-06-23',
+        endDate: '2026-06-27',
+      })
       expect(ctx.reply).toHaveBeenCalledWith(
-        expect.stringContaining('Do you want to set a budget?'),
+        expect.stringContaining('Use this name and emoji?'),
         expect.any(Object)
       )
     })
