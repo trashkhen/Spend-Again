@@ -202,8 +202,14 @@ Tasks that must be completed before this project goes live for real users.
 ### Security & Hardening
 
 - [ ] Verify Telegram HMAC signature validation is enforced on the API's `/api/auth/telegram-login` route
-- [ ] Rotate `JWT_SECRET` to a cryptographically random production value
+- [ ] Rotate `JWT_SECRET` to a cryptographically random production value (`openssl rand -hex 32`)
 - [ ] Audit all API routes for missing auth guards before going live
+
+#### Deferred — before ~50 users
+
+- [ ] **Enable Supabase RLS** — Enable row-level security on `users`, `transactions`, `spaces`, `transaction_spaces`, `recurring_payments`, `people`, `debts`, `debt_payments`, `user_custom_categories`. Scope all policies to `auth.uid()` matching `user_id`. Required before the platform grows beyond a small trusted group or if DB credentials are ever rotated.
+- [ ] **Per-user learned mappings** — Add a `user_id` column to `learned_mappings` with a unique index on `(user_id, item_name)`. Currently any authenticated user can write global category mappings, which skews auto-categorisation for all users.
+- [ ] **Shorten bot-issued JWT / one-time code exchange** — The bot sends a full 30-day JWT in a `/auth?token=<JWT>` URL, exposing the token in browser history, referrer headers, and Telegram message previews. Replace with a short-lived (≤5 min) one-time code that the dashboard exchanges server-side for a session token.
 
 ## License
 
