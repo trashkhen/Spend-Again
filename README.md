@@ -128,7 +128,9 @@ All environment variables live in `.env` at the monorepo root (git-ignored). A s
 | `DATABASE_URL` | API | Supabase PostgreSQL connection string |
 | `GEMINI_API_KEY` | API / Parser | Google Gemini LLM calls |
 | `BOT_TOKEN` | **Bot + API** | Telegram bot token. Used by grammy to start the bot **and** by `apps/api/src/lib/telegram-auth.ts` to verify Telegram auth hashes. Both processes must have this value — do **not** rename it. |
-| `JWT_SECRET` | API | Signs and verifies all user JWTs (HS256, 30-day expiry). Falls back to `'dev-secret-change-in-prod'` if unset — always set this explicitly, even in dev. |
+| `JWT_SECRET` | API | Signs and verifies all user JWTs (HS256, 30-day expiry). **Must be set explicitly** — the API crashes at startup if missing or shorter than 32 characters. Generate with: `openssl rand -hex 32`. |
+| `WEBHOOK_SECRET_TOKEN` | Bot | Secret token Telegram includes in every webhook POST (`X-Telegram-Bot-Api-Secret-Token` header). Required in production; must be 32–256 chars (`[A-Za-z0-9_-]`). Generate with: `openssl rand -hex 32`. |
+| `NODE_ENV` | API + Bot | Must be set to `production` on Railway. Both services crash at startup if this var is missing. In dev it should be `development`; Vitest sets it to `test` automatically. |
 | `DASHBOARD_URL` | Bot | URL the bot uses when generating the dashboard deep-link (e.g. `http://localhost:5175` in dev, `https://your-app.vercel.app` in prod). |
 | `API_URL` | Bot | Base URL the bot uses for all API calls (e.g. `http://localhost:3001`). |
 
@@ -179,7 +181,8 @@ Tasks that must be completed before this project goes live for real users.
 ### API & Backend (localhost → Railway)
 
 - [ ] Provision a Railway project and link the monorepo; configure the `apps/api` and `apps/bot` services
-- [ ] Set all production environment variables in Railway: `DATABASE_URL`, `JWT_SECRET`, `BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `GEMINI_API_KEY`, `DASHBOARD_URL`, `API_URL`
+- [ ] Set all production environment variables in Railway for the **API service**: `DATABASE_URL`, `JWT_SECRET` (≥32 chars), `BOT_TOKEN`, `GEMINI_API_KEY`, `DASHBOARD_URL`, `NODE_ENV=production`
+- [ ] Set all production environment variables in Railway for the **Bot service**: `BOT_TOKEN`, `WEBHOOK_URL`, `WEBHOOK_SECRET_TOKEN` (≥32 chars, `[A-Za-z0-9_-]` only), `API_URL`, `DASHBOARD_URL`, `NODE_ENV=production`
 - [ ] Register the Telegram webhook URL pointing to the Railway deployment (`POST /webhook`)
 - [ ] Replace `VITE_API_URL=http://localhost:3001` in the dashboard with the public Railway API URL
 - [ ] Enable CORS on the Hono API to allow requests from the Vercel dashboard domain
