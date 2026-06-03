@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serve } from '@hono/node-server'
-import { createLogger } from '@spend-again/shared'
+import { createLogger, requireEnv } from '@spend-again/shared'
 import { healthRouter } from './routes/health.js'
 import { createTransactionsRouter } from './routes/transactions.js'
 import { createAuthRouter } from './routes/auth.js'
@@ -18,6 +18,9 @@ import { db } from './lib/db.js'
 import { startRecurringCron } from './lib/recurring-cron.js'
 
 const log = createLogger('api')
+
+requireEnv('NODE_ENV')
+
 const app = new Hono()
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
