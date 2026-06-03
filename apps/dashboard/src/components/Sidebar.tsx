@@ -1,10 +1,12 @@
+import { useEffect, useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
-import { getTelegramDisplayName } from '../lib/auth'
+import { applyTheme, getInitialTheme, getNextTheme, persistTheme } from '../lib/theme'
+import type { ReactNode } from 'react'
 
 type NavItem = {
   path: string
   label: string
-  icon: React.ReactNode
+  icon: ReactNode
 }
 
 function IconDashboard() {
@@ -55,6 +57,30 @@ function IconIOUs() {
   )
 }
 
+function IconSun() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="10" cy="10" r="3.2" />
+      <path d="M10 1.8v2" />
+      <path d="M10 16.2v2" />
+      <path d="m4.2 4.2 1.4 1.4" />
+      <path d="m14.4 14.4 1.4 1.4" />
+      <path d="M1.8 10h2" />
+      <path d="M16.2 10h2" />
+      <path d="m4.2 15.8 1.4-1.4" />
+      <path d="m14.4 5.6 1.4-1.4" />
+    </svg>
+  )
+}
+
+function IconMoon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor">
+      <path d="M15.8 12.72A6.78 6.78 0 0 1 7.28 4.2 6.86 6.86 0 1 0 15.8 12.72Z" />
+    </svg>
+  )
+}
+
 const NAV_ITEMS: NavItem[] = [
   { path: '/dashboard', label: 'Home', icon: <IconDashboard /> },
   { path: '/analytics', label: 'Analytics', icon: <IconAnalytics /> },
@@ -70,8 +96,17 @@ type Props = {
 
 export function Sidebar({ isOpen, onClose }: Props) {
   const { pathname } = useLocation()
-  const displayName = getTelegramDisplayName()
-  const avatarInitial = displayName[0]?.toUpperCase() ?? 'U'
+  const [theme, setTheme] = useState(getInitialTheme)
+  const isDark = theme === 'dark'
+
+  useEffect(() => {
+    applyTheme(theme)
+    persistTheme(theme)
+  }, [theme])
+
+  function handleThemeToggle() {
+    setTheme((currentTheme) => getNextTheme(currentTheme))
+  }
 
   return (
     <>
@@ -107,7 +142,18 @@ export function Sidebar({ isOpen, onClose }: Props) {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="sidebar-avatar" aria-hidden="true">{avatarInitial}</div>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={handleThemeToggle}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            aria-pressed={isDark}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            <span className="theme-toggle-icon" aria-hidden="true">
+              {isDark ? <IconSun /> : <IconMoon />}
+            </span>
+          </button>
         </div>
       </aside>
     </>
