@@ -229,3 +229,108 @@ describe('POST /api/auth/telegram-login', () => {
     expect(typeof body['token']).toBe('string')
   })
 })
+
+describe('POST /api/auth/link-telegram', () => {
+  const OTHER_USER_ID = '00000000-0000-4000-8000-000000000077'
+  const OTHER_USER = {
+    id: OTHER_USER_ID,
+    telegramId: '55555555',
+    telegramUsername: 'otheruser',
+    email: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }
+
+  function makeSelectReturning(rows: unknown[]) {
+    return vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnThis(),
+      where: vi.fn().mockReturnThis(),
+      limit: vi.fn().mockResolvedValue(rows),
+    })
+  }
+
+  async function buildAuthHeader(userId: string): Promise<string> {
+    const { signJWT } = await import('../src/lib/jwt.js')
+    const token = await signJWT({ userId })
+    return `Bearer ${token}`
+  }
+
+  it('returns 409 when telegramId is already linked to a different user', async () => {
+    const db: DbClient = {
+      select: makeSelectReturning([OTHER_USER]),
+      insert: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    } as unknown as DbClient
+
+    const app = createAuthRouter(db)
+    const authorization = await buildAuthHeader(TEST_USER_ID)
+
+    const res = await app.request('/link-telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', authorization },
+      body: JSON.stringify({ telegramId: '55555555' }),
+    })
+
+    expect(res.status).toBe(409)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body['code']).toBe('TELEGRAM_ID_ALREADY_CLAIMED')
+  })
+
+  it('allows a user to re-link their own telegramId', async () => {
+    const sameUser = { ...TEST_USER, telegramId: '55555555' }
+    const db: DbClient = {
+      select: makeSelectReturning([sameUser]),
+      insert: vi.fn(),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([sameUser]),
+          }),
+        }),
+      }),
+      delete: vi.fn(),
+    } as unknown as DbClient
+
+    const app = createAuthRouter(db)
+    const authorization = await buildAuthHeader(TEST_USER_ID)
+
+    const res = await app.request('/link-telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', authorization },
+      body: JSON.stringify({ telegramId: '55555555' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body['success']).toBe(true)
+  })
+
+  it('links a fresh telegramId when it is not yet claimed', async () => {
+    const db: DbClient = {
+      select: makeSelectReturning([]),
+      insert: vi.fn(),
+      update: vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([TEST_USER]),
+          }),
+        }),
+      }),
+      delete: vi.fn(),
+    } as unknown as DbClient
+
+    const app = createAuthRouter(db)
+    const authorization = await buildAuthHeader(TEST_USER_ID)
+
+    const res = await app.request('/link-telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', authorization },
+      body: JSON.stringify({ telegramId: '99999999' }),
+    })
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body['success']).toBe(true)
+  })
+})

@@ -153,6 +153,19 @@ export function createAuthRouter(db: DbClient): Hono<AuthEnv> {
     const userId = c.get('userId')
     const input = c.get('validatedBody') as z.infer<typeof linkTelegramSchema>
 
+    const conflict = await db
+      .select()
+      .from(users)
+      .where(eq(users.telegramId, input.telegramId))
+      .limit(1)
+
+    if (conflict[0] !== undefined && conflict[0].id !== userId) {
+      return c.json(
+        { error: 'Telegram ID already linked to another account', code: 'TELEGRAM_ID_ALREADY_CLAIMED' },
+        409,
+      )
+    }
+
     const rows = await db
       .update(users)
       .set({
