@@ -10,6 +10,7 @@
  */
 
 import { webhookCallback } from 'grammy'
+import { timingSafeEqual } from 'node:crypto'
 import { createServer } from 'node:http'
 import { createLogger, requireEnv } from '@spend-again/shared'
 import { bot } from './bot.js'
@@ -17,9 +18,11 @@ import { initDevMode } from './lib/dev-mode.js'
 
 const log = createLogger('bot')
 
-requireEnv('NODE_ENV')
-
-const isProduction = process.env['NODE_ENV'] === 'production'
+const nodeEnv = requireEnv('NODE_ENV')
+if (nodeEnv !== 'production' && nodeEnv !== 'development' && nodeEnv !== 'test') {
+  throw new Error(`NODE_ENV must be "production", "development", or "test", got "${nodeEnv}"`)
+}
+const isProduction = nodeEnv === 'production'
 
 // ── Dev mode: pre-register test user ────────────────────────────────────────
 const devTelegramId = process.env['DEV_TELEGRAM_ID']
@@ -46,12 +49,22 @@ if (isProduction && webhookUrl !== undefined && webhookUrl.length > 0) {
   const server = createServer(async (req, res) => {
     if (req.method === 'POST') {
       const provided = req.headers['x-telegram-bot-api-secret-token']
-      if (provided !== webhookSecret) {
+      const providedValid =
+        typeof provided === 'string' &&
+        provided.length === webhookSecret.length &&
+        timingSafeEqual(Buffer.from(provided), Buffer.from(webhookSecret))
+      if (!providedValid) {
         res.writeHead(403)
         res.end('Forbidden')
         return
       }
-      await handleUpdate(req, res)
+      await handleUpdate(req, res).catch((err: unknown) => {
+        log.error({ err }, 'handleUpdate threw')
+        if (!res.writableEnded) {
+          res.writeHead(500)
+          res.end()
+        }
+      })
     } else {
       res.writeHead(200)
       res.end('Spend Again? Bot — webhook active')
