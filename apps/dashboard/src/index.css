@@ -1841,6 +1841,12 @@ button {
   border-color: var(--color-accent);
 }
 
+.chart-month-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
 /* ── Category legend (below donut) ──────────────────────────────────────────── */
 
 .category-legend {

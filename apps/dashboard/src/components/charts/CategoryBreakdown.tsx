@@ -8,7 +8,6 @@ type Props = {
   transactions: ApiTransaction[]
   month: number
   year: number
-  onMonthChange: (month: number, year: number) => void
 }
 
 const PALETTE: readonly string[] = [
@@ -17,45 +16,21 @@ const PALETTE: readonly string[] = [
   '#6B8C7A', '#A8C4B4', '#E76F51', '#023047',
 ]
 
-function getLast6Months(): { month: number; year: number; label: string }[] {
-  const result = []
-  const now = new Date()
-  for (let i = 0; i < 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    result.push({
-      month: d.getMonth() + 1,
-      year: d.getFullYear(),
-      label: d.toLocaleString('en-SG', { month: 'long', year: 'numeric' }),
-    })
-  }
-  return result
+function monthLabel(month: number, year: number): string {
+  return new Date(year, month - 1, 1).toLocaleString('en-SG', { month: 'long', year: 'numeric' })
 }
 
-export function CategoryBreakdown({ transactions, month, year, onMonthChange }: Props) {
-  const months = useMemo(() => getLast6Months(), [])
+export function CategoryBreakdown({ transactions, month, year }: Props) {
   const data = useMemo(
     () => computeCategoryBreakdown(transactions, month, year),
     [transactions, month, year],
   )
 
-  const selectedValue = `${month}-${year}`
-
-  function handleMonthChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const [m, y] = e.target.value.split('-').map(Number)
-    if (m && y) onMonthChange(m, y)
-  }
-
   return (
     <div className="chart-wrapper">
       <div className="chart-header">
         <h3 className="chart-title" style={{ marginBottom: 0 }}>Category Breakdown</h3>
-        <select className="chart-month-select" value={selectedValue} onChange={handleMonthChange}>
-          {months.map((m) => (
-            <option key={`${m.month}-${m.year}`} value={`${m.month}-${m.year}`}>
-              {m.label}
-            </option>
-          ))}
-        </select>
+        <span className="chart-month-label">{monthLabel(month, year)}</span>
       </div>
 
       {data.length === 0 ? (

@@ -49,7 +49,7 @@ export function Header({ onMenuToggle, searchValue, onSearchChange }: Props) {
         <div className="header-actions">
           <div className="header-user">
             <div className="header-avatar" aria-hidden="true">{avatarInitial}</div>
-            <span className="header-username">{displayName}</span>
+            <span className="header-username">Hi, {displayName}!</span>
             <button type="button" className="logout-btn" onClick={handleLogout}>
               Logout
             </button>

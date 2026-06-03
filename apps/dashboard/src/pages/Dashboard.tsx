@@ -169,8 +169,6 @@ export function Dashboard() {
   const [showBudgetToast, setShowBudgetToast] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
-  const [chartMonth, setChartMonth] = useState(new Date().getMonth() + 1)
-  const [chartYear, setChartYear] = useState(new Date().getFullYear())
   const [spaces, setSpaces] = useState<SpaceWithTotal[]>([])
   const [previousMonthTotal, setPreviousMonthTotal] = useState(0)
 
@@ -220,8 +218,8 @@ export function Dashboard() {
     void listSpaces().then(setSpaces).catch(() => {})
   }, [])
 
-  const summary = computeSummary(allTransactions)
   const { month: selectedMonth, year: selectedYear } = getEffectiveMonthYear(filters.month, filters.year)
+  const summary = computeSummary(allTransactions, selectedMonth, selectedYear)
   const previousMonth = previousMonthOf(selectedMonth, selectedYear)
   const monthComparison = computeMonthComparison(
     summary.totalThisMonth,
@@ -343,7 +341,7 @@ export function Dashboard() {
         <div className={`kpi-card ${getBudgetTierClass(summary.totalThisMonth, budget)}`}>
           <div className="kpi-card-top">
             <div className="kpi-icon kpi-icon--blue">💳</div>
-            <span className={`kpi-trend kpi-trend--${monthComparison.tone}`}>
+            <span className={`kpi-trend kpi-trend--${monthComparison.tone === 'up' ? 'down' : monthComparison.tone === 'down' ? 'up' : 'flat'}`}>
               {monthComparison.label}
             </span>
           </div>
@@ -407,9 +405,8 @@ export function Dashboard() {
         <div className="dashboard-spending-overview">
           <CategoryBreakdown
             transactions={allTransactions}
-            month={chartMonth}
-            year={chartYear}
-            onMonthChange={(m, y) => { setChartMonth(m); setChartYear(y) }}
+            month={selectedMonth}
+            year={selectedYear}
           />
           <SpaceCard />
           <IouCard />
