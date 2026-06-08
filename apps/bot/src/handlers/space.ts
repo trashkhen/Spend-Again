@@ -2,7 +2,7 @@ import type { Context } from 'grammy'
 import { createLogger } from '@spend-again/shared'
 import { parseSpaceWithGemini } from '@spend-again/parser'
 import type { ParsedSpaceResult } from '@spend-again/parser'
-import { apiClient, tokenStore } from '../lib/api-client.js'
+import { apiClient, tokenStore, loginViaTelegram } from '../lib/api-client.js'
 import {
   buildSpaceListKeyboard,
   buildSpaceActiveKeyboard,
@@ -128,7 +128,11 @@ export async function spaceCallbackHandler(ctx: Context): Promise<void> {
 
   await ctx.answerCallbackQuery()
 
-  const token = await ensureToken(telegramId)
+  let token = await ensureToken(telegramId)
+  if (!token && ctx.from) {
+    const auth = await loginViaTelegram(ctx.from)
+    token = auth?.token
+  }
   if (!token) return
   apiClient.setToken(token)
 

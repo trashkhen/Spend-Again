@@ -27,6 +27,25 @@ const DATE_REGEX = /\b(\d{2}\/\d{2}\/\d{4})\b/
 const YESTERDAY_REGEX = /\byesterday\b/i
 const TODAY_REGEX = /\btoday\b/i
 
+// Natural language date patterns: "5 June", "5th Jun", "June 5", "Jun 5th", etc.
+const DAY_MONTH_REGEX = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b/i
+const MONTH_DAY_REGEX = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?\b/i
+
+const MONTH_NAMES: Record<string, number> = {
+  jan: 1, january: 1,
+  feb: 2, february: 2,
+  mar: 3, march: 3,
+  apr: 4, april: 4,
+  may: 5,
+  jun: 6, june: 6,
+  jul: 7, july: 7,
+  aug: 8, august: 8,
+  sep: 9, sept: 9, september: 9,
+  oct: 10, october: 10,
+  nov: 11, november: 11,
+  dec: 12, december: 12,
+}
+
 // Prepositions/connectors to strip when extracting item text
 const LEADING_PREPOSITIONS = /^(?:for|on|at|from)\s+/i
 
@@ -57,6 +76,13 @@ function lookupItem(
   return undefined
 }
 
+function naturalDateToDDMMYYYY(day: number, monthStr: string): string | undefined {
+  const month = MONTH_NAMES[monthStr.toLowerCase()]
+  if (month === undefined || day < 1 || day > 31) return undefined
+  const year = new Date().getFullYear()
+  return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
+}
+
 function extractDate(input: string): string | undefined {
   const dateMatch = DATE_REGEX.exec(input)
   if (dateMatch !== null) {
@@ -67,6 +93,18 @@ function extractDate(input: string): string | undefined {
   }
   if (TODAY_REGEX.test(input)) {
     return getTodayDDMMYYYY()
+  }
+  // Natural language: "5 June", "5th Jun", etc.
+  const dayMonthMatch = DAY_MONTH_REGEX.exec(input)
+  if (dayMonthMatch !== null && dayMonthMatch[1] !== undefined && dayMonthMatch[2] !== undefined) {
+    const result = naturalDateToDDMMYYYY(parseInt(dayMonthMatch[1], 10), dayMonthMatch[2])
+    if (result !== undefined) return result
+  }
+  // Natural language: "June 5", "Jun 5th", etc.
+  const monthDayMatch = MONTH_DAY_REGEX.exec(input)
+  if (monthDayMatch !== null && monthDayMatch[1] !== undefined && monthDayMatch[2] !== undefined) {
+    const result = naturalDateToDDMMYYYY(parseInt(monthDayMatch[2], 10), monthDayMatch[1])
+    if (result !== undefined) return result
   }
   return undefined
 }
@@ -112,6 +150,8 @@ export function parseWithRegex(input: string): ParseResult | null {
       .replace(DATE_REGEX, '')
       .replace(YESTERDAY_REGEX, '')
       .replace(TODAY_REGEX, '')
+      .replace(DAY_MONTH_REGEX, '')
+      .replace(MONTH_DAY_REGEX, '')
       .trim()
   }
 

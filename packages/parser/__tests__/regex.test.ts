@@ -128,6 +128,35 @@ describe('parseWithRegex', () => {
     expect(result?.date).toBeUndefined()
   })
 
+  it('parses natural language "D Month" date and strips it from item', () => {
+    const result = parseWithRegex('$10 grab 5 June')
+    expect(result).not.toBeNull()
+    expect(result?.amount).toBe(1000)
+    expect(result?.item).toBe('grab')
+    expect(result?.date).toMatch(/^05\/06\/\d{4}$/)
+  })
+
+  it('parses natural language "D MonthAbbr" date', () => {
+    const result = parseWithRegex('$8 lunch 3 Jan')
+    expect(result).not.toBeNull()
+    expect(result?.date).toMatch(/^03\/01\/\d{4}$/)
+    expect(result?.item).toBe('lunch')
+  })
+
+  it('parses natural language "Month D" date', () => {
+    const result = parseWithRegex('$12 NTUC June 5')
+    expect(result).not.toBeNull()
+    expect(result?.date).toMatch(/^05\/06\/\d{4}$/)
+    expect(result?.item).toBe('NTUC')
+  })
+
+  it('parses natural language date with ordinal suffix', () => {
+    const result = parseWithRegex('$5 kopi 1st Jan')
+    expect(result).not.toBeNull()
+    expect(result?.date).toMatch(/^01\/01\/\d{4}$/)
+    expect(result?.item).toBe('kopi')
+  })
+
   // -------------------------------------------------------------------------
   // Tier and confidence
   // -------------------------------------------------------------------------
