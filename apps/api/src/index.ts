@@ -12,7 +12,7 @@ import { createRecurringRouter } from './routes/recurring.js'
 import { createSpacesRouter } from './routes/spaces.js'
 import { createIouRouter } from './routes/iou.js'
 import { globalErrorHandler } from './middleware/error-handler.js'
-import { rateLimitMiddleware } from './middleware/rate-limit.js'
+import { rateLimitMiddleware, registrationRateLimitMiddleware } from './middleware/rate-limit.js'
 import { requireAuth } from './middleware/auth.js'
 import { db } from './lib/db.js'
 import { startRecurringCron } from './lib/recurring-cron.js'
@@ -61,6 +61,8 @@ app.onError(globalErrorHandler)
 app.route('/', healthRouter)
 
 // /api/auth is unauthenticated by definition; rate-limit by IP only.
+// POST /api/auth/register gets a stricter per-IP hourly limit in addition.
+app.use('/api/auth/register', registrationRateLimitMiddleware)
 app.use('/api/auth/*', rateLimitMiddleware)
 app.route('/api/auth', createAuthRouter(db))
 

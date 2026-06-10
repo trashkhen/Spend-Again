@@ -104,3 +104,54 @@ export const rateLimitMiddleware: MiddlewareHandler = async (c, next) => {
 
   await next()
 }
+
+// ── Registration rate limit ───────────────────────────────────────────────────
+
+/** Max account creations per IP per hour. */
+const REG_MAX_REQUESTS = 5
+
+/** Window duration for registration rate limit (1 hour). */
+const REG_WINDOW_MS = 60 * 60_000
+
+const regStore = new Map<string, WindowRecord>()
+
+/**
+ * Stricter rate limiter applied only to POST /api/auth/register.
+ * Limits each IP to 5 registration attempts per hour to prevent account spam.
+ * Applied BEFORE the general rateLimitMiddleware on that route.
+ */
+export const registrationRateLimitMiddleware: MiddlewareHandler = async (c, next) => {
+  const now = Date.now()
+  for (const [key, record] of regStore) {
+    if (now - record.windowStart >= REG_WINDOW_MS) regStore.delete(key)
+  }
+
+  const ip =
+    c.req.header('X-Forwarded-For')?.split(',')[0]?.trim() ??
+    c.req.header('CF-Connecting-IP') ??
+    'anonymous'
+
+  const existing = regStore.get(ip)
+
+  if (existing === undefined || now - existing.windowStart >= REG_WINDOW_MS) {
+    regStore.set(ip, { windowStart: now, count: 1 })
+    await next()
+    return
+  }
+
+  existing.count += 1
+
+  if (existing.count > REG_MAX_REQUESTS) {
+    const retryAfterSec = Math.ceil((REG_WINDOW_MS - (now - existing.windowStart)) / 1000)
+    c.header('Retry-After', String(retryAfterSec))
+    return c.json(
+      {
+        error: `Too many registration attempts. Try again in ${retryAfterSec} seconds.`,
+        code: 'RATE_LIMIT_EXCEEDED',
+      },
+      429,
+    )
+  }
+
+  await next()
+}
