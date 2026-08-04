@@ -3,10 +3,11 @@ import { Layout } from '../components/Layout'
 import { MonthlySpendChart } from '../components/charts/MonthlySpendChart'
 import { CategoryBreakdown } from '../components/charts/CategoryBreakdown'
 import { DailyTrend } from '../components/charts/DailyTrend'
-import { listTransactions, getBudget } from '../lib/api'
+import { listTransactions, getBudget, getMonthlyAnalytics } from '../lib/api'
 import { getUserId } from '../lib/auth'
-import { computeSummary, computeMonthlySpend } from '../lib/analytics'
-import type { ApiTransaction, BudgetSettings } from '../lib/api'
+import { computeSummary } from '../lib/analytics'
+import type { ApiTransaction, BudgetSettings, MonthlyAnalyticsItem } from '../lib/api'
+import type { MonthlySpend } from '../lib/analytics'
 
 function fmtSGD(amount: number): string {
   return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -17,44 +18,38 @@ export function Analytics() {
   const now = new Date()
 
   const [transactions, setTransactions] = useState<ApiTransaction[]>([])
+  const [monthlyData, setMonthlyData] = useState<MonthlyAnalyticsItem[]>([])
   const [budget, setBudget] = useState<BudgetSettings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [categoryMonth, setCategoryMonth] = useState({
+  const [selectedMonth, setSelectedMonth] = useState({
     month: now.getMonth() + 1,
     year: now.getFullYear(),
   })
-  const [dailyMonth, setDailyMonth] = useState({
-    month: now.getMonth() + 1,
-    year: now.getFullYear(),
-  })
+
+  const fetchTransactions = useCallback(async (month: number, year: number) => {
+    const data = await listTransactions({
+      userId: userId ?? undefined,
+      month: String(month).padStart(2, '0'),
+      year: String(year),
+    })
+    setTransactions(data)
+  }, [userId])
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const sixMonthsAgo = new Date()
-      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
-      sixMonthsAgo.setDate(1)
-
-      const data = await listTransactions({ userId: userId ?? undefined })
-
-      const filtered = data.filter((tx) => {
-        // occurredOn is YYYY-MM-DD
-        const parts = tx.occurredOn.split('-')
-        const txYear = parseInt(parts[0] ?? '0', 10)
-        const txMonth = parseInt(parts[1] ?? '0', 10)
-        const txDate = new Date(txYear, txMonth - 1, 1)
-        return txDate >= sixMonthsAgo
-      })
-
-      setTransactions(filtered)
+      await Promise.all([
+        getMonthlyAnalytics(6).then(setMonthlyData),
+        fetchTransactions(selectedMonth.month, selectedMonth.year),
+      ])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load analytics')
     } finally {
       setLoading(false)
     }
-  }, [userId])
+  }, [userId, selectedMonth.month, selectedMonth.year, fetchTransactions])
 
   useEffect(() => { void fetchAll() }, [fetchAll])
 
@@ -69,13 +64,22 @@ export function Analytics() {
     })()
   }, [])
 
-  const summary = useMemo(
-    () => computeSummary(transactions, categoryMonth.month, categoryMonth.year),
-    [transactions, categoryMonth],
-  )
-  const monthly = useMemo(() => computeMonthlySpend(transactions), [transactions])
+  const handleMonthChange = useCallback((month: number, year: number) => {
+    setSelectedMonth({ month, year })
+    void fetchTransactions(month, year)
+  }, [fetchTransactions])
 
-  const summaryMonthLabel = new Date(categoryMonth.year, categoryMonth.month - 1, 1)
+  const summary = useMemo(
+    () => computeSummary(transactions, selectedMonth.month, selectedMonth.year),
+    [transactions, selectedMonth],
+  )
+
+  const monthly: MonthlySpend[] = useMemo(
+    () => monthlyData.map((item) => ({ label: item.label, total: item.totalCents / 100 })),
+    [monthlyData],
+  )
+
+  const summaryMonthLabel = new Date(selectedMonth.year, selectedMonth.month - 1, 1)
     .toLocaleString('en-SG', { month: 'long', year: 'numeric' })
 
   return (
@@ -105,9 +109,9 @@ export function Analytics() {
             <div className="analytics-top-grid">
               <CategoryBreakdown
                 transactions={transactions}
-                month={categoryMonth.month}
-                year={categoryMonth.year}
-                onMonthChange={(month, year) => setCategoryMonth({ month, year })}
+                month={selectedMonth.month}
+                year={selectedMonth.year}
+                onMonthChange={handleMonthChange}
               />
 
               <div className="chart-wrapper analytics-summary-card">
@@ -143,9 +147,9 @@ export function Analytics() {
           <section className="dashboard-section">
             <DailyTrend
               transactions={transactions}
-              month={dailyMonth.month}
-              year={dailyMonth.year}
-              onMonthChange={(month, year) => setDailyMonth({ month, year })}
+              month={selectedMonth.month}
+              year={selectedMonth.year}
+              onMonthChange={handleMonthChange}
             />
           </section>
 

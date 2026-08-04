@@ -106,7 +106,10 @@ export function createTransactionService(db: DbClient): TransactionService {
         conditions.push(lt(transactions.occurredOn, endIso))
       }
 
-      const limit = query.limit ?? 50
+      // Date-filtered queries are already bounded by the date range itself;
+      // only cap unbounded (no date filter) queries to avoid full-table scans.
+      const hasDateFilter = !!(query.month || query.year)
+      const limit = hasDateFilter ? undefined : (query.limit ?? 50)
       const offset = query.offset ?? 0
 
       const base = db
@@ -119,10 +122,10 @@ export function createTransactionService(db: DbClient): TransactionService {
         .groupBy(transactions.id)
 
       const filtered = conditions.length > 0 ? base.where(and(...conditions)) : base
-      const rows = await filtered
+      const ordered = filtered
         .orderBy(desc(transactions.occurredOn), desc(transactions.createdAt))
-        .limit(limit)
         .offset(offset)
+      const rows = await (limit !== undefined ? ordered.limit(limit) : ordered)
 
       return rows.map(({ tx, spaceId }) => ({ ...tx, spaceId: spaceId ?? null }))
     },

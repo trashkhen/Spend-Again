@@ -24,6 +24,8 @@ export type ListTransactionsParams = {
   month?: string | undefined  // 2-digit, e.g. "05"
   year?: string | undefined   // 4-digit, e.g. "2026"
   userId?: string | undefined
+  limit?: number | undefined
+  offset?: number | undefined
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -52,6 +54,17 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>
 }
 
+// ── Analytics types ────────────────────────────────────────────────────────────
+
+export type MonthlyAnalyticsItem = {
+  month: string     // "MM"
+  year: string      // "YYYY"
+  label: string     // "Mar 2026"
+  totalCents: number
+  total: string     // decimal string, e.g. "1459.42"
+  count: number
+}
+
 // ── Transaction endpoints ──────────────────────────────────────────────────────
 
 export async function listTransactions(
@@ -62,6 +75,8 @@ export async function listTransactions(
   if (params.month) qs.set('month', params.month)
   if (params.year) qs.set('year', params.year)
   if (params.userId) qs.set('userId', params.userId)
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.offset != null) qs.set('offset', String(params.offset))
 
   const query = qs.toString()
   const path = `/api/transactions${query ? `?${query}` : ''}`
@@ -109,6 +124,12 @@ export async function updateTransaction(id: string, data: UpdateTransactionPaylo
 
 export async function deleteTransaction(id: string): Promise<void> {
   await apiFetch<{ success: boolean }>(`/api/transactions/${id}`, { method: 'DELETE' })
+}
+
+// ── Analytics endpoints ────────────────────────────────────────────────────────
+
+export async function getMonthlyAnalytics(months = 6): Promise<MonthlyAnalyticsItem[]> {
+  return apiFetch<MonthlyAnalyticsItem[]>(`/api/analytics/monthly?months=${months}`)
 }
 
 // ── Custom categories endpoints ────────────────────────────────────────────────

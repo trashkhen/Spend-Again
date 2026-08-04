@@ -46,6 +46,10 @@ const categoryBreakdownQuerySchema = z.object({
     .optional(),
 })
 
+const monthlyQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(24).optional().default(6),
+})
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function getCurrentMonthYear(): { month: string; year: string } {
@@ -239,6 +243,57 @@ export function createAnalyticsRouter(db: DbClient): Hono<AnalyticsEnv> {
       grandTotalCents,
       grandTotal: (grandTotalCents / 100).toFixed(2),
     })
+  })
+
+  /**
+   * GET /api/analytics/monthly
+   * Returns per-month aggregated totals for the last N months (default 6).
+   * Aggregated in the DB — no row-limit concern regardless of transaction volume.
+   */
+  router.get('/monthly', validateQuery(monthlyQuerySchema), async (c) => {
+    const userId = c.get('userId')
+    const query = c.get('validatedQuery') as z.infer<typeof monthlyQuerySchema>
+    const monthCount = query.months ?? 6
+
+    const now = new Date()
+    const startDate = new Date(now.getFullYear(), now.getMonth() - (monthCount - 1), 1)
+    const startIso = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-01`
+
+    const rows = await db
+      .select({
+        ym: sql<string>`to_char(${transactions.occurredOn}, 'YYYY-MM')`.as('ym'),
+        totalCents: sql<number>`COALESCE(SUM(${transactions.amountCents}), 0)`.as('total_cents'),
+        count: sql<number>`COUNT(*)`.as('count'),
+      })
+      .from(transactions)
+      .where(and(
+        eq(transactions.userId, userId),
+        gte(transactions.occurredOn, startIso),
+      ))
+      .groupBy(sql`to_char(${transactions.occurredOn}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${transactions.occurredOn}, 'YYYY-MM')`)
+
+    const rowMap = new Map(rows.map((r) => [r.ym, r]))
+
+    const result = []
+    for (let i = monthCount - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const year = String(d.getFullYear())
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const ym = `${year}-${month}`
+      const row = rowMap.get(ym)
+      const totalCents = row ? Number(row.totalCents) : 0
+      result.push({
+        month,
+        year,
+        label: d.toLocaleString('en-SG', { month: 'short', year: 'numeric' }),
+        totalCents,
+        total: (totalCents / 100).toFixed(2),
+        count: row ? Number(row.count) : 0,
+      })
+    }
+
+    return c.json(result)
   })
 
   return router
