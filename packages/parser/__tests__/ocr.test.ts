@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CATEGORY_MAP } from '@spend-again/shared'
 
 // ---------------------------------------------------------------------------
@@ -41,6 +41,8 @@ import {
   parseReceiptWithOcr,
   simpleReceiptToParseResult,
 } from '../src/ocr.js'
+import { clearCurrencyRateCache } from '../src/currency.js'
+import { clearGeminiRpmState } from '../src/gemini.js'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -85,6 +87,11 @@ describe('buildOcrPrompt', () => {
   it('asks for amounts in dollars', () => {
     const prompt = buildOcrPrompt()
     expect(prompt.toLowerCase()).toContain('dollar')
+  })
+
+  it('includes a currency instruction', () => {
+    const prompt = buildOcrPrompt()
+    expect(prompt.toLowerCase()).toContain('currency')
   })
 })
 
@@ -321,5 +328,103 @@ describe('simpleReceiptToParseResult', () => {
     expect(parsed.category).toBeUndefined()
     expect(parsed.subCategory).toBeUndefined()
     expect(parsed.date).toBeUndefined()
+  })
+})
+
+describe('parseReceiptWithOcr — currency conversion', () => {
+  const originalFetch = global.fetch
+  const mockFxFetch = vi.fn()
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    process.env['GEMINI_API_KEY'] = 'test-key'
+    process.env['EXCHANGERATE_API_KEY'] = 'test-fx-key'
+    global.fetch = mockFxFetch as unknown as typeof fetch
+    clearCurrencyRateCache()
+    clearGeminiRpmState()
+    mockFxFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ result: 'success', conversion_rates: { SGD: 1.4384 } }),
+    })
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch
+  })
+
+  it('converts a simple receipt amount and records original values', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({
+        type: 'simple',
+        item: 'Pasta',
+        amount: 5.6,
+        category: 'Food',
+        subCategory: 'Restaurant',
+        date: '20/08/2026',
+        currency: 'EUR',
+      }),
+    )
+
+    const result = await parseReceiptWithOcr(fakeImage(), 'image/jpeg')
+
+    expect(result?.type).toBe('simple')
+    if (result?.type === 'simple') {
+      expect(result.amount).toBe(Math.round(560 * 1.4384))
+      expect(result.originalAmount).toBe(560)
+      expect(result.originalCurrency).toBe('EUR')
+      expect(result.exchangeRate).toBe(1.4384)
+    }
+  })
+
+  it('does not convert a simple receipt with no currency (SGD)', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({
+        type: 'simple',
+        item: 'Kopi',
+        amount: 1.5,
+        category: 'Food',
+        subCategory: 'Hawker',
+        date: '20/08/2026',
+        currency: null,
+      }),
+    )
+
+    const result = await parseReceiptWithOcr(fakeImage(), 'image/jpeg')
+
+    expect(result?.type).toBe('simple')
+    if (result?.type === 'simple') {
+      expect(result.amount).toBe(150)
+      expect(result.originalCurrency).toBeUndefined()
+      expect(mockFxFetch).not.toHaveBeenCalled()
+    }
+  })
+
+  it('converts every line item and the total on a multi-item receipt, using one rate fetch', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({
+        type: 'multi',
+        items: [
+          { item: 'Bread', amount: 3.0, category: 'Groceries', subCategory: 'Supermarket' },
+          { item: 'Milk', amount: 2.5, category: 'Groceries', subCategory: 'Supermarket' },
+        ],
+        total: 5.5,
+        date: '20/08/2026',
+        currency: 'EUR',
+      }),
+    )
+
+    const result = await parseReceiptWithOcr(fakeImage(), 'image/jpeg')
+
+    expect(result?.type).toBe('multi')
+    if (result?.type === 'multi') {
+      expect(result.total).toBe(Math.round(550 * 1.4384))
+      expect(result.originalTotal).toBe(550)
+      expect(result.originalCurrency).toBe('EUR')
+      expect(result.items[0]?.amount).toBe(Math.round(300 * 1.4384))
+      expect(result.items[0]?.originalAmount).toBe(300)
+      expect(result.items[1]?.amount).toBe(Math.round(250 * 1.4384))
+      expect(mockFxFetch).toHaveBeenCalledOnce()
+    }
   })
 })

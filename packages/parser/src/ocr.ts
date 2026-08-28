@@ -3,6 +3,7 @@ import { CATEGORY_MAP, GEMINI_MODEL, OcrRateLimitError, getTodayDDMMYYYY } from 
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
 import { waitForGeminiRpmBudget } from './gemini.js'
+import { convertToSGD } from './currency.js'
 
 // ---------------------------------------------------------------------------
 // OCR-specific result types
@@ -11,27 +12,34 @@ import { waitForGeminiRpmBudget } from './gemini.js'
 /** A single line item extracted from a receipt. */
 export type ReceiptLineItem = {
   item: string
-  amount: number // integer cents
+  amount: number // integer cents (SGD, after conversion if applicable)
   category?: Category
   subCategory?: SubCategory
+  originalAmount?: number // integer cents in originalCurrency — display only
 }
 
 /** Result for a multi-item receipt (e.g. supermarket). */
 export type MultiItemReceiptResult = {
   type: 'multi'
   items: ReceiptLineItem[]
-  total: number // integer cents (sum of items or extracted total)
+  total: number // integer cents (SGD, after conversion if applicable)
   date?: string // DD/MM/YYYY
+  originalTotal?: number // integer cents in originalCurrency — display only
+  originalCurrency?: string // ISO 4217 code — display only
+  exchangeRate?: number // 1 originalCurrency = exchangeRate SGD — display only
 }
 
 /** Result for a simple receipt (single charge, e.g. hawker, restaurant). */
 export type SimpleReceiptResult = {
   type: 'simple'
   item: string
-  amount: number // integer cents
+  amount: number // integer cents (SGD, after conversion if applicable)
   category?: Category
   subCategory?: SubCategory
   date?: string // DD/MM/YYYY
+  originalAmount?: number // integer cents in originalCurrency — display only
+  originalCurrency?: string // ISO 4217 code — display only
+  exchangeRate?: number // 1 originalCurrency = exchangeRate SGD — display only
 }
 
 /** Failure result when image is unreadable. */
@@ -69,6 +77,7 @@ type GeminiReceiptJSON = {
   subCategory?: string | null
   // shared
   date?: string | null
+  currency?: string | null
   // error
   reason?: string
 }
@@ -94,23 +103,24 @@ ${categoryList}
 
 RULES:
 1. Return ONLY a JSON object — no markdown fences, no explanation.
-2. All amounts must be numbers in DOLLARS (e.g. 8.50 for S$8.50). Do NOT convert to cents.
+2. All amounts must be numbers in the ORIGINAL currency's DOLLARS/major-unit (e.g. 8.50 for S$8.50, or 5.60 for €5.60). Do NOT convert to cents, and do NOT convert to SGD — that happens separately.
 3. Dates must be in DD/MM/YYYY format. If no date visible, use today: ${today}.
 4. "category" and "subCategory" must use exact names from the list above, or null if unknown.
-5. If the image is unreadable or not a receipt, return {"type":"error","reason":"<brief reason>"}.
+5. "currency" must be the ISO 4217 code of the currency printed on the receipt (e.g. "EUR", "USD", "THB"), or null if it is Singapore Dollars (S$/SGD) or not indicated. A receipt has exactly ONE currency for the whole thing.
+6. If the image is unreadable or not a receipt, return {"type":"error","reason":"<brief reason>"}.
 
 RECEIPT TYPES:
 - For a receipt with MULTIPLE line items (supermarket, department store):
-  Return: {"type":"multi","items":[{"item":"...", "amount":x.xx, "category":"...", "subCategory":"..."},...], "total":x.xx, "date":"DD/MM/YYYY"}
+  Return: {"type":"multi","items":[{"item":"...", "amount":x.xx, "category":"...", "subCategory":"..."},...], "total":x.xx, "date":"DD/MM/YYYY", "currency":null}
   Each item should have its own category/subCategory based on what it is.
 
 - For a SIMPLE single-charge receipt (hawker, grab, restaurant bill, clinic):
-  Return: {"type":"simple","item":"<description>","amount":x.xx,"category":"...","subCategory":"...","date":"DD/MM/YYYY"}
+  Return: {"type":"simple","item":"<description>","amount":x.xx,"category":"...","subCategory":"...","date":"DD/MM/YYYY","currency":null}
 
 SINGAPORE CONTEXT:
 - Hawker centres, kopitiam, food courts → Food / Hawker
 - NTUC FairPrice, Cold Storage, Giant, Sheng Siong → Groceries / Supermarket
-- Grab / GoJek → Transport / Grab or Transport / Gojek
+- Grab / GoJode → Transport / Grab or Transport / Gojek
 - MRT / bus / EZ-Link → Transport / MRT/Bus
 - Guardian, Watsons → Health / Pharmacy
 - Popular, MPH → Shopping / Books
@@ -236,14 +246,31 @@ export async function parseReceiptWithOcr(
     }
   }
 
+  // Shared currency detection — a receipt has one currency for everything on it.
+  const currencyCode =
+    typeof parsed.currency === 'string' &&
+    parsed.currency.trim().length > 0 &&
+    parsed.currency.trim().toUpperCase() !== 'SGD'
+      ? parsed.currency.trim().toUpperCase()
+      : undefined
+
   // Simple result
   if (parsed.type === 'simple') {
-    const amount = typeof parsed.amount === 'number' ? toCents(parsed.amount) : 0
+    const rawAmount = typeof parsed.amount === 'number' ? toCents(parsed.amount) : 0
     const item = typeof parsed.item === 'string' ? parsed.item : 'Unknown'
     const { category, subCategory } = resolveCategory(
       parsed.category as string | null | undefined,
       parsed.subCategory as string | null | undefined,
     )
+
+    let amount = rawAmount
+    let conversion: { originalAmount: number; originalCurrency: string; exchangeRate: number } | undefined
+
+    if (currencyCode !== undefined) {
+      const { convertedCents, rate } = await convertToSGD(rawAmount, currencyCode)
+      amount = convertedCents
+      conversion = { originalAmount: rawAmount, originalCurrency: currencyCode, exchangeRate: rate }
+    }
 
     const simpleResult: SimpleReceiptResult = { type: 'simple', item, amount }
 
@@ -255,6 +282,11 @@ export async function parseReceiptWithOcr(
     }
     if (subCategory !== undefined) {
       simpleResult.subCategory = subCategory
+    }
+    if (conversion !== undefined) {
+      simpleResult.originalAmount = conversion.originalAmount
+      simpleResult.originalCurrency = conversion.originalCurrency
+      simpleResult.exchangeRate = conversion.exchangeRate
     }
 
     return simpleResult
@@ -282,10 +314,30 @@ export async function parseReceiptWithOcr(
     const extractedTotal =
       typeof parsed.total === 'number' ? toCents(parsed.total) : items.reduce((s, i) => s + i.amount, 0)
 
-    const multiResult: MultiItemReceiptResult = { type: 'multi', items, total: extractedTotal }
+    let finalItems = items
+    let finalTotal = extractedTotal
+    let conversion: { originalTotal: number; originalCurrency: string; exchangeRate: number } | undefined
+
+    if (currencyCode !== undefined) {
+      const { convertedCents, rate } = await convertToSGD(extractedTotal, currencyCode)
+      finalItems = items.map((lineItem) => ({
+        ...lineItem,
+        originalAmount: lineItem.amount,
+        amount: Math.round(lineItem.amount * rate),
+      }))
+      finalTotal = convertedCents
+      conversion = { originalTotal: extractedTotal, originalCurrency: currencyCode, exchangeRate: rate }
+    }
+
+    const multiResult: MultiItemReceiptResult = { type: 'multi', items: finalItems, total: finalTotal }
 
     if (typeof parsed.date === 'string' && parsed.date.trim().length > 0) {
       multiResult.date = parsed.date.trim()
+    }
+    if (conversion !== undefined) {
+      multiResult.originalTotal = conversion.originalTotal
+      multiResult.originalCurrency = conversion.originalCurrency
+      multiResult.exchangeRate = conversion.exchangeRate
     }
 
     return multiResult
@@ -308,5 +360,8 @@ export function simpleReceiptToParseResult(result: SimpleReceiptResult): ParseRe
     ...(result.category !== undefined ? { category: result.category } : {}),
     ...(result.subCategory !== undefined ? { subCategory: result.subCategory } : {}),
     ...(result.date !== undefined ? { date: result.date } : {}),
+    ...(result.originalAmount !== undefined ? { originalAmount: result.originalAmount } : {}),
+    ...(result.originalCurrency !== undefined ? { originalCurrency: result.originalCurrency } : {}),
+    ...(result.exchangeRate !== undefined ? { exchangeRate: result.exchangeRate } : {}),
   }
 }
