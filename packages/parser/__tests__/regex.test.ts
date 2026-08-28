@@ -191,4 +191,72 @@ describe('parseWithRegex', () => {
   it('returns null for text with no parseable number', () => {
     expect(parseWithRegex('bought stuff')).toBeNull()
   })
+
+  // -------------------------------------------------------------------------
+  // Currency detection (Tier-1 convert list)
+  // -------------------------------------------------------------------------
+
+  it('detects a convert-list currency and strips it from the item, amount-then-currency order', () => {
+    const result = parseWithRegex('5.60 euro pasta 20 aug')
+    expect(result).not.toBeNull()
+    expect(result?.amount).toBe(560)
+    expect(result?.currency).toBe('EUR')
+    expect(result?.item).toBe('pasta')
+    expect(result?.date).toMatch(/^20\/08\/\d{4}$/)
+  })
+
+  it('detects a convert-list currency with date-then-amount word order', () => {
+    const result = parseWithRegex('20 aug 5.60 euro pasta')
+    expect(result).not.toBeNull()
+    expect(result?.amount).toBe(560)
+    expect(result?.currency).toBe('EUR')
+    expect(result?.item).toBe('pasta')
+    expect(result?.date).toMatch(/^20\/08\/\d{4}$/)
+  })
+
+  it('does not set currency for bare $ amounts (defaults to SGD)', () => {
+    const result = parseWithRegex('$10 lunch')
+    expect(result).not.toBeNull()
+    expect(result?.currency).toBeUndefined()
+  })
+
+  it('does not set currency for explicit SGD amounts', () => {
+    const result = parseWithRegex('SGD 25 grab')
+    expect(result).not.toBeNull()
+    expect(result?.currency).toBeUndefined()
+  })
+
+  it('detects JPY via the yen symbol', () => {
+    const result = parseWithRegex('¥500 sushi')
+    expect(result).not.toBeNull()
+    expect(result?.currency).toBe('JPY')
+  })
+
+  // -------------------------------------------------------------------------
+  // Currency priority rule: hint-list words force Tier-1 to bail out,
+  // even when the remaining item text would otherwise resolve via
+  // SG_ITEM_MAP (e.g. "grab" → Transport/Grab).
+  // -------------------------------------------------------------------------
+
+  it('returns null for a hint-list currency, even when the item text would otherwise resolve', () => {
+    const result = parseWithRegex('50 baht grab')
+    expect(result).toBeNull()
+  })
+
+  it('returns null for other hint-list currencies', () => {
+    expect(parseWithRegex('1000 won kimchi')).toBeNull()
+    expect(parseWithRegex('30 dirham shawarma')).toBeNull()
+  })
+
+  // -------------------------------------------------------------------------
+  // Date/amount ordering regression guard
+  // -------------------------------------------------------------------------
+
+  it('does not mistake a leading date-phrase number for the amount', () => {
+    const result = parseWithRegex('20 aug 8 chicken rice')
+    expect(result).not.toBeNull()
+    expect(result?.amount).toBe(800)
+    expect(result?.date).toMatch(/^20\/08\/\d{4}$/)
+    expect(result?.item).toBe('chicken rice')
+  })
 })

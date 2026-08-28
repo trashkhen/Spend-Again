@@ -1,5 +1,6 @@
 import { SG_ITEM_MAP, getTodayDDMMYYYY, getYesterdayDDMMYYYY, parseCents } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
+import { detectCurrency } from './currency.js'
 
 export type ParseResult = {
   amount: number // integer cents
@@ -10,12 +11,16 @@ export type ParseResult = {
   date?: string // DD/MM/YYYY
   confidence: number // 0–1
   tier: 1 | 2 | 3
+  currency?: string // ISO 4217 code, set by Tier-1/Tier-3 when a non-SGD currency is detected; consumed and cleared by parse()'s conversion step
+  originalAmount?: number // integer cents in originalCurrency — set only after conversion, display only, never sent to the API
+  originalCurrency?: string // ISO 4217 code — display only
+  exchangeRate?: number // 1 originalCurrency = exchangeRate SGD — display only
 }
 
-// Matches currency prefix amounts: $10, S$10, SGD 10, SGD10, $10.50, etc.
+// Matches currency prefix amounts: $10, S$10, SGD 10, SGD10, ¥500, $10.50, etc.
 // Also matches bare numbers: 10, 10.50 (no prefix)
 const AMOUNT_REGEX =
-  /(?:S\$|SGD\s*|\$)\s*(\d+(?:\.\d{1,2})?)|(\d+(?:\.\d{1,2})?)\s*(?:SGD|sgd)/i
+  /(?:S\$|SGD\s*|\$|¥)\s*(\d+(?:\.\d{1,2})?)|(\d+(?:\.\d{1,2})?)\s*(?:SGD|sgd)/i
 
 // Bare number pattern — only used as fallback when no currency prefix found
 const BARE_AMOUNT_REGEX = /^(\d+(?:\.\d{1,2})?)(?:\s|$)/
@@ -83,6 +88,16 @@ function naturalDateToDDMMYYYY(day: number, monthStr: string): string | undefine
   return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`
 }
 
+function stripDateTokens(text: string): string {
+  return text
+    .replace(DATE_REGEX, '')
+    .replace(YESTERDAY_REGEX, '')
+    .replace(TODAY_REGEX, '')
+    .replace(DAY_MONTH_REGEX, '')
+    .replace(MONTH_DAY_REGEX, '')
+    .trim()
+}
+
 function extractDate(input: string): string | undefined {
   const dateMatch = DATE_REGEX.exec(input)
   if (dateMatch !== null) {
@@ -114,8 +129,28 @@ export function parseWithRegex(input: string): ParseResult | null {
     return null
   }
 
+  const trimmedInput = input.trim()
+
+  // Extract the date FIRST and strip it from the working text. This must
+  // happen before amount extraction: the bare-amount fallback below is
+  // anchored to the start of the string, so if a date phrase like "20 aug"
+  // precedes a bare (no currency-symbol) amount, extracting the amount
+  // first would incorrectly grab the date's day number instead.
+  const date = extractDate(trimmedInput)
+  let remainingText = date !== undefined ? stripDateTokens(trimmedInput) : trimmedInput
+
+  // Currency detection is a gate that runs before item-category resolution
+  // and outranks it: a hint-list currency (one we can't confidently
+  // convert) forces Tier-1 to bail out entirely, even if the remaining
+  // text would otherwise resolve via SG_ITEM_MAP.
+  // Detect currency BEFORE amount extraction, as some currency symbols (like ¥)
+  // are part of the amount token and would be lost after amount removal.
+  const currencyMatch = detectCurrency(remainingText)
+  if (currencyMatch?.kind === 'hint') {
+    return null
+  }
+
   let amountCents: number | null = null
-  let remainingText = input.trim()
 
   // Try currency-prefixed / suffixed amount first
   const prefixMatch = AMOUNT_REGEX.exec(remainingText)
@@ -143,16 +178,11 @@ export function parseWithRegex(input: string): ParseResult | null {
     return null
   }
 
-  // Extract date keywords / patterns from remaining text, then remove them
-  const date = extractDate(remainingText)
-  if (date !== undefined) {
-    remainingText = remainingText
-      .replace(DATE_REGEX, '')
-      .replace(YESTERDAY_REGEX, '')
-      .replace(TODAY_REGEX, '')
-      .replace(DAY_MONTH_REGEX, '')
-      .replace(MONTH_DAY_REGEX, '')
-      .trim()
+  let currency: string | undefined
+  if (currencyMatch?.kind === 'convert') {
+    currency = currencyMatch.code
+    remainingText = remainingText.replace(currencyMatch.pattern, '').trim()
+    remainingText = remainingText.replace(/\s{2,}/g, ' ').trim()
   }
 
   // Strip leading prepositions (e.g. "for lunch" → "lunch", "at NTUC" → "NTUC")
@@ -161,7 +191,7 @@ export function parseWithRegex(input: string): ParseResult | null {
   // Clean up extra whitespace
   remainingText = remainingText.replace(/\s{2,}/g, ' ').trim()
 
-  const item = remainingText.length > 0 ? remainingText : input.trim()
+  const item = remainingText.length > 0 ? remainingText : trimmedInput
 
   // SG_ITEM_MAP lookup for category/subCategory
   const mapping = lookupItem(item)
@@ -175,6 +205,10 @@ export function parseWithRegex(input: string): ParseResult | null {
 
   if (date !== undefined) {
     result.date = date
+  }
+
+  if (currency !== undefined) {
+    result.currency = currency
   }
 
   if (mapping !== undefined) {
