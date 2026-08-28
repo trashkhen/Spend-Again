@@ -341,5 +341,84 @@ describe('parse() — unified 3-tier orchestration', () => {
 
       await expect(parse('12 euro NTUC', { lookupItem })).rejects.toThrow(CurrencyConversionError)
     })
+
+    // -----------------------------------------------------------------------
+    // Regression: Fix 1 — Tier-1's detected currency must not be silently
+    // dropped when Gemini's Tier-3 re-parse fails to redetect it.
+    // -----------------------------------------------------------------------
+
+    it('falls back to tier-1 currency when tier-3 (Gemini) omits it after fallthrough', async () => {
+      // Tier-1 detects EUR but can't resolve a category.
+      const tier1: ParseResult = { amount: 560, item: 'pasta', currency: 'EUR', confidence: 0.7, tier: 1 }
+      spyRegex.mockReturnValueOnce(tier1)
+      // Tier-2 misses.
+      mockLookupItem.mockResolvedValueOnce(null)
+      // Tier-3 re-parses the raw input from scratch and (imperfectly) omits currency entirely.
+      spyGemini.mockResolvedValueOnce({
+        amount: 560,
+        item: 'pasta',
+        category: 'Food',
+        subCategory: 'Restaurant',
+        confidence: 0.8,
+        tier: 3,
+      })
+      spyConvert.mockResolvedValueOnce({ convertedCents: 806, rate: 1.4384 })
+
+      const result = await parse('5.60 euro pasta', { lookupItem })
+
+      // Tier-1's EUR detection must be what gets converted, not silently dropped.
+      expect(spyConvert).toHaveBeenCalledWith(560, 'EUR')
+      expect(result?.originalCurrency).toBe('EUR')
+      expect(result?.originalAmount).toBe(560)
+      expect(result?.amount).toBe(806)
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // Regression: Fix 3 — a hint-list currency bailout must not let a learned
+  // Tier-2 mapping produce a silent $0 transaction when the raw input
+  // clearly contains a number.
+  // -------------------------------------------------------------------------
+
+  describe('zero-amount tier-2 guard (hint-list currency bailout)', () => {
+    it('falls through to tier-3 instead of returning a zero-amount tier-2 result when input has a digit', async () => {
+      // Tier-1 bails out entirely (hint-list currency it can't confidently convert).
+      spyRegex.mockReturnValueOnce(null)
+      // Tier-2 hits a learned mapping keyed on the raw string (previously confirmed verbatim).
+      mockLookupItem.mockResolvedValueOnce({ category: 'Transport', subCategory: 'Grab', confidence: 0.9 })
+      // Tier-3 (Gemini) should be reached and determine the real amount/currency.
+      spyGemini.mockResolvedValueOnce({
+        amount: 50,
+        item: 'grab',
+        category: 'Transport',
+        subCategory: 'Grab',
+        currency: 'THB',
+        confidence: 0.85,
+        tier: 3,
+      })
+      spyConvert.mockResolvedValueOnce({ convertedCents: 199, rate: 0.0398 })
+
+      const result = await parse('50 baht grab', { lookupItem })
+
+      // The zero-amount tier-2 merge must have been rejected, and Tier-3 reached instead.
+      expect(spyGemini).toHaveBeenCalledWith('50 baht grab')
+      expect(result?.tier).toBe(3)
+      expect(result?.amount).toBe(199)
+    })
+
+    it('still returns the tier-2 result directly when the raw input has no digit at all', async () => {
+      // Pre-existing legitimate case: no number anywhere in input, so a zero
+      // amount is not a red flag — should NOT fall through to tier-3.
+      const tier2 = { category: 'Food' as const, subCategory: 'Hawker' as const, confidence: 0.8 }
+      spyRegex.mockReturnValueOnce(null)
+      mockLookupItem.mockResolvedValueOnce(tier2)
+
+      const result = await parse('laksa at unknown place', { lookupItem })
+
+      expect(result?.category).toBe('Food')
+      expect(result?.tier).toBe(2)
+      expect(result?.amount).toBe(0)
+      expect(spyGemini).not.toHaveBeenCalled()
+    })
   })
 })

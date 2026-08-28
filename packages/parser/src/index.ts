@@ -81,17 +81,24 @@ export async function parse(
 
   if (tier2 !== null) {
     // Merge: prefer tier1 amount/date/currency when available; take category from tier2
-    const merged: ParseResult = {
-      amount: tier1 !== null && tier1.amount !== 0 ? tier1.amount : 0,
-      item: tier1?.item ?? input,
-      category: tier2.category,
-      subCategory: tier2.subCategory,
-      confidence: tier2.confidence,
-      tier: 2,
-      ...(tier1?.date !== undefined ? { date: tier1.date } : {}),
-      ...(tier1?.currency !== undefined ? { currency: tier1.currency } : {}),
+    const mergedAmount = tier1 !== null && tier1.amount !== 0 ? tier1.amount : 0
+    // Guard: don't accept a zero merged amount when the raw input clearly
+    // contains a number (e.g. Tier-1 bailed out on a hint-list currency it
+    // can't convert) — fall through to Tier-3 instead of silently saving $0.
+    if (mergedAmount !== 0 || !/\d/.test(input)) {
+      const merged: ParseResult = {
+        amount: mergedAmount,
+        item: tier1?.item ?? input,
+        category: tier2.category,
+        subCategory: tier2.subCategory,
+        confidence: tier2.confidence,
+        tier: 2,
+        ...(tier1?.date !== undefined ? { date: tier1.date } : {}),
+        ...(tier1?.currency !== undefined ? { currency: tier1.currency } : {}),
+      }
+      return applyCurrencyConversion(merged)
     }
-    return applyCurrencyConversion(merged)
+    // else: fall through to Tier-3 below
   }
 
   // Tier 3: Gemini LLM — only when tiers 1 and 2 both fail
@@ -99,6 +106,13 @@ export async function parse(
   const tier3 = await parseWithGemini(input)
   if (tier3 === null) {
     return null
+  }
+  // If Tier-1 confidently detected a currency (convert-list match) but
+  // couldn't resolve a category, and Gemini's own re-parse of the raw
+  // input didn't report a currency, trust Tier-1's deterministic
+  // detection rather than silently treating the amount as SGD.
+  if (tier3.currency === undefined && tier1?.currency !== undefined) {
+    tier3.currency = tier1.currency
   }
   return applyCurrencyConversion(tier3)
 }

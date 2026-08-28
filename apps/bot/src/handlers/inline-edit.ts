@@ -38,6 +38,12 @@ export async function handlePendingInlineEdit(ctx: Context): Promise<void> {
   existing.item = parsed.item
   existing.category = parsed.category
   existing.subCategory = parsed.subCategory
+  // A hand-typed amount is no longer "the result of converting X currency" —
+  // clear the stale display-only conversion fields so the confirmation
+  // message doesn't show an arithmetically false conversion note.
+  delete existing.originalAmount
+  delete existing.originalCurrency
+  delete existing.exchangeRate
 
   const msg = buildConfirmationMessage(entry)
   await ctx.reply(msg, { reply_markup: buildConfirmKeyboard() })
