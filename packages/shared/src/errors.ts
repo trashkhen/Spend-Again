@@ -96,6 +96,24 @@ export class OcrRateLimitError extends RateLimitError {
 }
 
 // ---------------------------------------------------------------------------
+// Currency conversion errors
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown when the currency exchange-rate service is unavailable or returns
+ * an unusable response (missing API key, network failure, non-OK response,
+ * or no SGD rate in the payload). Not a RateLimitError subclass — this is a
+ * service-unavailable condition, not specifically a rate limit, even though
+ * the underlying cause is sometimes the free tier's request quota.
+ */
+export class CurrencyConversionError extends AppError {
+  constructor(message = 'Currency conversion unavailable') {
+    super(message, 'CURRENCY_CONVERSION_ERROR', 503)
+    this.name = 'CurrencyConversionError'
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Type guard helpers
 // ---------------------------------------------------------------------------
 

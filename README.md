@@ -127,6 +127,7 @@ All environment variables live in `.env` at the monorepo root (git-ignored). A s
 |---|---|---|
 | `DATABASE_URL` | API | Supabase PostgreSQL connection string |
 | `GEMINI_API_KEY` | API / Parser | Google Gemini LLM calls |
+| `EXCHANGERATE_API_KEY` | Parser (bot) | exchangerate-api.com free-tier key, used to convert foreign-currency expenses to SGD. |
 | `BOT_TOKEN` | **Bot + API** | Telegram bot token. Used by grammy to start the bot **and** by `apps/api/src/lib/telegram-auth.ts` to verify Telegram auth hashes. Both processes must have this value — do **not** rename it. |
 | `JWT_SECRET` | API | Signs and verifies all user JWTs (HS256, 30-day expiry). **Must be set explicitly** — the API crashes at startup if missing or shorter than 32 characters. Generate with: `openssl rand -hex 32`. |
 | `WEBHOOK_SECRET_TOKEN` | Bot | Secret token Telegram includes in every webhook POST (`X-Telegram-Bot-Api-Secret-Token` header). Required in production; must be 32–256 chars (`[A-Za-z0-9_-]`). Generate with: `openssl rand -hex 32`. |

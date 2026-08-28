@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCents, centsToDecimalString, amountToCents, fmtSGD } from '../src/format.js'
+import { parseCents, centsToDecimalString, amountToCents, fmtSGD, fmtCurrency } from '../src/format.js'
 
 describe('parseCents', () => {
   it('parses integer-only input', () => {
@@ -70,5 +70,19 @@ describe('fmtSGD', () => {
   it('prefixes amount with S$', () => {
     expect(fmtSGD(1050)).toBe('S$10.50')
     expect(fmtSGD(0)).toBe('S$0.00')
+  })
+})
+
+describe('fmtCurrency', () => {
+  it('formats known currencies with their symbol', () => {
+    expect(fmtCurrency(560, 'EUR')).toBe('€5.60')
+    expect(fmtCurrency(1000, 'USD')).toBe('$10.00')
+    expect(fmtCurrency(500, 'GBP')).toBe('£5.00')
+    expect(fmtCurrency(10000, 'JPY')).toBe('¥100.00')
+    expect(fmtCurrency(2500, 'MYR')).toBe('RM25.00')
+  })
+
+  it('falls back to "CODE amount" for currencies with no known symbol', () => {
+    expect(fmtCurrency(5000, 'AED')).toBe('AED 50.00')
   })
 })

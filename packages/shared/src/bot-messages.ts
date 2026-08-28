@@ -80,6 +80,10 @@ export const MSG_PARSE_FAILED =
   `  "3.50 kopi"\n` +
   `  "25 grab to airport"`
 
+export const MSG_CURRENCY_UNAVAILABLE =
+  `Aiyah, cannot fetch the exchange rate right now leh \u{1F615}\n` +
+  `Give it a few minutes and try again lor.`
+
 /** Shown when the bot is about to confirm a parsed expense. */
 export const MSG_CONFIRM_PROMPT = (
   emoji: string,
