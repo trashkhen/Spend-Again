@@ -1,6 +1,7 @@
 import type { Context } from 'grammy'
 import { parseReceiptWithOcr, simpleReceiptToParseResult } from '@spend-again/parser/ocr'
 import type { OcrResult, MultiItemReceiptResult } from '@spend-again/parser/ocr'
+import { CurrencyConversionError } from '@spend-again/parser'
 import {
   MSG_NOT_REGISTERED,
   MSG_RECEIPT_PROCESSING,
@@ -13,9 +14,11 @@ import {
   MSG_RECEIPT_ERROR,
   MSG_RECEIPT_MULTI_HEADER,
   MSG_RECEIPT_SAVE_PROMPT,
+  MSG_CURRENCY_UNAVAILABLE,
   OcrRateLimitError,
   emojiFor,
   fmtSGD,
+  fmtCurrency,
 } from '@spend-again/shared'
 import { tokenStore } from '../lib/api-client.js'
 import { BOT_TOKEN, DASHBOARD_URL } from '../lib/env.js'
@@ -84,8 +87,20 @@ async function downloadTelegramFile(fileId: string, botToken: string): Promise<U
 }
 
 /** Format a multi-item receipt as a human-readable Telegram message. */
-function formatMultiReceipt(result: MultiItemReceiptResult): string {
+export function formatMultiReceipt(result: MultiItemReceiptResult): string {
   const lines: string[] = [MSG_RECEIPT_MULTI_HEADER]
+
+  if (
+    result.originalTotal !== undefined &&
+    result.originalCurrency !== undefined &&
+    result.exchangeRate !== undefined
+  ) {
+    const originalTotalFmt = fmtCurrency(result.originalTotal, result.originalCurrency)
+    const convertedTotalFmt = fmtSGD(result.total)
+    lines.push(
+      `\u{1F4B1} ${originalTotalFmt} \u{2192} ${convertedTotalFmt} (1 ${result.originalCurrency} = ${result.exchangeRate.toFixed(4)} SGD)`,
+    )
+  }
 
   for (const item of result.items) {
     const emoji = emojiFor(item.category)
@@ -193,9 +208,15 @@ export async function receiptHandler(ctx: Context): Promise<void> {
   try {
     ocrResult = await parseReceiptWithOcr(imageData, mimeType)
   } catch (err) {
-    const errorMessage =
-      err instanceof OcrRateLimitError ? MSG_RECEIPT_RATE_LIMIT : MSG_RECEIPT_PARSE_FAILED
-    await ctx.reply(errorMessage)
+    if (err instanceof OcrRateLimitError) {
+      await ctx.reply(MSG_RECEIPT_RATE_LIMIT)
+      return
+    }
+    if (err instanceof CurrencyConversionError) {
+      await ctx.reply(MSG_CURRENCY_UNAVAILABLE)
+      return
+    }
+    await ctx.reply(MSG_RECEIPT_PARSE_FAILED)
     return
   }
 

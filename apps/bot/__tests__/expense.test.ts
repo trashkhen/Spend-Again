@@ -18,15 +18,22 @@ vi.mock('@spend-again/parser', () => ({
       this.name = 'GeminiRateLimitError'
     }
   },
+  CurrencyConversionError: class CurrencyConversionError extends Error {
+    constructor(message = 'Currency conversion unavailable') {
+      super(message)
+      this.name = 'CurrencyConversionError'
+    }
+  },
 }))
 
 vi.mock('../src/keyboards/confirm.js', () => ({
   buildConfirmKeyboard: vi.fn().mockReturnValue({ inline_keyboard: [] }),
 }))
 
-import { expenseHandler, deriveDescription } from '../src/handlers/expense.js'
+import { expenseHandler, deriveDescription, buildConfirmationMessage } from '../src/handlers/expense.js'
 import { loginViaTelegram, tokenStore } from '../src/lib/api-client.js'
-import { parse } from '@spend-again/parser'
+import { parse, CurrencyConversionError } from '@spend-again/parser'
+import type { ParseResult } from '@spend-again/parser'
 
 const FAKE_TOKEN = 'eyJ.fake.jwt'
 const TELEGRAM_ID = 281882561
@@ -106,5 +113,54 @@ describe('expenseHandler — auto-reauth when tokenStore is empty after restart'
 
     expect(loginViaTelegram).not.toHaveBeenCalled()
     expect(parse).toHaveBeenCalledWith(EXPENSE_TEXT, expect.objectContaining({ lookupItem: expect.any(Function) }))
+  })
+})
+
+describe('buildConfirmationMessage — currency conversion note', () => {
+  function makeResult(overrides: Partial<ParseResult> = {}): ParseResult {
+    return {
+      amount: 805,
+      item: 'Pasta',
+      category: 'Food' as never,
+      subCategory: 'Restaurant' as never,
+      confidence: 0.85,
+      tier: 3,
+      ...overrides,
+    }
+  }
+
+  it('appends a conversion note when originalAmount/originalCurrency/exchangeRate are set', () => {
+    const msg = buildConfirmationMessage({
+      result: makeResult({ originalAmount: 560, originalCurrency: 'EUR', exchangeRate: 1.4384 }),
+      rawInput: '5.60 euro pasta',
+    })
+
+    expect(msg).toContain('€5.60')
+    expect(msg).toContain('S$8.05')
+    expect(msg).toContain('1 EUR = 1.4384 SGD')
+  })
+
+  it('omits the conversion note when there was no conversion', () => {
+    const msg = buildConfirmationMessage({ result: makeResult(), rawInput: '$8.05 pasta' })
+
+    expect(msg).not.toContain('→')
+  })
+})
+
+describe('expenseHandler — currency conversion failure', () => {
+  beforeEach(() => {
+    tokenStore.clear()
+    vi.clearAllMocks()
+    tokenStore.set(TELEGRAM_ID, FAKE_TOKEN)
+  })
+
+  it('replies with the currency-unavailable message and does not throw when parse() rejects with CurrencyConversionError', async () => {
+    vi.mocked(parse).mockRejectedValue(new CurrencyConversionError('rate service down'))
+
+    const ctx = makeCtx()
+    await expenseHandler(ctx as never)
+
+    expect(ctx.reply).toHaveBeenCalledOnce()
+    expect(ctx.reply).toHaveBeenCalledWith(expect.stringContaining('exchange rate'))
   })
 })

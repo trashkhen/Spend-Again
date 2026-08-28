@@ -1,12 +1,14 @@
 import type { Context } from 'grammy'
-import { parse, GeminiRateLimitError } from '@spend-again/parser'
+import { parse, GeminiRateLimitError, CurrencyConversionError } from '@spend-again/parser'
 import type { ParseResult } from '@spend-again/parser'
 import {
   MSG_NOT_REGISTERED,
   MSG_PARSE_FAILED,
   MSG_CONFIRM_PROMPT,
+  MSG_CURRENCY_UNAVAILABLE,
   CATEGORY_EMOJI,
   fmtSGD,
+  fmtCurrency,
 } from '@spend-again/shared'
 import { tokenStore, loginViaTelegram, apiClient } from '../lib/api-client.js'
 import { DASHBOARD_URL } from '../lib/env.js'
@@ -85,6 +87,14 @@ export function buildConfirmationMessage(entry: PendingConfirmation): string {
   const amount = fmtSGD(result.amount)
   const category = formatCategory(result)
   let msg = MSG_CONFIRM_PROMPT(emoji, amount, result.item, category)
+  if (
+    result.originalAmount !== undefined &&
+    result.originalCurrency !== undefined &&
+    result.exchangeRate !== undefined
+  ) {
+    const original = fmtCurrency(result.originalAmount, result.originalCurrency)
+    msg += `\n${original} \u{2192} ${amount} (1 ${result.originalCurrency} = ${result.exchangeRate.toFixed(4)} SGD)`
+  }
   if (activeSpaceName) {
     msg += `\nSpace: ${activeSpaceName}`
   } else if (suggestedSpaceName) {
@@ -138,6 +148,10 @@ export async function expenseHandler(ctx: Context): Promise<void> {
         `Wait ah, AI a bit busy right now! \u{23F3}\n` +
           `Pls try again later.`,
       )
+      return
+    }
+    if (err instanceof CurrencyConversionError) {
+      await ctx.reply(MSG_CURRENCY_UNAVAILABLE)
       return
     }
     throw err
