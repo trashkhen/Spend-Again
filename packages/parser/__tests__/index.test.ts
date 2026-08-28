@@ -22,6 +22,7 @@ vi.mock('@google/generative-ai', () => {
 
 import * as RegexModule from '../src/regex.js'
 import * as GeminiModule from '../src/gemini.js'
+import * as CurrencyModule from '../src/currency.js'
 import { parse } from '../src/index.js'
 import type { ParseResult, LookupFn } from '../src/index.js'
 
@@ -78,6 +79,7 @@ function makeTier3Result(): ParseResult {
 describe('parse() — unified 3-tier orchestration', () => {
   let spyRegex: ReturnType<typeof vi.spyOn>
   let spyGemini: ReturnType<typeof vi.spyOn>
+  let spyConvert: ReturnType<typeof vi.spyOn>
   let mockLookupItem: ReturnType<typeof vi.fn>
   let lookupItem: LookupFn
 
@@ -85,6 +87,7 @@ describe('parse() — unified 3-tier orchestration', () => {
     vi.resetAllMocks()
     spyRegex = vi.spyOn(RegexModule, 'parseWithRegex')
     spyGemini = vi.spyOn(GeminiModule, 'parseWithGemini')
+    spyConvert = vi.spyOn(CurrencyModule, 'convertToSGD')
     mockLookupItem = vi.fn()
     lookupItem = mockLookupItem as unknown as LookupFn
   })
@@ -272,5 +275,71 @@ describe('parse() — unified 3-tier orchestration', () => {
     const result = await parse('$8 laksa at unknown', { lookupItem })
 
     expect(result?.tier).toBe(3)
+  })
+
+  // -------------------------------------------------------------------------
+  // 7. Currency conversion — single point, regardless of which tier resolved
+  // -------------------------------------------------------------------------
+
+  describe('currency conversion', () => {
+    it('converts a tier-1 result carrying a currency field', async () => {
+      const tier1: ParseResult = { ...makeTier1Full(), currency: 'EUR' }
+      spyRegex.mockReturnValueOnce(tier1)
+      spyConvert.mockResolvedValueOnce({ convertedCents: 1727, rate: 1.4384 })
+
+      const result = await parse('12 euro NTUC', { lookupItem })
+
+      expect(spyConvert).toHaveBeenCalledWith(1200, 'EUR')
+      expect(result?.amount).toBe(1727)
+      expect(result?.originalAmount).toBe(1200)
+      expect(result?.originalCurrency).toBe('EUR')
+      expect(result?.exchangeRate).toBe(1.4384)
+      expect(result?.currency).toBeUndefined()
+    })
+
+    it('does not call convertToSGD when no currency is set', async () => {
+      spyRegex.mockReturnValueOnce(makeTier1Full())
+
+      await parse('$12 NTUC', { lookupItem })
+
+      expect(spyConvert).not.toHaveBeenCalled()
+    })
+
+    it('converts a tier-2 merged result carrying tier-1 currency through', async () => {
+      const tier1: ParseResult = { ...makeTier1Partial(), currency: 'EUR' }
+      spyRegex.mockReturnValueOnce(tier1)
+      mockLookupItem.mockResolvedValueOnce(makeTier2Result('lunch'))
+      spyConvert.mockResolvedValueOnce({ convertedCents: 1150, rate: 1.4384 })
+
+      const result = await parse('8 euro lunch', { lookupItem })
+
+      expect(spyConvert).toHaveBeenCalledWith(800, 'EUR')
+      expect(result?.tier).toBe(2)
+      expect(result?.amount).toBe(1150)
+      expect(result?.originalCurrency).toBe('EUR')
+    })
+
+    it('converts a tier-3 gemini result carrying a currency field', async () => {
+      spyRegex.mockReturnValueOnce(null)
+      mockLookupItem.mockResolvedValueOnce(null)
+      spyGemini.mockResolvedValueOnce({ ...makeTier3Result(), currency: 'THB' })
+      spyConvert.mockResolvedValueOnce({ convertedCents: 143, rate: 0.0398 })
+
+      const result = await parse('50 baht taxi', { lookupItem })
+
+      expect(spyConvert).toHaveBeenCalledWith(850, 'THB')
+      expect(result?.tier).toBe(3)
+      expect(result?.amount).toBe(143)
+      expect(result?.originalCurrency).toBe('THB')
+    })
+
+    it('propagates CurrencyConversionError instead of returning a result', async () => {
+      const { CurrencyConversionError } = await import('@spend-again/shared')
+      const tier1: ParseResult = { ...makeTier1Full(), currency: 'EUR' }
+      spyRegex.mockReturnValueOnce(tier1)
+      spyConvert.mockRejectedValueOnce(new CurrencyConversionError('rate service down'))
+
+      await expect(parse('12 euro NTUC', { lookupItem })).rejects.toThrow(CurrencyConversionError)
+    })
   })
 })
