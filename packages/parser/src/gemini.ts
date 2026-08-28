@@ -60,6 +60,7 @@ type GeminiExpenseJSON = {
   category: string | null
   subCategory: string | null
   date: string | null
+  currency: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -83,12 +84,13 @@ ${categoryList}
 
 RULES:
 1. Return ONLY a JSON object — no markdown fences, no explanation.
-2. "amount" must be a number in DOLLARS (e.g. 8.50 for SGD 8.50). Do NOT convert to cents.
+2. "amount" must be a number in the ORIGINAL currency's DOLLARS/major-unit (e.g. 8.50 for SGD 8.50, or 5.60 for EUR 5.60). Do NOT convert to cents, and do NOT convert to SGD — that happens separately.
 3. "item" is a short description of what was purchased (e.g. "Lunch at Amoy Street").
 4. "category" must be one of the exact category names listed above, or null if unknown.
 5. "subCategory" must be one of the valid sub-categories for the chosen category, or null.
 6. "date" must be in DD/MM/YYYY format. If no date is mentioned, use today: ${today}.
-7. If the input cannot be parsed as an expense, return null for all fields (keep amount as 0).
+7. "currency" must be the ISO 4217 code (e.g. "EUR", "USD", "THB") of the currency mentioned in the input, or null if the input specifies no currency, or explicitly says SGD/S$/dollars.
+8. If the input cannot be parsed as an expense, return null for all fields (keep amount as 0).
 
 SINGAPORE CONTEXT:
 - Hawker centres, kopitiam, food courts → Food / Hawker
@@ -101,13 +103,16 @@ SINGAPORE CONTEXT:
 
 EXAMPLES:
 Input: "8.50 for lunch at Amoy"
-Output: {"amount":8.50,"item":"Lunch at Amoy","category":"Food","subCategory":"Hawker","date":"${today}"}
+Output: {"amount":8.50,"item":"Lunch at Amoy","category":"Food","subCategory":"Hawker","date":"${today}","currency":null}
 
 Input: "$12 NTUC groceries"
-Output: {"amount":12,"item":"NTUC groceries","category":"Groceries","subCategory":"Supermarket","date":"${today}"}
+Output: {"amount":12,"item":"NTUC groceries","category":"Groceries","subCategory":"Supermarket","date":"${today}","currency":null}
 
 Input: "grab home 15.30 yesterday"
-Output: {"amount":15.30,"item":"Grab ride home","category":"Transport","subCategory":"Grab","date":"${getYesterdayDDMMYYYY()}"}
+Output: {"amount":15.30,"item":"Grab ride home","category":"Transport","subCategory":"Grab","date":"${getYesterdayDDMMYYYY()}","currency":null}
+
+Input: "50 baht taxi bangkok"
+Output: {"amount":50,"item":"Taxi","category":"Transport","subCategory":"Taxi","date":"${today}","currency":"THB"}
 
 Now parse this input:
 "${input}"
@@ -158,8 +163,9 @@ function parseGeminiJSON(raw: string): GeminiExpenseJSON | null {
   const category = typeof obj['category'] === 'string' ? obj['category'] : null
   const subCategory = typeof obj['subCategory'] === 'string' ? obj['subCategory'] : null
   const date = typeof obj['date'] === 'string' ? obj['date'] : null
+  const currency = typeof obj['currency'] === 'string' ? obj['currency'] : null
 
-  return { amount, item, category, subCategory, date }
+  return { amount, item, category, subCategory, date, currency }
 }
 
 // ---------------------------------------------------------------------------
@@ -204,6 +210,14 @@ export async function parseWithGemini(input: string): Promise<ParseResult | null
 
   if (geminiData.date !== null && geminiData.date.trim().length > 0) {
     parseResult.date = geminiData.date
+  }
+
+  if (
+    geminiData.currency !== null &&
+    geminiData.currency.trim().length > 0 &&
+    geminiData.currency.trim().toUpperCase() !== 'SGD'
+  ) {
+    parseResult.currency = geminiData.currency.trim().toUpperCase()
   }
 
   if (geminiData.category !== null && isValidCategory(geminiData.category)) {

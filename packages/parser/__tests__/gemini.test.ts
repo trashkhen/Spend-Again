@@ -79,6 +79,12 @@ describe('buildPrompt', () => {
     const prompt = buildPrompt('test')
     expect(prompt.toLowerCase()).toContain('dollar')
   })
+
+  it('includes a currency instruction', () => {
+    const prompt = buildPrompt('test')
+    expect(prompt.toLowerCase()).toContain('currency')
+    expect(prompt).toContain('ISO 4217')
+  })
 })
 
 describe('parseWithGemini', () => {
@@ -191,6 +197,63 @@ describe('parseWithGemini', () => {
     const result = await parseWithGemini('grab home 25')
     expect(result?.category).toBe('Transport')
     expect(result?.subCategory).toBe('Grab')
+  })
+
+  // -------------------------------------------------------------------------
+  // Currency field
+  // -------------------------------------------------------------------------
+
+  it('sets currency when Gemini reports a non-SGD currency', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({
+        amount: 50,
+        item: 'Taxi',
+        category: 'Transport',
+        subCategory: 'Taxi',
+        date: '01/01/2026',
+        currency: 'THB',
+      }),
+    )
+
+    const result = await parseWithGemini('50 baht taxi')
+    expect(result?.currency).toBe('THB')
+  })
+
+  it('omits currency when Gemini returns null', () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({ amount: 10, item: 'Item', category: null, subCategory: null, date: null, currency: null }),
+    )
+
+    return parseWithGemini('$10 item').then((result) => {
+      expect(result?.currency).toBeUndefined()
+    })
+  })
+
+  it('omits currency when Gemini omits the field entirely', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({ amount: 10, item: 'Item', category: null, subCategory: null, date: null }),
+    )
+
+    const result = await parseWithGemini('$10 item')
+    expect(result?.currency).toBeUndefined()
+  })
+
+  it('omits currency when Gemini reports SGD explicitly', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({ amount: 10, item: 'Item', category: null, subCategory: null, date: null, currency: 'SGD' }),
+    )
+
+    const result = await parseWithGemini('$10 item')
+    expect(result?.currency).toBeUndefined()
+  })
+
+  it('uppercases a lowercase currency code from Gemini', async () => {
+    mockGenerateContent.mockResolvedValueOnce(
+      jsonResponse({ amount: 50, item: 'Taxi', category: null, subCategory: null, date: null, currency: 'thb' }),
+    )
+
+    const result = await parseWithGemini('50 baht taxi')
+    expect(result?.currency).toBe('THB')
   })
 
   // -------------------------------------------------------------------------
