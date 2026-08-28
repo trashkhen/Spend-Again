@@ -120,7 +120,7 @@ RECEIPT TYPES:
 SINGAPORE CONTEXT:
 - Hawker centres, kopitiam, food courts → Food / Hawker
 - NTUC FairPrice, Cold Storage, Giant, Sheng Siong → Groceries / Supermarket
-- Grab / GoJode → Transport / Grab or Transport / Gojek
+- Grab / GoJek → Transport / Grab or Transport / Gojek
 - MRT / bus / EZ-Link → Transport / MRT/Bus
 - Guardian, Watsons → Health / Pharmacy
 - Popular, MPH → Shopping / Books
