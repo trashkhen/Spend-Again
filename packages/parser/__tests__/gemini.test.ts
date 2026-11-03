@@ -7,14 +7,23 @@ import { CATEGORY_MAP, GEMINI_RPM_LIMIT } from '@spend-again/shared'
 // ---------------------------------------------------------------------------
 
 const mockGenerateContent = vi.fn()
+const mockGetGenerativeModel = vi.fn()
 
 vi.mock('@google/generative-ai', () => {
   class GoogleGenerativeAI {
     constructor(_apiKey: string) {}
-    getGenerativeModel(_opts: { model: string }) {
+    getGenerativeModel(opts: { model: string }, requestOptions?: { timeout?: number }) {
+      mockGetGenerativeModel(opts, requestOptions)
       return {
         generateContent: mockGenerateContent,
       }
+    }
+  }
+
+  class GoogleGenerativeAIAbortError extends Error {
+    constructor(message: string) {
+      super(message)
+      this.name = 'GoogleGenerativeAIAbortError'
     }
   }
 
@@ -29,7 +38,7 @@ vi.mock('@google/generative-ai', () => {
     }
   }
 
-  return { GoogleGenerativeAI, GoogleGenerativeAIFetchError }
+  return { GoogleGenerativeAI, GoogleGenerativeAIFetchError, GoogleGenerativeAIAbortError }
 })
 
 // ---------------------------------------------------------------------------
@@ -349,6 +358,21 @@ describe('parseWithGemini', () => {
     await expect(parseWithGemini('test input')).rejects.toThrow(
       `Gemini rate limit exceeded (${GEMINI_RPM_LIMIT} RPM)`,
     )
+  })
+
+  it('sets a request timeout so a stuck Gemini call cannot hang the handler', async () => {
+    mockGenerateContent.mockResolvedValueOnce(jsonResponse({ amount: 1, item: 'x', category: null, subCategory: null, date: null }))
+    await parseWithGemini('x 1')
+
+    const [, requestOptions] = mockGetGenerativeModel.mock.calls.at(-1) as [unknown, { timeout?: number }]
+    expect(requestOptions.timeout).toBeGreaterThan(0)
+  })
+
+  it('throws GeminiRateLimitError when the request is aborted by the timeout', async () => {
+    const { GoogleGenerativeAIAbortError } = await import('@google/generative-ai')
+    mockGenerateContent.mockRejectedValueOnce(new GoogleGenerativeAIAbortError('Request aborted when fetching'))
+
+    await expect(parseWithGemini('test input')).rejects.toThrow(GeminiRateLimitError)
   })
 
   it('rethrows non-429/503 errors as-is', async () => {

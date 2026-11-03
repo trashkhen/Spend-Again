@@ -40,10 +40,14 @@ import {
   pendingPartialRepay, detectIouIntent, iouCommandHandler, pendingIouNew,
 } from './handlers/iou.js'
 import { tokenStore, loginViaTelegram, isTokenExpired } from './lib/api-client.js'
+import { createUpdateDeduper } from './lib/dedupe-updates.js'
 
 const log = createLogger('bot')
 
 export const bot = new Bot(BOT_TOKEN)
+
+// Must be first so a redelivered webhook update never reaches a handler.
+bot.use(createUpdateDeduper())
 
 // ── Global error handler ──────────────────────────────────────────────────────
 bot.catch((err) => {

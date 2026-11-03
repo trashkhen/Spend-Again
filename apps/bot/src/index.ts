@@ -44,7 +44,11 @@ if (isProduction && webhookUrl !== undefined && webhookUrl.length > 0) {
   await bot.api.setWebhook(webhookUrl, { secret_token: webhookSecret })
   log.info({ webhookUrl }, 'Webhook set')
 
-  const handleUpdate = webhookCallback(bot, 'http')
+  // 'return' acks Telegram with a 200 when a handler runs long (e.g. a slow
+  // Gemini call). The handler keeps going and replies via the Bot API, and
+  // Telegram does not redeliver the update. The default 'throw' sent a 500,
+  // which made Telegram retry and the bot handle the message twice.
+  const handleUpdate = webhookCallback(bot, 'http', { onTimeout: 'return', timeoutMilliseconds: 10_000 })
 
   const server = createServer(async (req, res) => {
     if (req.method === 'POST') {

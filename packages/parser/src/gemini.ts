@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, GoogleGenerativeAIFetchError } from '@google/generative-ai'
+import { GoogleGenerativeAI, GoogleGenerativeAIAbortError, GoogleGenerativeAIFetchError } from '@google/generative-ai'
 import { CATEGORY_MAP, GEMINI_MODEL, GEMINI_RPM_LIMIT, createLogger, GeminiRateLimitError, getTodayDDMMYYYY, getYesterdayDDMMYYYY } from '@spend-again/shared'
 import type { Category, SubCategory } from '@spend-again/shared'
 import type { ParseResult } from './regex.js'
@@ -172,6 +172,12 @@ function parseGeminiJSON(raw: string): GeminiExpenseJSON | null {
 // Main export
 // ---------------------------------------------------------------------------
 
+/**
+ * Hard cap on a single Gemini call. Observed latency is 1.5–7s, so 20s leaves
+ * room for slow responses while still failing fast on a hung request.
+ */
+const GEMINI_REQUEST_TIMEOUT_MS = 20_000
+
 export async function parseWithGemini(input: string): Promise<ParseResult | null> {
   const apiKey = process.env['GEMINI_API_KEY']
   if (!apiKey) {
@@ -179,7 +185,7 @@ export async function parseWithGemini(input: string): Promise<ParseResult | null
   }
 
   const client = new GoogleGenerativeAI(apiKey)
-  const model = client.getGenerativeModel({ model: GEMINI_MODEL })
+  const model = client.getGenerativeModel({ model: GEMINI_MODEL }, { timeout: GEMINI_REQUEST_TIMEOUT_MS })
 
   const prompt = buildPrompt(input)
 
@@ -188,6 +194,11 @@ export async function parseWithGemini(input: string): Promise<ParseResult | null
     const result = await model.generateContent(prompt)
     rawText = result.response.text()
   } catch (err) {
+    if (err instanceof GoogleGenerativeAIAbortError) {
+      // Surfaces to the user as the same "AI a bit busy, try again" reply.
+      log.error({ timeoutMs: GEMINI_REQUEST_TIMEOUT_MS }, 'Gemini request timed out')
+      throw new GeminiRateLimitError()
+    }
     if (err instanceof GoogleGenerativeAIFetchError && (err.status === 429 || err.status === 503)) {
       log.error({ status: err.status, message: err.message, errorDetails: err.errorDetails }, 'rate limit / unavailable from API')
       throw new GeminiRateLimitError()
