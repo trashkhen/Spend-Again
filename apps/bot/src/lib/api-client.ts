@@ -117,6 +117,31 @@ export const tokenStore = new Map<number, string>()
 /** In-memory user ID store. Maps Telegram user ID → database UUID (from /api/auth/telegram-login). */
 export const userIdStore = new Map<number, string>()
 
+/**
+ * Telegram profile captured at login, keyed by Telegram user ID. Lets the
+ * client log in again on its own when a cached JWT expires.
+ */
+export const telegramUserStore = new Map<number, TelegramUser>()
+
+/** Tokens this close to expiry are treated as already expired. */
+const TOKEN_EXPIRY_MARGIN_SECONDS = 60
+
+/**
+ * Reads the `exp` claim without verifying the signature (the API does that).
+ * Returns false for anything it cannot decode so non-JWT tokens keep working.
+ */
+export function isTokenExpired(token: string): boolean {
+  try {
+    const payload = token.split('.')[1]
+    if (payload === undefined) return false
+    const { exp } = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as { exp?: unknown }
+    if (typeof exp !== 'number') return false
+    return exp - TOKEN_EXPIRY_MARGIN_SECONDS <= Math.floor(Date.now() / 1000)
+  } catch {
+    return false
+  }
+}
+
 // ── URL helpers ───────────────────────────────────────────────────────────────
 
 /** Ensures a host-only API_URL value has an https:// scheme prefix. */
@@ -193,6 +218,7 @@ export async function loginViaTelegram(
     const result = (await res.json()) as { token: string; userId: string }
     tokenStore.set(from.id, result.token)
     userIdStore.set(from.id, result.userId)
+    telegramUserStore.set(from.id, from)
     return { token: result.token, userId: result.userId }
   } catch (err) {
     log.error({ err }, 'loginViaTelegram API login error')
@@ -227,12 +253,45 @@ export class ApiClient {
   }
 
   /**
+   * Logs the current token's owner in again. Cached JWTs expire after 30 days
+   * but the bot process can outlive that, so a 401 means "refresh", not "give up".
+   * Returns the new token, or null if the owner is unknown or login fails.
+   */
+  private async refreshToken(): Promise<string | null> {
+    const stale = this.token
+    if (stale === undefined) return null
+    for (const [telegramId, cached] of tokenStore) {
+      if (cached !== stale) continue
+      const from = telegramUserStore.get(telegramId)
+      if (from === undefined) return null
+      const auth = await loginViaTelegram(from, this.baseUrl)
+      if (auth === null) return null
+      this.token = auth.token
+      return auth.token
+    }
+    return null
+  }
+
+  /** fetch that logs in again and retries once when the API rejects the token. */
+  private async fetchAuthed(url: string, init: RequestInit = {}): Promise<Response> {
+    const res = await fetch(url, init)
+    if (res.status !== 401) return res
+    const fresh = await this.refreshToken()
+    if (fresh === null) return res
+    log.warn({ url }, 'API rejected cached token; logged in again and retrying')
+    return fetch(url, {
+      ...init,
+      headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Bearer ${fresh}` },
+    })
+  }
+
+  /**
    * POST /api/transactions
    * Returns the created transaction id, or null on failure.
    */
   async createTransaction(data: CreateTransactionInput): Promise<{ id: string } | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/transactions`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/transactions`, {
         method: 'POST',
         headers: this.buildHeaders(),
         body: JSON.stringify({
@@ -271,7 +330,7 @@ export class ApiClient {
    */
   async updateTransaction(txId: string, input: UpdateTransactionInput): Promise<{ id: string } | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/transactions/${txId}`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/transactions/${txId}`, {
         method: 'PUT',
         headers: this.buildHeaders(),
         body: JSON.stringify(input),
@@ -298,7 +357,7 @@ export class ApiClient {
       url.searchParams.set('userId', userId)
       url.searchParams.set('limit', String(limit))
 
-      const res = await fetch(url.toString(), {
+      const res = await this.fetchAuthed(url.toString(), {
         method: 'GET',
         headers: this.buildHeaders(),
       })
@@ -336,7 +395,7 @@ export class ApiClient {
     itemName: string,
   ): Promise<{ category: Category; subCategory: SubCategory; confidence: number } | null> {
     try {
-      const res = await fetch(
+      const res = await this.fetchAuthed(
         `${this.baseUrl}/api/learned-mappings/${encodeURIComponent(itemName.toLowerCase())}`,
         { headers: this.buildHeaders() },
       )
@@ -362,7 +421,7 @@ export class ApiClient {
     subCategory: SubCategory,
   ): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/learned-mappings`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/learned-mappings`, {
         method: 'POST',
         headers: this.buildHeaders(),
         body: JSON.stringify({
@@ -394,7 +453,7 @@ export class ApiClient {
       if (month !== undefined) url.searchParams.set('month', month)
       if (year !== undefined) url.searchParams.set('year', year)
 
-      const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(url.toString(), { method: 'GET', headers: this.buildHeaders() })
       if (!res.ok) {
         log.error({ status: res.status }, 'getSpendingSummary failed')
         return null
@@ -416,7 +475,7 @@ export class ApiClient {
       url.searchParams.set('userId', userId)
       url.searchParams.set('period', period)
 
-      const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(url.toString(), { method: 'GET', headers: this.buildHeaders() })
       if (!res.ok) {
         log.error({ status: res.status }, 'getTopExpense failed')
         return null
@@ -443,7 +502,7 @@ export class ApiClient {
       if (month !== undefined) url.searchParams.set('month', month)
       if (year !== undefined) url.searchParams.set('year', year)
 
-      const res = await fetch(url.toString(), { method: 'GET', headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(url.toString(), { method: 'GET', headers: this.buildHeaders() })
       if (!res.ok) {
         log.error({ status: res.status }, 'getCategoryBreakdown failed')
         return null
@@ -461,7 +520,7 @@ export class ApiClient {
    */
   async getBudget(): Promise<BudgetData | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/users/budget`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/users/budget`, {
         method: 'GET',
         headers: this.buildHeaders(),
       })
@@ -478,7 +537,7 @@ export class ApiClient {
 
   async listRecurring(): Promise<ApiRecurring[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/recurring`, { headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/recurring`, { headers: this.buildHeaders() })
       if (!res.ok) { log.error({ status: res.status }, 'listRecurring failed'); return [] }
       return (await res.json()) as ApiRecurring[]
     } catch (err) {
@@ -489,7 +548,7 @@ export class ApiClient {
 
   async createRecurring(data: CreateRecurringPayload): Promise<ApiRecurring | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/recurring`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/recurring`, {
         method: 'POST',
         headers: this.buildHeaders(),
         body: JSON.stringify(data),
@@ -504,7 +563,7 @@ export class ApiClient {
 
   async updateRecurring(id: string, data: { isActive?: boolean; frequency?: string; name?: string; amountCents?: number }): Promise<void> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/recurring/${id}`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/recurring/${id}`, {
         method: 'PUT',
         headers: this.buildHeaders(),
         body: JSON.stringify(data),
@@ -517,7 +576,7 @@ export class ApiClient {
 
   async deleteRecurring(id: string): Promise<void> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/recurring/${id}`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/recurring/${id}`, {
         method: 'DELETE',
         headers: this.buildHeaders(),
       })
@@ -529,7 +588,7 @@ export class ApiClient {
 
   async listSpaces(): Promise<SpaceWithTotal[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces`, { headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces`, { headers: this.buildHeaders() })
       if (!res.ok) { log.error({ status: res.status }, 'listSpaces failed'); return [] }
       return (await res.json()) as SpaceWithTotal[]
     } catch (err) { log.error({ err }, 'listSpaces error'); return [] }
@@ -537,7 +596,7 @@ export class ApiClient {
 
   async getActiveSpace(): Promise<ApiSpace | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces/active`, { headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces/active`, { headers: this.buildHeaders() })
       if (!res.ok) return null
       return (await res.json()) as ApiSpace | null
     } catch (err) { log.error({ err }, 'getActiveSpace error'); return null }
@@ -545,7 +604,7 @@ export class ApiClient {
 
   async setActiveSpace(spaceId: string | null): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces/active`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces/active`, {
         method: 'PUT', headers: this.buildHeaders(),
         body: JSON.stringify({ spaceId }),
       })
@@ -555,7 +614,7 @@ export class ApiClient {
 
   async createSpace(data: CreateSpacePayload): Promise<ApiSpace | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces`, {
         method: 'POST', headers: this.buildHeaders(), body: JSON.stringify(data),
       })
       if (!res.ok) return null
@@ -565,7 +624,7 @@ export class ApiClient {
 
   async attachTransactionToSpace(transactionId: string, spaceId: string): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces/${spaceId}/transactions`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces/${spaceId}/transactions`, {
         method: 'POST', headers: this.buildHeaders(),
         body: JSON.stringify({ transactionId }),
       })
@@ -575,7 +634,7 @@ export class ApiClient {
 
   async findSpacesForDate(isoDate: string): Promise<ApiSpace[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces/window?date=${encodeURIComponent(isoDate)}`, { headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces/window?date=${encodeURIComponent(isoDate)}`, { headers: this.buildHeaders() })
       if (!res.ok) return []
       return (await res.json()) as ApiSpace[]
     } catch (err) { log.error({ err }, 'findSpacesForDate error'); return [] }
@@ -583,7 +642,7 @@ export class ApiClient {
 
   async updateSpace(id: string, data: { status?: 'active' | 'archived'; name?: string; emoji?: string | null }): Promise<ApiSpace | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces/${id}`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces/${id}`, {
         method: 'PATCH',
         headers: this.buildHeaders(),
         body: JSON.stringify(data),
@@ -595,7 +654,7 @@ export class ApiClient {
 
   async hardDeleteSpace(id: string): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/spaces/${id}/permanent`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/spaces/${id}/permanent`, {
         method: 'DELETE',
         headers: this.buildHeaders(),
       })
@@ -605,7 +664,7 @@ export class ApiClient {
 
   async listAllDebts(): Promise<DebtWithPerson[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/iou/debts`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/iou/debts`, {
         headers: this.buildHeaders(),
       })
       if (!res.ok) { log.error({ status: res.status }, 'listAllDebts failed'); return [] }
@@ -615,7 +674,7 @@ export class ApiClient {
 
   async listPeople(): Promise<ApiPerson[]> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/iou/people`, { headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/iou/people`, { headers: this.buildHeaders() })
       if (!res.ok) return []
       return (await res.json()) as ApiPerson[]
     } catch (err) { log.error({ err }, 'listPeople error'); return [] }
@@ -625,7 +684,7 @@ export class ApiClient {
     try {
       const url = new URL(`${this.baseUrl}/api/iou/debts`)
       url.searchParams.set('status', 'open')
-      const res = await fetch(url.toString(), { headers: this.buildHeaders() })
+      const res = await this.fetchAuthed(url.toString(), { headers: this.buildHeaders() })
       if (!res.ok) return []
       const all = (await res.json()) as DebtWithPerson[]
       if (personName) {
@@ -638,7 +697,7 @@ export class ApiClient {
 
   async createDebt(data: CreateDebtPayload): Promise<{ debt: ApiDebt; person: ApiPerson } | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/iou/debts`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/iou/debts`, {
         method: 'POST', headers: this.buildHeaders(), body: JSON.stringify(data),
       })
       if (!res.ok) return null
@@ -648,7 +707,7 @@ export class ApiClient {
 
   async settleDebt(debtId: string): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/iou/debts/${debtId}/settle`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/iou/debts/${debtId}/settle`, {
         method: 'POST', headers: this.buildHeaders(), body: '{}',
       })
       return res.ok
@@ -657,7 +716,7 @@ export class ApiClient {
 
   async addDebtPayment(debtId: string, amountCents: number, paidOn: string, note?: string): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/iou/debts/${debtId}/payments`, {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/iou/debts/${debtId}/payments`, {
         method: 'POST', headers: this.buildHeaders(),
         body: JSON.stringify({ amountCents, paidOn, note }),
       })

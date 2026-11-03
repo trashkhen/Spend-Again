@@ -39,7 +39,7 @@ import {
   iouHandler, iouCallbackHandler, handlePendingPartialRepay,
   pendingPartialRepay, detectIouIntent, iouCommandHandler, pendingIouNew,
 } from './handlers/iou.js'
-import { tokenStore, loginViaTelegram } from './lib/api-client.js'
+import { tokenStore, loginViaTelegram, isTokenExpired } from './lib/api-client.js'
 
 const log = createLogger('bot')
 
@@ -97,11 +97,9 @@ bot.hears('🌐 Bring me to Site', async (ctx) => {
 
   // Use cached token; re-authenticate if missing (e.g., after bot restart)
   let jwtToken = tokenStore.get(from.id)
-  if (jwtToken === undefined) {
+  if (jwtToken === undefined || isTokenExpired(jwtToken)) {
     const auth = await loginViaTelegram(from, API_URL)
-    if (auth !== null) {
-      jwtToken = auth.token
-    }
+    jwtToken = auth?.token
   }
 
   const url =
