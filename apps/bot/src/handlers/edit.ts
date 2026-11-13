@@ -9,6 +9,7 @@ import {
 import type { Category } from '@spend-again/shared'
 import { parseStructuredEdit } from '../lib/parse-structured-edit.js'
 import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
+import { autologMerchantFor } from '../lib/autolog-merchants.js'
 import { DASHBOARD_URL } from '../lib/env.js'
 
 export const pendingEdits = new Map<number, string>() // chatId → txId
@@ -105,6 +106,17 @@ export async function handlePendingEdit(ctx: Context): Promise<boolean> {
   if (updated === null) {
     await ctx.reply('Aiyah, could not update the transaction. Try again later lah! \u{1F625}')
     return true
+  }
+
+  // An auto-logged expense was categorised from the merchant name alone.
+  // Remember the correction under that name so the next tap gets it right.
+  const merchant = autologMerchantFor(txId)
+  if (merchant !== undefined) {
+    try {
+      await apiClient.saveLearnedMapping(merchant.toLowerCase(), parsed.category, parsed.subCategory)
+    } catch {
+      // Learning is a bonus; the edit itself already succeeded.
+    }
   }
 
   await ctx.reply(

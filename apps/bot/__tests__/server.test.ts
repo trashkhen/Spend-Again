@@ -13,6 +13,8 @@ import {
   createRequestHandler,
   INGEST_MAX_PER_HOUR,
   INGEST_MAX_TEXT_CHARS,
+  INGEST_MAX_UNKNOWN_PER_HOUR,
+  INGEST_AUTH_CACHE_MS,
 } from '../src/server.js'
 import type { ServerDeps } from '../src/server.js'
 
@@ -34,7 +36,7 @@ let server: Server | undefined
 
 async function start(opts: { webhook?: boolean } = {}): Promise<Harness> {
   let now = 1_000_000
-  const login = vi.fn().mockResolvedValue(AUTH)
+  const login = vi.fn().mockResolvedValue({ ok: true, auth: AUTH })
   const process = vi.fn().mockResolvedValue('saved')
   const handle = vi.fn(async (_req: IncomingMessage, res: ServerResponse) => {
     res.writeHead(200)
@@ -104,10 +106,47 @@ describe('POST /ingest', () => {
 
   it('rejects an unknown or replaced key with 401 and processes nothing', async () => {
     const h = await start()
-    h.deps.login.mockResolvedValue(null)
+    h.deps.login.mockResolvedValue({ ok: false, reason: 'invalid' })
     const res = await post(`${h.url}/ingest`, BODY, bearer())
     expect(res.status).toBe(401)
     expect(h.deps.process).not.toHaveBeenCalled()
+  })
+
+  it('answers 503, not 401, when the API cannot be reached to check the key', async () => {
+    const h = await start()
+    h.deps.login.mockResolvedValue({ ok: false, reason: 'unavailable' })
+    const res = await post(`${h.url}/ingest`, BODY, bearer())
+    expect(res.status).toBe(503)
+    expect(h.deps.process).not.toHaveBeenCalled()
+  })
+
+  it.each(['not-a-key', 'sa_short', `sk_${'a'.repeat(43)}`, `sa_${'a'.repeat(44)}`])(
+    'rejects the malformed key %s with 401 without asking the API',
+    async (bad) => {
+      const h = await start()
+      const res = await post(`${h.url}/ingest`, BODY, bearer(bad))
+      expect(res.status).toBe(401)
+      expect(h.deps.login).not.toHaveBeenCalled()
+    },
+  )
+
+  it('checks a key with the API once, then trusts it for INGEST_AUTH_CACHE_MS', async () => {
+    const h = await start()
+    await post(`${h.url}/ingest`, BODY, bearer())
+    await post(`${h.url}/ingest`, BODY, bearer())
+    expect(h.deps.login).toHaveBeenCalledOnce()
+
+    h.setNow(1_000_000 + INGEST_AUTH_CACHE_MS + 1)
+    await post(`${h.url}/ingest`, BODY, bearer())
+    expect(h.deps.login).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops honouring a replaced key once the cache expires', async () => {
+    const h = await start()
+    expect((await post(`${h.url}/ingest`, BODY, bearer())).status).toBe(202)
+    h.deps.login.mockResolvedValue({ ok: false, reason: 'invalid' })
+    h.setNow(1_000_000 + INGEST_AUTH_CACHE_MS + 1)
+    expect((await post(`${h.url}/ingest`, BODY, bearer())).status).toBe(401)
   })
 
   it.each([
@@ -156,14 +195,26 @@ describe('POST /ingest', () => {
     expect(other.status).toBe(202)
   })
 
-  it('counts wrong-key attempts toward the limit so guessing is throttled', async () => {
+  it('caps key checks across ALL unknown keys, so guessing with fresh keys is throttled', async () => {
     const h = await start()
-    h.deps.login.mockResolvedValue(null)
-    for (let i = 0; i < INGEST_MAX_PER_HOUR; i++) {
-      expect((await post(`${h.url}/ingest`, BODY, bearer())).status).toBe(401)
+    h.deps.login.mockResolvedValue({ ok: false, reason: 'invalid' })
+    const junk = (i: number): string => `sa_${String(i).padStart(43, 'x')}`
+    for (let i = 0; i < INGEST_MAX_UNKNOWN_PER_HOUR; i++) {
+      expect((await post(`${h.url}/ingest`, BODY, bearer(junk(i)))).status).toBe(401)
     }
-    expect((await post(`${h.url}/ingest`, BODY, bearer())).status).toBe(429)
-    expect(h.deps.login).toHaveBeenCalledTimes(INGEST_MAX_PER_HOUR)
+    expect((await post(`${h.url}/ingest`, BODY, bearer(junk(9999)))).status).toBe(429)
+    expect(h.deps.login).toHaveBeenCalledTimes(INGEST_MAX_UNKNOWN_PER_HOUR)
+  })
+
+  it('keeps serving an already-verified key while junk keys are being throttled', async () => {
+    const h = await start()
+    expect((await post(`${h.url}/ingest`, BODY, bearer())).status).toBe(202)
+
+    h.deps.login.mockResolvedValue({ ok: false, reason: 'invalid' })
+    const junk = (i: number): string => `sa_${String(i).padStart(43, 'x')}`
+    for (let i = 0; i <= INGEST_MAX_UNKNOWN_PER_HOUR; i++) await post(`${h.url}/ingest`, BODY, bearer(junk(i)))
+
+    expect((await post(`${h.url}/ingest`, BODY, bearer())).status).toBe(202)
   })
 
   it('lets requests through again once the hour has passed', async () => {

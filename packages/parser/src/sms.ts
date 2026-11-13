@@ -6,7 +6,11 @@ import type { ParseResult } from './regex.js'
 // SG_ITEM_MAP lookup
 // ---------------------------------------------------------------------------
 
-function lookupMerchant(
+/**
+ * Looks a merchant name up in the built-in Singapore map: exact match first,
+ * then the longest key contained in the name.
+ */
+export function lookupMerchant(
   merchant: string,
 ): { category: Category; subCategory: SubCategory } | undefined {
   const normalized = merchant.toLowerCase().trim()

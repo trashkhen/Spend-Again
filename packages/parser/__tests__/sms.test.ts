@@ -222,3 +222,14 @@ describe('parseFromSMS — result shape', () => {
     expect(result?.date).toBeUndefined()
   })
 })
+
+describe('lookupMerchant (exported for Apple Pay auto-capture)', () => {
+  it('is exported from the package index and finds a known merchant by substring', async () => {
+    const { lookupMerchant } = await import('../src/index.js')
+    expect(lookupMerchant('Ya Kun Kaya Toast')).toEqual({ category: 'Food', subCategory: 'Cafe' })
+  })
+  it('returns undefined for a merchant the map does not know', async () => {
+    const { lookupMerchant } = await import('../src/index.js')
+    expect(lookupMerchant('Zxqv Trading Pte Ltd')).toBeUndefined()
+  })
+})

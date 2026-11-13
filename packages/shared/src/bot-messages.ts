@@ -205,18 +205,27 @@ export const MSG_BUDGET_WARNING = (spent: string, budget: string, pct: number): 
 // Auto-capture (Apple Pay Shortcut → /ingest)
 // ---------------------------------------------------------------------------
 
-/** Sent after a payment reported by a phone automation was saved without asking. */
+/** Sent after a payment reported by a phone automation was saved. */
 export const MSG_AUTOLOGGED = (
   amount: string,
   item: string,
   category: string,
   via: string,
   date: string,
-  duplicate: boolean,
+  flags: {
+    /** Same amount was auto-logged moments ago — possibly a double report. */
+    duplicate: boolean
+    /** Nothing could categorise the merchant; it was saved under the default category. */
+    unsure: boolean
+    /** Original foreign-currency amount, when the payment was converted to SGD. */
+    original?: string
+  },
 ): string =>
-  (duplicate ? `\u{26A0}\u{FE0F} Same amount as an entry a moment ago\n` : '') +
+  (flags.duplicate ? `\u{26A0}\u{FE0F} Same amount as an entry a moment ago\n` : '') +
   `\u{26A1} Auto-logged  ${amount}  ${item}\n` +
-  `${category} \u{00B7} ${via} \u{00B7} ${date}`
+  (flags.original !== undefined ? `${flags.original} \u{2192} ${amount}\n` : '') +
+  `${category} \u{00B7} ${via} \u{00B7} ${date}` +
+  (flags.unsure ? `\n\u{2753} Not sure of the category \u{2014} tap Edit to fix` : '')
 
 /** Sent when an auto-captured payment could not be logged, so it is never lost silently. */
 export const MSG_AUTOLOG_FAILED = (amount: string | undefined, item: string | undefined): string => {

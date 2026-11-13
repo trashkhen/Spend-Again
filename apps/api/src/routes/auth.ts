@@ -5,7 +5,7 @@ import { users } from '@spend-again/db'
 import { validateBody } from '../middleware/validate.js'
 import { requireAuth } from '../middleware/auth.js'
 import { signJWT } from '../lib/jwt.js'
-import { verifyTelegramAuth } from '../lib/telegram-auth.js'
+import { verifyTelegramAuth, verifyBotProof } from '../lib/telegram-auth.js'
 import { hashIngestKey } from '../lib/ingest-key.js'
 import type { DbClient } from '../lib/db.js'
 
@@ -40,6 +40,8 @@ const telegramLoginSchema = z.object({
 
 const ingestLoginSchema = z.object({
   key: z.string().min(20).max(100),
+  ts: z.number().int().min(1),
+  sig: z.string().regex(/^[0-9a-f]{64}$/),
 })
 
 const linkTelegramSchema = z.object({
@@ -157,12 +159,18 @@ export function createAuthRouter(db: DbClient): Hono<AuthEnv> {
   /**
    * POST /api/auth/ingest-login
    * Exchanges an auto-capture key (minted by POST /api/users/ingest-key) for
-   * a normal JWT. Used by the bot service when a phone automation reports a
-   * payment. Lookup is by hash equality, so there is no secret to compare in
-   * application code.
+   * a normal JWT. Only the bot service may do this: the request must carry a
+   * fresh HMAC made with the bot token (see verifyBotProof). The key itself
+   * sits in a phone Shortcut and in chat history, so on its own it must never
+   * be worth a login — it only lets the bot add an expense on its owner's
+   * behalf.
    */
   router.post('/ingest-login', validateBody(ingestLoginSchema), async (c) => {
     const input = c.get('validatedBody') as z.infer<typeof ingestLoginSchema>
+
+    if (!verifyBotProof(input.key, input.ts, input.sig)) {
+      return c.json({ error: 'Unauthorized', code: 'INVALID_BOT_PROOF' }, 401)
+    }
 
     const rows = await db
       .select({ id: users.id, telegramId: users.telegramId })

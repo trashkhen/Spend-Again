@@ -231,29 +231,41 @@ export async function loginViaTelegram(
 /** Who a capture key belongs to, as returned by POST /api/auth/ingest-login. */
 export type IngestAuth = { token: string; userId: string; telegramId: string }
 
+/** Outcome of a capture-key exchange. "unavailable" means the API could not answer — the key may be fine. */
+export type IngestLoginResult =
+  | { ok: true; auth: IngestAuth }
+  | { ok: false; reason: 'invalid' | 'unavailable' }
+
 /**
- * Exchanges an auto-capture key for a login. Returns null when the key is
- * unknown or replaced. The key is never logged.
+ * Exchanges an auto-capture key for a login. The request is signed with the
+ * bot token (HMAC over `<key>\n<ts>`), because the API refuses a bare key:
+ * the key lives in a phone Shortcut and must not be worth a login by itself.
+ * The key is never logged.
  */
-export async function ingestLogin(key: string, apiUrl?: string): Promise<IngestAuth | null> {
+export async function ingestLogin(key: string, apiUrl?: string): Promise<IngestLoginResult> {
   const base = normalizeUrl(apiUrl ?? requireEnv('API_URL'))
+  const ts = Math.floor(Date.now() / 1000)
+  const secret = createHash('sha256').update(BOT_TOKEN).digest()
+  const sig = createHmac('sha256', secret).update(`${key}\n${ts}`).digest('hex')
+
   try {
     const res = await fetch(`${base}/api/auth/ingest-login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key }),
+      body: JSON.stringify({ key, ts, sig }),
     })
-    if (!res.ok) {
-      if (res.status !== 401 && res.status !== 400) {
-        log.error({ status: res.status }, 'ingestLogin failed')
-      }
-      return null
+    if (res.ok) {
+      const body = (await res.json()) as IngestAuth
+      return { ok: true, auth: { token: body.token, userId: body.userId, telegramId: body.telegramId } }
     }
-    const body = (await res.json()) as IngestAuth
-    return { token: body.token, userId: body.userId, telegramId: body.telegramId }
+    if (res.status === 401 || res.status === 400) {
+      return { ok: false, reason: 'invalid' }
+    }
+    log.error({ status: res.status }, 'ingestLogin failed')
+    return { ok: false, reason: 'unavailable' }
   } catch (err) {
     log.error({ err }, 'ingestLogin error')
-    return null
+    return { ok: false, reason: 'unavailable' }
   }
 }
 

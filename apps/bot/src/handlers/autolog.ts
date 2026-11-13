@@ -1,6 +1,6 @@
 import type { Context } from 'grammy'
 import { MSG_NOT_REGISTERED, MSG_AUTOLOG_SETUP, MSG_AUTOLOG_KEY_FAILED } from '@spend-again/shared'
-import { apiClient, tokenStore, loginViaTelegram } from '../lib/api-client.js'
+import { createApiClient, tokenStore, loginViaTelegram } from '../lib/api-client.js'
 import { DASHBOARD_URL } from '../lib/env.js'
 import { resolveIngestUrl } from '../lib/ingest-url.js'
 
@@ -19,14 +19,21 @@ async function resolveToken(ctx: Context): Promise<string | undefined> {
  * shows it once. Running it again replaces (revokes) the previous key.
  */
 export async function autologCommandHandler(ctx: Context): Promise<void> {
+  // The reply contains the key, so it must only ever go to a one-to-one chat.
+  if (ctx.chat?.type !== 'private') {
+    await ctx.reply('Send /autolog to me in a private chat \u{2014} the reply contains a personal key.')
+    return
+  }
+
   const token = await resolveToken(ctx)
   if (token === undefined) {
     await ctx.reply(MSG_NOT_REGISTERED(DASHBOARD_URL))
     return
   }
 
-  apiClient.setToken(token)
-  const key = await apiClient.createIngestKey()
+  // Own client, not the shared one: its token can be swapped by another
+  // user's update while this request is in flight, and this call hands out a key.
+  const key = await createApiClient(token).createIngestKey()
   if (key === null) {
     await ctx.reply(MSG_AUTOLOG_KEY_FAILED)
     return
@@ -48,8 +55,7 @@ export async function autologDeleteHandler(ctx: Context): Promise<void> {
     return
   }
 
-  apiClient.setToken(token)
-  const deleted = await apiClient.deleteTransaction(data.replace('autolog_del:', ''))
+  const deleted = await createApiClient(token).deleteTransaction(data.replace('autolog_del:', ''))
   if (!deleted) {
     await ctx.reply(`Couldn't delete leh \u{1F625} Try /edit instead.`)
     return

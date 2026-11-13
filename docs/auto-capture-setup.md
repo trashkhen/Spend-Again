@@ -11,8 +11,10 @@ Send `/autolog` to the bot. It replies with:
 - a **key** starting with `sa_`
 
 The key is shown once. Treat it like a password: anyone holding it can add
-expenses to your account (nothing else). Sending `/autolog` again makes a new
-key and the old one stops working straight away.
+expenses to your account. It cannot be used to read or change anything else —
+only the bot service can turn it into a login. Sending `/autolog` again makes
+a new key; the old one stops working within 5 minutes. `/autolog` only answers
+in a private chat with the bot.
 
 ## 2. Test from your Mac first
 
@@ -69,9 +71,14 @@ runs without asking, and it POSTs the JSON above to your URL with the
 | Situation | What the bot does |
 | --- | --- |
 | It recognises the merchant | Saves it and sends the ⚡ message with Edit / Delete. |
-| It isn't sure of the category | Sends the usual "Correct or not?" prompt with the amount filled in. Nothing is saved until you confirm. |
+| It can't work out the category | Still saves it, under Other / Other, and adds "❓ Not sure of the category — tap Edit to fix". |
+| You fix a category with Edit | Remembers it for that merchant, so the next tap there is categorised correctly. |
+| You paid in another currency | Converts to SGD at today's rate and shows both, e.g. `$12.00 → S$16.20`. |
 | The same amount arrives twice within 3 minutes | Saves both and marks the second with ⚠️ so you can delete it if it's a duplicate. |
-| Something goes wrong | Sends "Couldn't log a payment of …" so you can type it in. |
+| A refund, an unknown currency, or the save fails | Saves nothing and sends "Couldn't log a payment of …" so you can type it in. |
+
+The amount, merchant name and today's date come straight from Apple Pay. Only
+the category is worked out by the bot.
 
 Expenses go into your active Space, the same as ones you type.
 
@@ -81,10 +88,17 @@ Expenses go into your active Space, the same as ones you type.
   it ran (Automation → the automation → run history). Then repeat the `curl`
   test from step 2.
 - **`401`.** The key is wrong or was replaced. Send `/autolog` and update the
-  header.
+  header. Nothing is sent to Telegram in this case, because the bot doesn't
+  know whose payment it was.
+- **`503`.** The bot couldn't reach the API to check your key. The payment was
+  not logged; type it in, or run the automation again later.
 - **`400`.** The JSON body is malformed: `source` must be `wallet` and `text`
   must not be empty.
 - **`429`.** More than 30 captures in an hour for one key. It clears by itself.
+- **You want to know when a tap wasn't accepted.** `401`, `503` and `429`
+  happen before the bot knows who you are, so it can't message you. Optional:
+  after **Get Contents of URL**, add an **If** action — if the result *does not
+  contain* `ok`, **Show Notification** "Spend Again didn't log this payment".
 - **The URL in `/autolog` is wrong.** Set `INGEST_URL` on the bot service
   (Railway) to the full public address, e.g.
   `https://<your-bot-host>/ingest`. By default it is derived from

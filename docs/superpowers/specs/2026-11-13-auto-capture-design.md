@@ -160,3 +160,28 @@ merchants get it right next time.
 
 - Route/file layout, test structure, exact message copy, key format.
 - Whether `ingest-login` shares code with `telegram-login`.
+
+## Amendments after the branch review (13/11/2026)
+
+UOB / SMS is paused; only Apple Pay (`source: wallet`) is built.
+
+- **Key exchange is bot-only.** `POST /api/auth/ingest-login` now also requires
+  an HMAC made with the bot token over `<key>\n<ts>` (5-minute window). A leaked
+  key alone can add expenses through `/ingest` and nothing else.
+- **No "ask" path.** A payment whose category is unknown is saved under
+  Other / Other and flagged in the message, instead of opening the shared
+  confirm prompt (which a typed expense could overwrite, never expired, and
+  skipped Spaces). Supersedes steps 5–6 of *Processing*.
+- **Amount, merchant and date are never taken from the free-text parser.** The
+  first token is the amount (with its currency marker), the rest is the
+  merchant, the date is today. The built-in map, learned mappings and Gemini
+  supply only the category.
+- **Foreign currency** is converted to SGD with the existing rate lookup;
+  unknown markers and failed lookups are reported, not guessed.
+- **Edit teaches.** Editing an auto-logged entry saves a learned mapping under
+  the merchant name Apple Pay reported.
+- **Throttling.** Malformed keys are rejected without a lookup; verified keys
+  are cached for 5 minutes (so a replaced key lingers up to 5 minutes); all
+  unverified keys share 120 checks an hour; an unreachable API answers 503.
+- `/autolog` answers only in private chats and, like Delete, uses its own API
+  client rather than the shared one.

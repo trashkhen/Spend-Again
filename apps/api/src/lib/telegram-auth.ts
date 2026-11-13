@@ -50,3 +50,26 @@ export function verifyTelegramAuth(data: Record<string, string>): boolean {
 
   return true
 }
+
+const BOT_PROOF_MAX_SKEW_SECONDS = 300
+
+/**
+ * Verifies that a request was signed by the bot service: an HMAC-SHA256 of
+ * `<payload>\n<ts>` keyed with SHA256(BOT_TOKEN), the same secret Telegram
+ * login uses. `ts` (unix seconds) must be within 5 minutes of now, so a
+ * captured request cannot be replayed later.
+ *
+ * Used where a secret that lives outside the bot (e.g. an auto-capture key
+ * pasted into a phone Shortcut) must not be enough on its own.
+ */
+export function verifyBotProof(payload: string, ts: number, sig: string): boolean {
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  if (Math.abs(nowSeconds - ts) > BOT_PROOF_MAX_SKEW_SECONDS) return false
+
+  const secretKey = createHash('sha256').update(BOT_TOKEN).digest()
+  const expected = createHmac('sha256', secretKey).update(`${payload}\n${ts}`).digest()
+  const provided = Buffer.from(sig, 'hex')
+
+  if (provided.length !== expected.length) return false
+  return timingSafeEqual(expected, provided)
+}

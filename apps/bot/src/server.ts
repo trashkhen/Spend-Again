@@ -12,6 +12,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createLogger } from '@spend-again/shared'
 import type { IngestAuth, IngestOutcome, IngestRequest } from './lib/ingest.js'
+import type { IngestLoginResult } from './lib/api-client.js'
 
 const log = createLogger('bot:server')
 
@@ -20,6 +21,18 @@ export const INGEST_MAX_BODY_BYTES = 4096
 export const INGEST_MAX_TEXT_CHARS = 500
 const INGEST_MAX_CARD_CHARS = 60
 const INGEST_WINDOW_MS = 3_600_000
+/**
+ * Key checks allowed per hour across ALL keys the bot has not verified.
+ * Guessing with a fresh key each time shares this one budget, so it cannot
+ * flood the API's login route (which would also lock real users out).
+ */
+export const INGEST_MAX_UNKNOWN_PER_HOUR = 120
+/**
+ * How long a verified key is trusted without asking the API again. Also the
+ * longest a replaced key keeps working after /autolog is run again.
+ */
+export const INGEST_AUTH_CACHE_MS = 300_000
+const INGEST_KEY_RE = /^sa_[A-Za-z0-9_-]{43}$/
 
 export type ServerDeps = {
   /** Absent in development (long-polling), where only /ingest is served. */
@@ -27,8 +40,8 @@ export type ServerDeps = {
     secret: string
     handle: (req: IncomingMessage, res: ServerResponse) => Promise<void>
   }
-  /** Resolves a capture key to its owner, or null when unknown/replaced. */
-  login: (key: string) => Promise<IngestAuth | null>
+  /** Resolves a capture key to its owner; tells a bad key from an unreachable API. */
+  login: (key: string) => Promise<IngestLoginResult>
   process: (auth: IngestAuth, req: IngestRequest) => Promise<IngestOutcome>
   now: () => number
 }
@@ -77,30 +90,38 @@ function parseIngestBody(raw: string): IngestRequest | null {
 export function createRequestHandler(
   deps: ServerDeps,
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {
-  // Key hash → request timestamps inside the current window. Counted before
-  // the key is checked, so guessing keys is throttled as well.
-  const attempts = new Map<string, number[]>()
+  // Verified key hash → request timestamps in the current hour. Only keys
+  // the API has confirmed get an entry, so this is bounded by user count.
+  const perKey = new Map<string, number[]>()
+  // Verified key hash → who it belongs to. Lets a real key keep working
+  // while unknown keys are being throttled, and spares the API a login per tap.
+  const verified = new Map<string, { auth: IngestAuth; at: number }>()
+  // Timestamps of key checks for unverified keys, all keys together.
+  let unknownChecks: number[] = []
 
-  function allow(keyHash: string, now: number): boolean {
-    for (const [hash, times] of attempts) {
-      const live = times.filter((t) => now - t < INGEST_WINDOW_MS)
-      if (live.length === 0) attempts.delete(hash)
-      else attempts.set(hash, live)
+  function withinWindow(times: number[], now: number): number[] {
+    return times.filter((t) => now - t < INGEST_WINDOW_MS)
+  }
+
+  function allowKey(keyHash: string, now: number): boolean {
+    const times = withinWindow(perKey.get(keyHash) ?? [], now)
+    if (times.length >= INGEST_MAX_PER_HOUR) {
+      perKey.set(keyHash, times)
+      return false
     }
-    const times = attempts.get(keyHash) ?? []
-    if (times.length >= INGEST_MAX_PER_HOUR) return false
     times.push(now)
-    attempts.set(keyHash, times)
+    perKey.set(keyHash, times)
     return true
   }
 
   async function handleIngest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const header = req.headers['authorization']
-    if (typeof header !== 'string' || !header.startsWith('Bearer ') || header.length <= 7) {
-      sendJson(res, 401, { error: 'Unauthorized', code: 'NO_KEY' })
+    const key = typeof header === 'string' && header.startsWith('Bearer ') ? header.slice(7) : ''
+    // Shape check first: junk never costs a hash, a map entry or an API call.
+    if (!INGEST_KEY_RE.test(key)) {
+      sendJson(res, 401, { error: 'Unauthorized', code: 'INVALID_INGEST_KEY' })
       return
     }
-    const key = header.slice(7)
 
     const raw = await readBody(req, INGEST_MAX_BODY_BYTES)
     if (raw === null) {
@@ -115,15 +136,39 @@ export function createRequestHandler(
       return
     }
 
+    const now = deps.now()
     const keyHash = createHash('sha256').update(key).digest('hex')
-    if (!allow(keyHash, deps.now())) {
-      sendJson(res, 429, { error: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' })
-      return
+
+    let auth: IngestAuth
+    const cached = verified.get(keyHash)
+    if (cached !== undefined && now - cached.at < INGEST_AUTH_CACHE_MS) {
+      auth = cached.auth
+    } else {
+      verified.delete(keyHash)
+      unknownChecks = withinWindow(unknownChecks, now)
+      if (unknownChecks.length >= INGEST_MAX_UNKNOWN_PER_HOUR) {
+        sendJson(res, 429, { error: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' })
+        return
+      }
+      unknownChecks.push(now)
+
+      const result = await deps.login(key)
+      if (!result.ok) {
+        perKey.delete(keyHash)
+        if (result.reason === 'unavailable') {
+          // Not the key's fault — say so, so the Shortcut can be retried.
+          sendJson(res, 503, { error: 'Service unavailable', code: 'LOGIN_UNAVAILABLE' })
+        } else {
+          sendJson(res, 401, { error: 'Unauthorized', code: 'INVALID_INGEST_KEY' })
+        }
+        return
+      }
+      auth = result.auth
+      verified.set(keyHash, { auth, at: now })
     }
 
-    const auth = await deps.login(key)
-    if (auth === null) {
-      sendJson(res, 401, { error: 'Unauthorized', code: 'INVALID_INGEST_KEY' })
+    if (!allowKey(keyHash, now)) {
+      sendJson(res, 429, { error: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' })
       return
     }
 

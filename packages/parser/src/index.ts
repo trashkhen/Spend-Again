@@ -11,6 +11,7 @@ export { parseWithGemini, buildPrompt, waitForGeminiRpmBudget, parseSpaceWithGem
 export type { ParsedSpaceResult } from './gemini.js'
 export { GeminiRateLimitError, OcrRateLimitError, CurrencyConversionError } from '@spend-again/shared'
 export { convertToSGD, detectCurrency } from './currency.js'
+export { lookupMerchant } from './sms.js'
 export type { CurrencyDetection } from './currency.js'
 
 export type LookupResult = { category: Category; subCategory: SubCategory; confidence: number }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { createHash } from 'node:crypto'
+import { createHash, createHmac } from 'node:crypto'
 
 vi.mock('@spend-again/db', () => ({
   db: {},
@@ -16,6 +16,13 @@ import type { DbClient } from '../src/lib/db.js'
 
 const TEST_USER_ID = '00000000-0000-4000-8000-000000000099'
 const VALID_KEY = `sa_${'a'.repeat(43)}`
+
+/** Signs an ingest-login request the way the bot service does. */
+function botProof(key: string, ts = Math.floor(Date.now() / 1000), botToken = process.env['BOT_TOKEN'] ?? ''): { key: string; ts: number; sig: string } {
+  const secret = createHash('sha256').update(botToken).digest()
+  const sig = createHmac('sha256', secret).update(`${key}\n${ts}`).digest('hex')
+  return { key, ts, sig }
+}
 
 function makeSelectDb(rows: unknown[]): DbClient {
   return {
@@ -62,7 +69,7 @@ describe('POST /api/auth/ingest-login', () => {
 
   it('returns a token, userId and telegramId for a known key', async () => {
     const app = mount(makeSelectDb([{ id: TEST_USER_ID, telegramId: '12345' }]))
-    const res = await postJson(app, '/ingest-login', { key: VALID_KEY })
+    const res = await postJson(app, '/ingest-login', botProof(VALID_KEY))
     expect(res.status).toBe(200)
     const body = (await res.json()) as { token: string; userId: string; telegramId: string }
     expect(body.userId).toBe(TEST_USER_ID)
@@ -74,21 +81,64 @@ describe('POST /api/auth/ingest-login', () => {
 
   it('returns 401 INVALID_INGEST_KEY when no user has that key', async () => {
     const app = mount(makeSelectDb([]))
-    const res = await postJson(app, '/ingest-login', { key: VALID_KEY })
+    const res = await postJson(app, '/ingest-login', botProof(VALID_KEY))
     expect(res.status).toBe(401)
     expect(((await res.json()) as { code: string }).code).toBe('INVALID_INGEST_KEY')
   })
 
   it('returns 401 when the user has no Telegram account linked', async () => {
     const app = mount(makeSelectDb([{ id: TEST_USER_ID, telegramId: null }]))
-    const res = await postJson(app, '/ingest-login', { key: VALID_KEY })
+    const res = await postJson(app, '/ingest-login', botProof(VALID_KEY))
     expect(res.status).toBe(401)
   })
 
   it('returns 400 when the key is shorter than 20 characters', async () => {
     const app = mount(makeSelectDb([{ id: TEST_USER_ID, telegramId: '12345' }]))
-    const res = await postJson(app, '/ingest-login', { key: 'short' })
+    const res = await postJson(app, '/ingest-login', botProof('short'))
     expect(res.status).toBe(400)
+  })
+})
+
+describe('POST /api/auth/ingest-login — only the bot service may exchange a key', () => {
+  function mount(db: DbClient): Hono {
+    const app = new Hono()
+    app.route('/', createAuthRouter(db))
+    return app
+  }
+  const knownUser = (): DbClient => makeSelectDb([{ id: TEST_USER_ID, telegramId: '12345' }])
+
+  it('rejects a bare key with no bot proof', async () => {
+    const res = await postJson(mount(knownUser()), '/ingest-login', { key: VALID_KEY })
+    expect([400, 401]).toContain(res.status)
+    expect(JSON.stringify(await res.json())).not.toContain('token')
+  })
+
+  it('rejects a proof signed with the wrong bot token', async () => {
+    const res = await postJson(mount(knownUser()), '/ingest-login', botProof(VALID_KEY, undefined, 'some-other-bot-token'))
+    expect(res.status).toBe(401)
+    expect(((await res.json()) as { code: string }).code).toBe('INVALID_BOT_PROOF')
+  })
+
+  it('rejects a proof that is more than 5 minutes old', async () => {
+    const res = await postJson(mount(knownUser()), '/ingest-login', botProof(VALID_KEY, Math.floor(Date.now() / 1000) - 301))
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects a proof dated more than 5 minutes in the future', async () => {
+    const res = await postJson(mount(knownUser()), '/ingest-login', botProof(VALID_KEY, Math.floor(Date.now() / 1000) + 301))
+    expect(res.status).toBe(401)
+  })
+
+  it('rejects a proof replayed for a different key', async () => {
+    const proof = botProof(VALID_KEY)
+    const res = await postJson(mount(knownUser()), '/ingest-login', { ...proof, key: `sa_${'z'.repeat(43)}` })
+    expect(res.status).toBe(401)
+  })
+
+  it('does not look the key up when the proof is bad', async () => {
+    const db = knownUser()
+    await postJson(mount(db), '/ingest-login', botProof(VALID_KEY, undefined, 'wrong'))
+    expect(db.select).not.toHaveBeenCalled()
   })
 })
 
