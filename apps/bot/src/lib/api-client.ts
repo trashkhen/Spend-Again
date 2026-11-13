@@ -93,7 +93,7 @@ export type CreateTransactionInput = {
   category: Category
   subCategory: SubCategory
   date: string // DD/MM/YYYY
-  source: 'bot'
+  source: 'bot' | 'wallet'
   tier?: 1 | 2 | 3
   confidence?: number
 }
@@ -226,6 +226,37 @@ export async function loginViaTelegram(
   }
 }
 
+// ── Auto-capture login ────────────────────────────────────────────────────────
+
+/** Who a capture key belongs to, as returned by POST /api/auth/ingest-login. */
+export type IngestAuth = { token: string; userId: string; telegramId: string }
+
+/**
+ * Exchanges an auto-capture key for a login. Returns null when the key is
+ * unknown or replaced. The key is never logged.
+ */
+export async function ingestLogin(key: string, apiUrl?: string): Promise<IngestAuth | null> {
+  const base = normalizeUrl(apiUrl ?? requireEnv('API_URL'))
+  try {
+    const res = await fetch(`${base}/api/auth/ingest-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    })
+    if (!res.ok) {
+      if (res.status !== 401 && res.status !== 400) {
+        log.error({ status: res.status }, 'ingestLogin failed')
+      }
+      return null
+    }
+    const body = (await res.json()) as IngestAuth
+    return { token: body.token, userId: body.userId, telegramId: body.telegramId }
+  } catch (err) {
+    log.error({ err }, 'ingestLogin error')
+    return null
+  }
+}
+
 // ── ApiClient ─────────────────────────────────────────────────────────────────
 
 export class ApiClient {
@@ -344,6 +375,27 @@ export class ApiClient {
     } catch (err) {
       log.error({ err }, 'updateTransaction error')
       return null
+    }
+  }
+
+  /**
+   * DELETE /api/transactions/:txId
+   * Returns true when the transaction was deleted.
+   */
+  async deleteTransaction(txId: string): Promise<boolean> {
+    try {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/transactions/${txId}`, {
+        method: 'DELETE',
+        headers: this.buildHeaders(),
+      })
+      if (!res.ok) {
+        log.error({ status: res.status }, 'deleteTransaction failed')
+        return false
+      }
+      return true
+    } catch (err) {
+      log.error({ err }, 'deleteTransaction error')
+      return false
     }
   }
 
