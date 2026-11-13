@@ -45,6 +45,8 @@ app.use(
     origin: (origin) => (isAllowedOrigin(origin) ? origin : null),
     allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
+    // Let the dashboard read how long to wait after a 429 and retry itself.
+    exposeHeaders: ['Retry-After'],
     credentials: true,
   }),
 )

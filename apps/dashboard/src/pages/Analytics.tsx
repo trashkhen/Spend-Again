@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { emojiFor } from '@spend-again/shared'
 import { Layout } from '../components/Layout'
 import { CategoryDonut } from '../components/ui/CategoryDonut'
@@ -14,6 +14,7 @@ import {
   computePeriodCategoryBreakdown,
   computePeriodComparison,
   computePeriodSummary,
+  filterByPeriod,
   periodLabel,
   periodShortLabel,
   previousPeriodOf,
@@ -63,25 +64,44 @@ export function Analytics() {
   )
   const previousPeriod = useMemo(() => previousPeriodOf(period), [period])
 
+  // The period actually fetched. Lags `period` while the user is still
+  // clicking ‹ › so a burst of clicks costs one fetch, not one per click.
+  const [fetchedPeriod, setFetchedPeriod] = useState<Period>(period)
+  useEffect(() => {
+    if (fetchedPeriod.month === period.month && fetchedPeriod.year === period.year) return
+    setLoading(true)
+    const t = setTimeout(() => setFetchedPeriod(period), 350)
+    return () => clearTimeout(t)
+  }, [period, fetchedPeriod])
+
+  const requestId = useRef(0)
   const fetchPeriod = useCallback(async () => {
+    const id = ++requestId.current
+    const target = fetchedPeriod
+    const prevTarget = previousPeriodOf(target)
     setLoading(true)
     setError(null)
     try {
       const uid = userId ?? undefined
       const [data, prev] = await Promise.all([
-        listAllTransactions({ ...periodQuery(period), userId: uid }),
-        previousPeriod
-          ? listAllTransactions({ ...periodQuery(previousPeriod), userId: uid })
+        listAllTransactions({ ...periodQuery(target), userId: uid }),
+        prevTarget
+          ? listAllTransactions({ ...periodQuery(prevTarget), userId: uid })
           : Promise.resolve<ApiTransaction[]>([]),
       ])
+      if (id !== requestId.current) return // a newer request superseded this one
       setTransactions(data)
-      setPreviousTotal(previousPeriod ? computePeriodSummary(prev, previousPeriod).total : 0)
+      setPreviousTotal(prevTarget ? computePeriodSummary(prev, prevTarget).total : 0)
     } catch (err) {
+      if (id !== requestId.current) return
+      // Never leave the previous period's data on screen under the new label.
+      setTransactions([])
+      setPreviousTotal(0)
       setError(err instanceof Error ? err.message : 'Failed to load analytics')
     } finally {
-      setLoading(false)
+      if (id === requestId.current) setLoading(false)
     }
-  }, [period, previousPeriod, userId])
+  }, [fetchedPeriod, userId])
 
   useEffect(() => { void fetchPeriod() }, [fetchPeriod])
 
@@ -116,10 +136,14 @@ export function Analytics() {
   }
 
   // ── Derived numbers ─────────────────────────────────────────────────────────
-  const summary = useMemo(() => computePeriodSummary(transactions, period), [transactions, period])
-  const breakdown = useMemo(() => computePeriodCategoryBreakdown(transactions, period), [transactions, period])
-  const biggest = useMemo(() => topTransactions(transactions, 6), [transactions])
-  const comparison = previousPeriod
+  // Everything is computed from the selected period's rows only, so nothing
+  // from another month can leak into a card even mid-fetch.
+  const periodTxs = useMemo(() => filterByPeriod(transactions, period), [transactions, period])
+  const summary = useMemo(() => computePeriodSummary(periodTxs, period), [periodTxs, period])
+  const breakdown = useMemo(() => computePeriodCategoryBreakdown(periodTxs, period), [periodTxs, period])
+  const biggest = useMemo(() => topTransactions(periodTxs, 6), [periodTxs])
+  const showComparison = !error && fetchedPeriod.month === period.month && fetchedPeriod.year === period.year
+  const comparison = previousPeriod && showComparison
     ? computePeriodComparison(summary.total, previousTotal, periodShortLabel(previousPeriod))
     : null
 
@@ -257,9 +281,9 @@ export function Analytics() {
       {/* ── Trend + categories ── */}
       <div className={`an-grid an-grid--main${loading ? ' is-loading' : ''}`}>
         {mode === 'month' ? (
-          <MonthTrendChart transactions={transactions} month={month} year={year} budget={monthlyBudget} />
+          <MonthTrendChart transactions={periodTxs} month={month} year={year} budget={monthlyBudget} />
         ) : (
-          <YearTrendChart transactions={transactions} year={year} budget={monthlyBudget} onSelectMonth={(m) => goToMonth(m, year)} />
+          <YearTrendChart transactions={periodTxs} year={year} budget={monthlyBudget} onSelectMonth={(m) => goToMonth(m, year)} />
         )}
 
         <div className="an-card">
@@ -310,7 +334,7 @@ export function Analytics() {
           )}
         </div>
 
-        <WeekdayChart transactions={transactions} />
+        <WeekdayChart transactions={periodTxs} />
       </div>
 
       {/* ── History ── */}

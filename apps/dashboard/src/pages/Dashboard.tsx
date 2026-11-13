@@ -210,6 +210,9 @@ export function Dashboard() {
       setAllTransactions(data)
       setPreviousTotal(previousPeriod ? computePeriodSummary(previousData, previousPeriod).total : 0)
     } catch (err) {
+      // Don't leave the previous filter's rows on screen under the new filter.
+      setAllTransactions([])
+      setPreviousTotal(0)
       setError(err instanceof Error ? err.message : 'Failed to load transactions')
     } finally {
       setLoading(false)

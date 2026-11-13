@@ -30,15 +30,49 @@ export type ListTransactionsParams = {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+/** Longest Retry-After we'll silently wait out before surfacing the 429. */
+const MAX_AUTO_RETRY_WAIT_SEC = 5
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...authHeader(),
-      ...init?.headers,
-    },
-  })
+  const doFetch = () =>
+    fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeader(),
+        ...init?.headers,
+      },
+    })
+
+  let response = await doFetch()
+
+  // Rate limited with a short wait → wait it out and retry once. A 429 means
+  // the request was rejected before any handler ran, so retrying is safe for
+  // writes too.
+  if (response.status === 429) {
+    let retryAfter = parseInt(response.headers.get('Retry-After') ?? '', 10)
+    if (!Number.isFinite(retryAfter)) {
+      // Header not readable (CORS) → fall back to the JSON body's retryAfter.
+      try {
+        const body = (await response.clone().json()) as { retryAfter?: unknown }
+        if (typeof body.retryAfter === 'number') retryAfter = body.retryAfter
+      } catch {
+        // not JSON
+      }
+    }
+    if (Number.isFinite(retryAfter) && retryAfter >= 0 && retryAfter <= MAX_AUTO_RETRY_WAIT_SEC) {
+      await sleep(Math.max(retryAfter, 1) * 1000)
+      response = await doFetch()
+    }
+  }
+
+  // Any successful write may change transaction lists/totals.
+  const method = (init?.method ?? 'GET').toUpperCase()
+  if (response.ok && method !== 'GET') invalidateTransactionCache()
 
   if (!response.ok) {
     let errorMessage = `HTTP ${response.status}`
@@ -90,6 +124,33 @@ export async function listTransactions(
  */
 export async function listAllTransactions(
   params: Omit<ListTransactionsParams, 'limit' | 'offset'> = {},
+): Promise<ApiTransaction[]> {
+  const key = JSON.stringify([params.category ?? '', params.month ?? '', params.year ?? '', params.userId ?? ''])
+  const cached = transactionCache.get(key)
+  if (cached && Date.now() - cached.at < TRANSACTION_CACHE_TTL_MS) return cached.promise
+
+  const promise = fetchAllTransactions(params)
+  transactionCache.set(key, { at: Date.now(), promise })
+  // Don't cache failures — the next call should try again.
+  promise.catch(() => {
+    if (transactionCache.get(key)?.promise === promise) transactionCache.delete(key)
+  })
+  return promise
+}
+
+// ── Transaction list cache ─────────────────────────────────────────────────────
+// Revisiting a month (or reusing it as the "previous period" comparison) costs
+// no requests. Any successful POST/PUT/PATCH/DELETE clears it (see apiFetch).
+
+const TRANSACTION_CACHE_TTL_MS = 2 * 60_000
+const transactionCache = new Map<string, { at: number; promise: Promise<ApiTransaction[]> }>()
+
+export function invalidateTransactionCache(): void {
+  transactionCache.clear()
+}
+
+async function fetchAllTransactions(
+  params: Omit<ListTransactionsParams, 'limit' | 'offset'>,
 ): Promise<ApiTransaction[]> {
   if (params.month || params.year) return listTransactions(params)
   const PAGE_SIZE = 500

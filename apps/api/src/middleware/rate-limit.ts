@@ -1,7 +1,9 @@
 /**
  * In-memory sliding-window rate limiter for the Hono API.
  *
- * Limits each authenticated user to 60 requests per minute.
+ * Limits each authenticated user to 180 requests per minute. The dashboard
+ * loads several resources per page (and per month/filter change), so 60 was
+ * reachable by ordinary browsing.
  * Unauthenticated requests are identified by IP address.
  *
  * This is an in-process implementation suitable for a single-process
@@ -18,7 +20,7 @@ import type { MiddlewareHandler } from 'hono'
 // ── Configuration ─────────────────────────────────────────────────────────────
 
 /** Maximum requests allowed per window. */
-const MAX_REQUESTS = 60
+const MAX_REQUESTS = 180
 
 /** Window duration in milliseconds (1 minute). */
 const WINDOW_MS = 60_000
@@ -97,6 +99,7 @@ export const rateLimitMiddleware: MiddlewareHandler = async (c, next) => {
       {
         error: `Rate limit exceeded. Try again in ${retryAfterSec} seconds.`,
         code: 'RATE_LIMIT_EXCEEDED',
+        retryAfter: retryAfterSec,
       },
       429,
     )
