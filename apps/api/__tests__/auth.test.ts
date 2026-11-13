@@ -160,6 +160,24 @@ describe('POST /api/auth/telegram-login', () => {
     expect(typeof body['userId']).toBe('string')
   })
 
+  it('embeds the Telegram first name and username in the JWT for display', async () => {
+    const { hash, authDate } = buildTelegramAuth(TEST_BOT_TOKEN, {
+      id: '12345678',
+      first_name: 'Test',
+      username: 'testuser',
+    })
+    const app = createAuthRouter(makeDbWithExistingUser())
+    const res = await app.request('/telegram-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: '12345678', auth_date: authDate, hash, first_name: 'Test', username: 'testuser' }),
+    })
+    const { token } = (await res.json()) as { token: string }
+    const payload = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8')) as Record<string, unknown>
+    expect(payload['firstName']).toBe('Test')
+    expect(payload['username']).toBe('testuser')
+  })
+
   it('accepts a valid HMAC with no optional fields', async () => {
     const { hash, authDate } = buildTelegramAuth(TEST_BOT_TOKEN, { id: '99999999' })
 

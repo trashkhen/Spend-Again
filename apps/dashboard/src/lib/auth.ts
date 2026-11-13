@@ -25,10 +25,34 @@ export function storeTelegramProfile({ firstName, username }: { firstName?: stri
   else localStorage.removeItem(TELEGRAM_USERNAME_KEY)
 }
 
+/** Reads a string claim from the stored JWT (no signature check — display only). */
+function tokenClaim(name: string): string | null {
+  const token = localStorage.getItem(TOKEN_KEY)
+  const part = token?.split('.')[1]
+  if (!part) return null
+  try {
+    const json = atob(part.replace(/-/g, '+').replace(/_/g, '/'))
+    // JWT payloads are UTF-8; atob gives bytes, so decode for non-ASCII names.
+    const bytes = Uint8Array.from(json, (ch) => ch.charCodeAt(0))
+    const payload = JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>
+    const value = payload[name]
+    return typeof value === 'string' && value.trim() ? value.trim() : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The name the header greets the user with. The login token itself carries the
+ * Telegram first name, so this works in any browser the user logs in from —
+ * not only the one that received the bot link's ?name= param.
+ */
 export function getTelegramDisplayName(): string {
   return (
     localStorage.getItem(TELEGRAM_FIRST_NAME_KEY) ??
+    tokenClaim('firstName') ??
     localStorage.getItem(TELEGRAM_USERNAME_KEY) ??
+    tokenClaim('username') ??
     'User'
   )
 }

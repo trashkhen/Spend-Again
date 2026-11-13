@@ -135,7 +135,12 @@ export function createAuthRouter(db: DbClient): Hono<AuthEnv> {
       userId = newUser.id
     }
 
-    const token = await signJWT({ userId, telegramId: input.id })
+    const token = await signJWT({
+      userId,
+      telegramId: input.id,
+      ...(input.first_name ? { firstName: input.first_name } : {}),
+      ...(input.username ? { username: input.username } : {}),
+    })
     return c.json({
       token,
       userId,

@@ -53,6 +53,9 @@ const EXPIRY = '30d'
 export type JWTPayload = {
   userId: string
   telegramId?: string
+  /** Display-only Telegram profile, so the dashboard can greet the user by name. Never used for auth. */
+  firstName?: string
+  username?: string
 }
 
 /**
@@ -60,7 +63,11 @@ export type JWTPayload = {
  * Token expires in 30 days.
  */
 export async function signJWT(payload: JWTPayload): Promise<string> {
-  return new SignJWT({ userId: payload.userId, telegramId: payload.telegramId })
+  const claims: Record<string, string> = { userId: payload.userId }
+  if (payload.telegramId !== undefined) claims['telegramId'] = payload.telegramId
+  if (payload.firstName) claims['firstName'] = payload.firstName
+  if (payload.username) claims['username'] = payload.username
+  return new SignJWT(claims)
     .setProtectedHeader({ alg: ALGORITHM })
     .setIssuer(ISSUER)
     .setIssuedAt()
