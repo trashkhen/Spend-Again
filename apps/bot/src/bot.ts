@@ -40,6 +40,7 @@ import {
   iouHandler, iouCallbackHandler, handlePendingPartialRepay,
   pendingPartialRepay, detectIouIntent, iouCommandHandler, pendingIouNew,
 } from './handlers/iou.js'
+import { autologCommandHandler, autologDeleteHandler } from './handlers/autolog.js'
 import { tokenStore, loginViaTelegram, isTokenExpired } from './lib/api-client.js'
 import { createUpdateDeduper } from './lib/dedupe-updates.js'
 
@@ -70,6 +71,7 @@ bot.command('edit', editCommandHandler)
 bot.command('recurring', recurringCommandHandler)
 bot.command('space', spaceCommandHandler)
 bot.command('iou', iouCommandHandler)
+bot.command('autolog', autologCommandHandler)
 bot.hears('💸 IOUs', iouCommandHandler)
 
 // ── Inline keyboard callback handlers ────────────────────────────────────────
@@ -78,6 +80,7 @@ bot.callbackQuery(/^confirm_/, confirmHandler)
 bot.callbackQuery(/^learn_/, learnHandler)
 bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 bot.callbackQuery(/^edit_select:/, editSelectHandler)
+bot.callbackQuery(/^autolog_del:/, autologDeleteHandler)
 bot.callbackQuery('add_recurring', addRecurringStart)
 bot.callbackQuery(/^rec_cat:/, recCategoryHandler)
 bot.callbackQuery(/^rec_sub:/, recSubCategoryHandler)

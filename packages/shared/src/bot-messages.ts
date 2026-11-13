@@ -37,6 +37,8 @@ export const MSG_HELP =
   `  Tap a space to set it active; new expenses are tagged automatically\n` +
   `  In a space menu: Deactivate to archive, Delete to remove permanently\n\n` +
 
+  `*Auto-log Apple Pay* — /autolog sets up your iPhone to log taps by itself\n\n` +
+
   `*IOUs* — Track who owes who:\n` +
   `  /iou — View all open IOUs\n` +
   `  \u{1F4B8} IOUs button — Quick access\n` +
@@ -226,3 +228,17 @@ export const MSG_AUTOLOG_FAILED = (amount: string | undefined, item: string | un
         : 'a payment'
   return `Couldn't log ${what} \u{1F615} Send it to me manually can?`
 }
+
+/** Reply to /autolog: the capture URL and key, shown once. Sent with Markdown. */
+export const MSG_AUTOLOG_SETUP = (url: string, key: string): string =>
+  `\u{26A1} Auto-logging for Apple Pay\n\n` +
+  `URL:\n\`${url}\`\n\n` +
+  `Key (shown once, keep it private):\n\`${key}\`\n\n` +
+  `On your iPhone: Shortcuts \u{2192} Automation \u{2192} + \u{2192} Transaction \u{2192} Run Immediately, ` +
+  `then add "Get Contents of URL" with the URL above, method POST, ` +
+  `header Authorization = Bearer <key>, and a JSON body with ` +
+  `source = wallet, text = Amount + Merchant, card = Card.\n\n` +
+  `Lost the key or want to switch it off? Send /autolog again \u{2014} the old key stops working.`
+
+export const MSG_AUTOLOG_KEY_FAILED =
+  `Aiyah, couldn't set up auto-logging right now \u{1F625} Try again in a moment.`

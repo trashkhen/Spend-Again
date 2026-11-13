@@ -379,6 +379,30 @@ export class ApiClient {
   }
 
   /**
+   * POST /api/users/ingest-key
+   * Mints a new auto-capture key (replacing any previous one). Returns the
+   * key, or null on failure. The key is never logged.
+   */
+  async createIngestKey(): Promise<string | null> {
+    try {
+      const res = await this.fetchAuthed(`${this.baseUrl}/api/users/ingest-key`, {
+        method: 'POST',
+        headers: this.buildHeaders(),
+        body: JSON.stringify({}),
+      })
+      if (!res.ok) {
+        log.error({ status: res.status }, 'createIngestKey failed')
+        return null
+      }
+      const body = (await res.json()) as { key: string }
+      return body.key
+    } catch (err) {
+      log.error({ err }, 'createIngestKey error')
+      return null
+    }
+  }
+
+  /**
    * DELETE /api/transactions/:txId
    * Returns true when the transaction was deleted.
    */
