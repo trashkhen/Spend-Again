@@ -10,11 +10,15 @@
  */
 
 import { webhookCallback } from 'grammy'
-import { timingSafeEqual } from 'node:crypto'
+import type { InlineKeyboard } from 'grammy'
 import { createServer } from 'node:http'
 import { createLogger, requireEnv } from '@spend-again/shared'
 import { bot } from './bot.js'
 import { initDevMode } from './lib/dev-mode.js'
+import { createApiClient, ingestLogin } from './lib/api-client.js'
+import { processIngest } from './lib/ingest.js'
+import type { IngestDeps } from './lib/ingest.js'
+import { createRequestHandler } from './server.js'
 
 const log = createLogger('bot')
 
@@ -37,6 +41,21 @@ if (!isProduction && devTelegramId !== undefined) {
 const webhookUrl = process.env['WEBHOOK_URL']
 const port = Number(process.env['PORT'] ?? 3002)
 
+// ── Auto-capture (/ingest) wiring ────────────────────────────────────────────
+const ingestDeps: IngestDeps = {
+  send: async (chatId: number, text: string, keyboard?: InlineKeyboard) => {
+    await bot.api.sendMessage(chatId, text, keyboard !== undefined ? { reply_markup: keyboard } : {})
+  },
+  makeClient: (token) => createApiClient(token),
+  now: () => Date.now(),
+}
+const ingestHandlers = {
+  login: (key: string) => ingestLogin(key),
+  process: (auth: Parameters<typeof processIngest>[0], req: Parameters<typeof processIngest>[1]) =>
+    processIngest(auth, req, ingestDeps),
+  now: () => Date.now(),
+}
+
 if (isProduction && webhookUrl !== undefined && webhookUrl.length > 0) {
   // ── Webhook mode ────────────────────────────────────────────────────────────
   const webhookSecret = requireEnv('WEBHOOK_SECRET_TOKEN')
@@ -50,36 +69,19 @@ if (isProduction && webhookUrl !== undefined && webhookUrl.length > 0) {
   // which made Telegram retry and the bot handle the message twice.
   const handleUpdate = webhookCallback(bot, 'http', { onTimeout: 'return', timeoutMilliseconds: 10_000 })
 
-  const server = createServer(async (req, res) => {
-    if (req.method === 'POST') {
-      const provided = req.headers['x-telegram-bot-api-secret-token']
-      const providedValid =
-        typeof provided === 'string' &&
-        provided.length === webhookSecret.length &&
-        timingSafeEqual(Buffer.from(provided), Buffer.from(webhookSecret))
-      if (!providedValid) {
-        res.writeHead(403)
-        res.end('Forbidden')
-        return
-      }
-      await handleUpdate(req, res).catch((err: unknown) => {
-        log.error({ err }, 'handleUpdate threw')
-        if (!res.writableEnded) {
-          res.writeHead(500)
-          res.end()
-        }
-      })
-    } else {
-      res.writeHead(200)
-      res.end('Spend Again? Bot — webhook active')
-    }
-  })
+  const server = createServer(
+    createRequestHandler({ ...ingestHandlers, webhook: { secret: webhookSecret, handle: handleUpdate } }),
+  )
 
   server.listen(port, () => {
     log.info({ port }, 'Webhook server listening')
   })
 } else {
   // ── Long-polling mode (development) ────────────────────────────────────────
+  // /ingest is still served so the Apple Pay Shortcut can be tested locally.
+  createServer(createRequestHandler(ingestHandlers)).listen(port, () => {
+    log.info({ port }, 'Ingest server listening (no webhook)')
+  })
   log.info('Starting in long-polling mode (development)')
   await bot.start()
 }

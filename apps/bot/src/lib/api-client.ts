@@ -799,6 +799,15 @@ function buildApiClient(): ApiClient {
   return new ApiClient(normalizeUrl(requireEnv('API_URL')))
 }
 
+/**
+ * A client bound to one token for its whole life. Use this instead of the
+ * shared `apiClient` (whose token is swapped per Telegram update) for work
+ * that runs outside an update, such as auto-capture.
+ */
+export function createApiClient(token: string): ApiClient {
+  return new ApiClient(normalizeUrl(requireEnv('API_URL')), token)
+}
+
 let _apiClient: ApiClient | undefined
 export const apiClient: ApiClient = new Proxy({} as ApiClient, {
   get(_target, prop, receiver) {
