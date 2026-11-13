@@ -4,6 +4,7 @@ import { MSG_WELCOME, createLogger, requireEnv } from '@spend-again/shared'
 import { mainKeyboard } from '../keyboards/main.js'
 import { loginViaTelegram } from '../lib/api-client.js'
 import { DASHBOARD_URL as dashboardUrl } from '../lib/env.js'
+import { buildDashboardAuthUrl, escapeHrefForTelegramHtml } from '../lib/dashboard-link.js'
 
 const log = createLogger('bot:start')
 
@@ -15,14 +16,14 @@ export async function startHandler(ctx: CommandContext<Context>): Promise<void> 
   if (from !== undefined) {
     const auth = await loginViaTelegram(from, apiUrl)
     if (auth !== null) {
-      authedUrl = `${dashboardUrl}/auth?token=${encodeURIComponent(auth.token)}`
+      authedUrl = buildDashboardAuthUrl(dashboardUrl, auth.token, from)
       log.info({ telegramId: from.id, username: from.username ?? null }, 'Authenticated user')
     } else {
       log.warn({ telegramId: from.id, apiUrl }, 'Could not obtain token — dashboard link will have no token')
     }
   }
 
-  await ctx.reply(MSG_WELCOME(authedUrl), { reply_markup: mainKeyboard, parse_mode: 'HTML' })
+  await ctx.reply(MSG_WELCOME(escapeHrefForTelegramHtml(authedUrl)), { reply_markup: mainKeyboard, parse_mode: 'HTML' })
 
   if (authedUrl.includes('/auth?token=')) {
     const keyboard = new InlineKeyboard().url('🌐 Open Dashboard', authedUrl)

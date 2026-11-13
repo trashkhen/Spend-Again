@@ -83,6 +83,26 @@ export async function listTransactions(
   return apiFetch<ApiTransaction[]>(path)
 }
 
+/**
+ * Like listTransactions, but guarantees the complete result set.
+ * Date-bounded queries (month and/or year) are already returned in full by the
+ * API; unbounded "all time" queries are capped per request, so page through them.
+ */
+export async function listAllTransactions(
+  params: Omit<ListTransactionsParams, 'limit' | 'offset'> = {},
+): Promise<ApiTransaction[]> {
+  if (params.month || params.year) return listTransactions(params)
+  const PAGE_SIZE = 500
+  const MAX_PAGES = 100
+  const all: ApiTransaction[] = []
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const rows = await listTransactions({ ...params, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+    all.push(...rows)
+    if (rows.length < PAGE_SIZE) break
+  }
+  return all
+}
+
 export async function getTransaction(id: string): Promise<ApiTransaction> {
   return apiFetch<ApiTransaction>(`/api/transactions/${id}`)
 }

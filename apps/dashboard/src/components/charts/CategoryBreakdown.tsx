@@ -1,13 +1,12 @@
 import { useMemo } from 'react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { computeCategoryBreakdown } from '../../lib/analytics'
+import { computePeriodCategoryBreakdown, periodLabel } from '../../lib/analytics'
 import type { ApiTransaction } from '../../lib/api'
-import type { CategorySpend } from '../../lib/analytics'
+import type { CategorySpend, Period } from '../../lib/analytics'
 
 type Props = {
   transactions: ApiTransaction[]
-  month: number
-  year: number
+  period: Period
 }
 
 const PALETTE: readonly string[] = [
@@ -16,25 +15,21 @@ const PALETTE: readonly string[] = [
   '#6B8C7A', '#A8C4B4', '#E76F51', '#023047',
 ]
 
-function monthLabel(month: number, year: number): string {
-  return new Date(year, month - 1, 1).toLocaleString('en-SG', { month: 'long', year: 'numeric' })
-}
-
-export function CategoryBreakdown({ transactions, month, year }: Props) {
+export function CategoryBreakdown({ transactions, period }: Props) {
   const data = useMemo(
-    () => computeCategoryBreakdown(transactions, month, year),
-    [transactions, month, year],
+    () => computePeriodCategoryBreakdown(transactions, period),
+    [transactions, period],
   )
 
   return (
     <div className="chart-wrapper">
       <div className="chart-header">
         <h3 className="chart-title" style={{ marginBottom: 0 }}>Category Breakdown</h3>
-        <span className="chart-month-label">{monthLabel(month, year)}</span>
+        <span className="chart-month-label">{periodLabel(period)}</span>
       </div>
 
       {data.length === 0 ? (
-        <div className="chart-empty-inner">No spending data for this month.</div>
+        <div className="chart-empty-inner">No spending data for this period.</div>
       ) : (
         <>
           <ResponsiveContainer width="100%" height={200}>

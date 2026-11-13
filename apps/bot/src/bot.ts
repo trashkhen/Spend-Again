@@ -1,6 +1,7 @@
 import { Bot, InlineKeyboard } from 'grammy'
 import { createLogger } from '@spend-again/shared'
 import { BOT_TOKEN, API_URL, DASHBOARD_URL } from './lib/env.js'
+import { buildDashboardAuthUrl } from './lib/dashboard-link.js'
 import { startHandler } from './handlers/start.js'
 import { helpHandler } from './handlers/help.js'
 import { expenseHandler } from './handlers/expense.js'
@@ -108,7 +109,7 @@ bot.hears('🌐 Bring me to Site', async (ctx) => {
 
   const url =
     jwtToken !== undefined
-      ? `${dashboardUrl}/auth?token=${encodeURIComponent(jwtToken)}`
+      ? buildDashboardAuthUrl(dashboardUrl, jwtToken, from)
       : dashboardUrl
 
   if (url.startsWith('https://')) {

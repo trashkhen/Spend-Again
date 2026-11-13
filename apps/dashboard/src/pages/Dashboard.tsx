@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Layout } from '../components/Layout'
 import { FilterBar } from '../components/FilterBar'
 import { TransactionTable } from '../components/TransactionTable'
@@ -6,8 +6,9 @@ import { TransactionModal } from '../components/TransactionModal'
 import { CategoryBreakdown } from '../components/charts/CategoryBreakdown'
 import { SpaceCard } from '../components/SpaceCard'
 import { IouCard } from '../components/IouCard'
+import { ModalPortal } from '../components/ModalPortal'
 import {
-  listTransactions,
+  listAllTransactions,
   createTransaction,
   updateTransaction,
   deleteTransaction,
@@ -18,7 +19,16 @@ import {
   detachFromSpace,
 } from '../lib/api'
 import { getUserId } from '../lib/auth'
-import { computeMonthComparison, computeSummary, previousMonthOf } from '../lib/analytics'
+import {
+  computePeriodComparison,
+  computePeriodSummary,
+  periodFromFilters,
+  periodKind,
+  periodLabel,
+  periodShortLabel,
+  previousPeriodOf,
+} from '../lib/analytics'
+import type { Period } from '../lib/analytics'
 import type { ApiTransaction, BudgetSettings, SpaceWithTotal } from '../lib/api'
 import type { Filters } from '../components/FilterBar'
 import type { TransactionFormData } from '../components/TransactionModal'
@@ -35,14 +45,16 @@ function fmtSGD(amount: number): string {
   return `S$${amount.toLocaleString('en-SG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-function getEffectiveMonthYear(month: string, year: string): { month: number; year: number } {
+function periodQuery(period: Period): { month?: string; year?: string } {
+  const q: { month?: string; year?: string } = {}
+  if (period.year !== null) q.year = String(period.year)
+  if (period.month !== null) q.month = String(period.month).padStart(2, '0')
+  return q
+}
+
+function isCurrentMonth(period: Period): boolean {
   const now = new Date()
-  const parsedMonth = parseInt(month, 10)
-  const parsedYear = parseInt(year, 10)
-  return {
-    month: Number.isFinite(parsedMonth) ? parsedMonth : now.getMonth() + 1,
-    year: Number.isFinite(parsedYear) ? parsedYear : now.getFullYear(),
-  }
+  return period.month === now.getMonth() + 1 && period.year === now.getFullYear()
 }
 
 function getBudgetTierClass(totalThisMonth: number, budget: BudgetSettings | null): string {
@@ -109,8 +121,9 @@ function BudgetModal({
   }
 
   return (
+    <ModalPortal onClose={onClose}>
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <span className="modal-title">Monthly Budget</span>
           <button type="button" className="modal-close" onClick={onClose}>×</button>
@@ -152,6 +165,7 @@ function BudgetModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   )
 }
 
@@ -170,38 +184,37 @@ export function Dashboard() {
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null)
   const [editingTransaction, setEditingTransaction] = useState<ApiTransaction | null>(null)
   const [spaces, setSpaces] = useState<SpaceWithTotal[]>([])
-  const [previousMonthTotal, setPreviousMonthTotal] = useState(0)
+  const [previousTotal, setPreviousTotal] = useState(0)
+
+  // "All months" → whole year, "All years" → all time. Everything below (KPIs,
+  // breakdown, comparison) is computed for this period, not silently for the
+  // current month.
+  const period = useMemo(
+    () => periodFromFilters(filters.month, filters.year),
+    [filters.month, filters.year],
+  )
+  const previousPeriod = useMemo(() => previousPeriodOf(period), [period])
+  const kind = periodKind(period)
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const { month: currentMonth, year: currentYear } = getEffectiveMonthYear(filters.month, filters.year)
-      const previous = previousMonthOf(currentMonth, currentYear)
-      const listParams = {
-        category: filters.category || undefined,
-        month: filters.month || undefined,
-        year: filters.year || undefined,
-        userId: userId ?? undefined,
-      }
-      const previousListParams = {
-        category: filters.category || undefined,
-        month: String(previous.month).padStart(2, '0'),
-        year: String(previous.year),
-        userId: userId ?? undefined,
-      }
+      const category = filters.category || undefined
       const [data, previousData] = await Promise.all([
-        listTransactions(listParams),
-        listTransactions(previousListParams),
+        listAllTransactions({ ...periodQuery(period), category, userId: userId ?? undefined }),
+        previousPeriod
+          ? listAllTransactions({ ...periodQuery(previousPeriod), category, userId: userId ?? undefined })
+          : Promise.resolve<ApiTransaction[]>([]),
       ])
       setAllTransactions(data)
-      setPreviousMonthTotal(computeSummary(previousData, previous.month, previous.year).totalThisMonth)
+      setPreviousTotal(previousPeriod ? computePeriodSummary(previousData, previousPeriod).total : 0)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load transactions')
     } finally {
       setLoading(false)
     }
-  }, [filters.category, filters.month, filters.year, userId])
+  }, [filters.category, period, previousPeriod, userId])
 
   useEffect(() => { void fetchTransactions() }, [fetchTransactions])
 
@@ -218,25 +231,26 @@ export function Dashboard() {
     void listSpaces().then(setSpaces).catch(() => {})
   }, [])
 
-  const { month: selectedMonth, year: selectedYear } = getEffectiveMonthYear(filters.month, filters.year)
-  const summary = computeSummary(allTransactions, selectedMonth, selectedYear)
-  const previousMonth = previousMonthOf(selectedMonth, selectedYear)
-  const monthComparison = computeMonthComparison(
-    summary.totalThisMonth,
-    previousMonthTotal,
-    previousMonth.month,
-    previousMonth.year,
-  )
+  const summary = computePeriodSummary(allTransactions, period)
+  const comparison = previousPeriod
+    ? computePeriodComparison(summary.total, previousTotal, periodShortLabel(previousPeriod))
+    : null
+  const viewingCurrentMonth = isCurrentMonth(period)
+  const spendLabel =
+    kind === 'month' ? 'Monthly Spending' : kind === 'year' ? `Spending in ${period.year}` : 'All-time Spending'
+  const periodTag = viewingCurrentMonth ? 'this month' : kind === 'all' ? 'all time' : periodLabel(period)
 
   useEffect(() => {
     if (budget?.monthlyBudget == null) return
+    // The budget is monthly — only nag when the current month is on screen.
+    if (!viewingCurrentMonth || filters.category) return
     // Key the dedup to the current calendar month so the toast fires at most
     // once per browser session per month (mirrors the bot's monthly dedup).
     const now = new Date()
     const monthKey = `budget-toast-${now.getMonth() + 1}-${now.getFullYear()}`
     if (sessionStorage.getItem(monthKey) === 'shown') return
     // totalThisMonth is SGD dollars; monthlyBudget is cents — convert to same unit
-    const spentCents = summary.totalThisMonth * 100
+    const spentCents = summary.total * 100
     const pct = (spentCents / budget.monthlyBudget) * 100
     if (pct >= budget.budgetAlertPct) {
       sessionStorage.setItem(monthKey, 'shown')
@@ -244,7 +258,7 @@ export function Dashboard() {
       const timer = setTimeout(() => setShowBudgetToast(false), 5000)
       return () => clearTimeout(timer)
     }
-  }, [budget, summary.totalThisMonth])
+  }, [budget, summary.total, viewingCurrentMonth, filters.category])
 
   const filtered = filters.search
     ? allTransactions.filter((tx) => tx.item.toLowerCase().includes(filters.search.toLowerCase()))
@@ -338,16 +352,20 @@ export function Dashboard() {
 
       {/* ── KPI grid ── */}
       <div className="kpi-grid">
-        <div className={`kpi-card ${getBudgetTierClass(summary.totalThisMonth, budget)}`}>
+        <div className={`kpi-card ${kind === 'month' ? getBudgetTierClass(summary.total, budget) : ''}`}>
           <div className="kpi-card-top">
             <div className="kpi-icon kpi-icon--blue">💳</div>
-            <span className={`kpi-trend kpi-trend--${monthComparison.tone === 'up' ? 'down' : monthComparison.tone === 'down' ? 'up' : 'flat'}`}>
-              {monthComparison.label}
-            </span>
+            {comparison ? (
+              <span className={`kpi-trend kpi-trend--${comparison.tone === 'up' ? 'down' : comparison.tone === 'down' ? 'up' : 'flat'}`}>
+                {comparison.label}
+              </span>
+            ) : (
+              <span className="kpi-trend kpi-trend--flat">all time</span>
+            )}
           </div>
-          <span className="kpi-label">Monthly Spending</span>
-          <span className="kpi-value">{fmtSGD(summary.totalThisMonth)}</span>
-          {budget?.monthlyBudget != null && (
+          <span className="kpi-label">{spendLabel}</span>
+          <span className="kpi-value">{fmtSGD(summary.total)}</span>
+          {kind === 'month' && budget?.monthlyBudget != null && (
             <span className="budget-kpi-sub">/ {fmtSGD(budget.monthlyBudget / 100)}</span>
           )}
         </div>
@@ -373,7 +391,7 @@ export function Dashboard() {
         <div className="kpi-card kpi-card--leaf">
           <div className="kpi-card-top">
             <div className="kpi-icon kpi-icon--green">🧾</div>
-            <span className="kpi-trend kpi-trend--up">this month</span>
+            <span className="kpi-trend kpi-trend--up">{periodTag}</span>
           </div>
           <span className="kpi-label">Transactions</span>
           <span className="kpi-value">{summary.transactionCount}</span>
@@ -403,11 +421,7 @@ export function Dashboard() {
         </div>
 
         <div className="dashboard-spending-overview">
-          <CategoryBreakdown
-            transactions={allTransactions}
-            month={selectedMonth}
-            year={selectedYear}
-          />
+          <CategoryBreakdown transactions={allTransactions} period={period} />
           <SpaceCard />
           <IouCard />
         </div>

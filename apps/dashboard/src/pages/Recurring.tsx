@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { CATEGORIES, CATEGORY_MAP } from '@spend-again/shared'
 import type { ApiRecurring, Category, RecurringFrequency } from '@spend-again/shared'
 import { Layout } from '../components/Layout'
+import { ModalPortal } from '../components/ModalPortal'
 import {
   listRecurring,
   createRecurring,
@@ -96,6 +97,7 @@ function RecurringModal({
   }
 
   return (
+    <ModalPortal onClose={onClose}>
     <div className="modal-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal" role="dialog" aria-modal="true">
         <div className="modal-header">
@@ -151,6 +153,7 @@ function RecurringModal({
         </form>
       </div>
     </div>
+    </ModalPortal>
   )
 }
 

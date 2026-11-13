@@ -113,9 +113,12 @@ button {
     transform: translateY(6px);
   }
 
+  /* End on `transform: none` (not translateY(0)): with fill-mode forwards a
+     lingering transform turns .app-main into the containing block for every
+     position:fixed descendant, which pushed modals to the middle of the page. */
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 

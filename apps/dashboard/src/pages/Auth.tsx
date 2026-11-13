@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { storeAuth } from '../lib/auth'
+import { storeAuth, storeTelegramProfile } from '../lib/auth'
 
 function decodeTokenPayload(token: string): Record<string, unknown> | null {
   try {
@@ -44,6 +44,16 @@ export function Auth() {
     }
 
     storeAuth({ token, userId })
+
+    // Links from the bot carry the Telegram first name / username so the
+    // header can greet the user by name. Older links won't have them — keep
+    // whatever was stored before rather than wiping it.
+    const name = searchParams.get('name')?.trim() || null
+    const username = searchParams.get('username')?.trim() || null
+    if (name || username) {
+      storeTelegramProfile({ firstName: name, username })
+    }
+
     navigate('/welcome', { replace: true })
   }, [searchParams, navigate])
 

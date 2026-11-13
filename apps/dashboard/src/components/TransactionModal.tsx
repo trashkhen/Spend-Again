@@ -3,6 +3,7 @@ import { CATEGORIES, CATEGORY_MAP } from '@spend-again/shared'
 import type { Category, CustomCategory } from '@spend-again/shared'
 import type { ApiTransaction, SpaceWithTotal } from '../lib/api'
 import { listCustomCategories, createCustomCategory } from '../lib/api'
+import { ModalPortal } from './ModalPortal'
 
 export type TransactionFormData = {
   item: string
@@ -178,7 +179,7 @@ export function TransactionModal({ mode, transaction, onSave, onClose, spaces }:
   }
 
   return (
-    <>
+    <ModalPortal onClose={drawerTarget === null ? onClose : closeDrawer}>
       <div
         className="modal-backdrop"
         onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
@@ -368,6 +369,6 @@ export function TransactionModal({ mode, transaction, onSave, onClose, spaces }:
           </div>
         </div>
       )}
-    </>
+    </ModalPortal>
   )
 }
