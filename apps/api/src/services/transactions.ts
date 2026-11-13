@@ -14,7 +14,7 @@ export type CreateTransactionInput = {
   category: string
   subCategory: string
   date: string // DD/MM/YYYY
-  source: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring'
+  source: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring' | 'wallet'
   tier?: 1 | 2 | 3 | undefined
   confidence?: number | undefined
 }
@@ -26,7 +26,7 @@ export type UpdateTransactionInput = {
   category?: string | undefined
   subCategory?: string | undefined
   date?: string | undefined
-  source?: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring' | undefined
+  source?: 'manual' | 'bot' | 'sms' | 'ocr' | 'recurring' | 'wallet' | undefined
   tier?: 1 | 2 | 3 | undefined
   confidence?: number | undefined
 }

@@ -6,6 +6,7 @@ import { validateBody } from '../middleware/validate.js'
 import { requireAuth } from '../middleware/auth.js'
 import { signJWT } from '../lib/jwt.js'
 import { verifyTelegramAuth } from '../lib/telegram-auth.js'
+import { hashIngestKey } from '../lib/ingest-key.js'
 import type { DbClient } from '../lib/db.js'
 
 // ── Context variable types ─────────────────────────────────────────────────────
@@ -35,6 +36,10 @@ const telegramLoginSchema = z.object({
   photo_url: z.string().optional(),
   auth_date: z.number().int().min(1),
   hash: z.string(),
+})
+
+const ingestLoginSchema = z.object({
+  key: z.string().min(20).max(100),
 })
 
 const linkTelegramSchema = z.object({
@@ -147,6 +152,32 @@ export function createAuthRouter(db: DbClient): Hono<AuthEnv> {
       telegramFirstName: input.first_name ?? null,
       telegramUsername: input.username ?? null,
     }, 200)
+  })
+
+  /**
+   * POST /api/auth/ingest-login
+   * Exchanges an auto-capture key (minted by POST /api/users/ingest-key) for
+   * a normal JWT. Used by the bot service when a phone automation reports a
+   * payment. Lookup is by hash equality, so there is no secret to compare in
+   * application code.
+   */
+  router.post('/ingest-login', validateBody(ingestLoginSchema), async (c) => {
+    const input = c.get('validatedBody') as z.infer<typeof ingestLoginSchema>
+
+    const rows = await db
+      .select({ id: users.id, telegramId: users.telegramId })
+      .from(users)
+      .where(eq(users.ingestKeyHash, hashIngestKey(input.key)))
+      .limit(1)
+
+    const user = rows[0]
+    // Without a Telegram account there is nowhere to report the capture.
+    if (!user || user.telegramId === null) {
+      return c.json({ error: 'Unauthorized', code: 'INVALID_INGEST_KEY' }, 401)
+    }
+
+    const token = await signJWT({ userId: user.id, telegramId: user.telegramId })
+    return c.json({ token, userId: user.id, telegramId: user.telegramId }, 200)
   })
 
   /**

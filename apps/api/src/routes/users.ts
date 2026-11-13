@@ -5,6 +5,7 @@ import { users } from '@spend-again/db'
 import { validateBody } from '../middleware/validate.js'
 import type { DbClient } from '../lib/db.js'
 import { createCustomCategoriesRouter } from './custom-categories.js'
+import { generateIngestKey } from '../lib/ingest-key.js'
 
 type UsersVariables = {
   validatedBody: unknown
@@ -56,6 +57,27 @@ export function createUsersRouter(db: DbClient): Hono<UsersEnv> {
       monthlyBudget: rows[0].monthlyBudget ?? null,
       budgetAlertPct: rows[0].budgetAlertPct ?? 100,
     })
+  })
+
+  /**
+   * POST /api/users/ingest-key
+   * Mints a new auto-capture key for the authenticated user, replacing any
+   * previous one (which is how a key is revoked). The key is returned once
+   * and never stored — only its hash is.
+   */
+  router.post('/ingest-key', async (c) => {
+    const userId = c.get('userId')
+    const { key, hash } = generateIngestKey()
+
+    const rows = await db
+      .update(users)
+      .set({ ingestKeyHash: hash, updatedAt: sql`now()` })
+      .where(eq(users.id, userId))
+      .returning({ id: users.id })
+
+    if (!rows[0]) return c.json({ error: 'User not found', code: 'NOT_FOUND' }, 404)
+
+    return c.json({ key }, 201)
   })
 
   // Nested: /api/users/custom-categories. Mounted here so the parent

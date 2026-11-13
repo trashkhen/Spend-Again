@@ -34,7 +34,7 @@ export const createTransactionSchema = z.object({
   date: z
     .string()
     .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Date must be in DD/MM/YYYY format'),
-  source: z.enum(['manual', 'bot', 'sms', 'ocr', 'recurring']),
+  source: z.enum(['manual', 'bot', 'sms', 'ocr', 'recurring', 'wallet']),
   tier: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   confidence: z.number().min(0).max(1).optional(),
 })
@@ -49,7 +49,7 @@ export const updateTransactionSchema = z.object({
     .string()
     .regex(/^\d{2}\/\d{2}\/\d{4}$/, 'Date must be in DD/MM/YYYY format')
     .optional(),
-  source: z.enum(['manual', 'bot', 'sms', 'ocr', 'recurring']).optional(),
+  source: z.enum(['manual', 'bot', 'sms', 'ocr', 'recurring', 'wallet']).optional(),
   tier: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   confidence: z.number().min(0).max(1).optional(),
 })

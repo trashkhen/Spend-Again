@@ -71,6 +71,13 @@
       "when": 1780237542245,
       "tag": "0009_dizzy_gabe_jones",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794530483177,
+      "tag": "0010_clumsy_catseye",
+      "breakpoints": true
     }
   ]
 }

@@ -19,6 +19,8 @@ export const users = pgTable('users', {
   monthlyBudget: integer('monthly_budget'),
   budgetAlertPct: integer('budget_alert_pct').default(100),
   activeSpaceId: uuid('active_space_id'),
+  // SHA-256 hex of the auto-capture key (see /autolog). The key itself is never stored.
+  ingestKeyHash: text('ingest_key_hash').unique(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 })

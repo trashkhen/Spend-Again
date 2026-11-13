@@ -127,6 +127,18 @@ describe('POST /api/transactions', () => {
     source: 'bot',
   }
 
+  it('accepts source "wallet" for Apple Pay auto-capture', async () => {
+    const db = makeMockDb()
+    const app = makeApp(db)
+
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...validBody, source: 'wallet' }),
+    })
+    expect(res.status).toBe(201)
+  })
+
   it('creates a transaction and returns 201 with amount as decimal string', async () => {
     const db = makeMockDb()
     const app = makeApp(db)
