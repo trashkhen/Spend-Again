@@ -18,7 +18,6 @@ import {
   editSubCategoryHandler,
   handlePendingEdit,
 } from './handlers/edit.js'
-import { handlePendingInlineEdit, pendingInlineEdits } from './handlers/inline-edit.js'
 import {
   recurringCommandHandler,
   addRecurringStart,
@@ -192,12 +191,6 @@ bot.on('message:text', async (ctx) => {
   if (chatId !== undefined) {
     const consumed = await handlePendingEdit(ctx)
     if (consumed) return
-  }
-
-  // Pending inline-edit flow (correcting a parsed transaction before save)
-  if (chatId !== undefined && pendingInlineEdits.has(chatId)) {
-    await handlePendingInlineEdit(ctx)
-    return
   }
 
   // Pending /iou new entry flow

@@ -10,6 +10,7 @@ import {
   occurredOnToDisplay,
   occurredOnToFullDisplay,
   ddmmyyyyToIso,
+  getTodayDDMMYYYY,
 } from '@spend-again/shared'
 import type { Category } from '@spend-again/shared'
 import { convertToSGD } from '@spend-again/parser'
@@ -18,9 +19,17 @@ import type { UpdateTransactionInput } from '../lib/api-client.js'
 import { autologMerchantFor } from '../lib/autolog-merchants.js'
 import { parseEditAmount, parseEditDate } from '../lib/edit-input.js'
 import { DASHBOARD_URL } from '../lib/env.js'
+import { pendingConfirmations, buildConfirmationMessage } from './expense.js'
+import type { PendingConfirmation } from './expense.js'
+import { buildConfirmKeyboard } from '../keyboards/confirm.js'
 
 /** An open edit: the transaction as last saved, and which field is awaiting typed input. */
 export type EditSession = {
+  /**
+   * `saved`: a transaction already in the database; each change is saved at once.
+   * `draft`: the confirmation card before saving; changes go into the pending entry.
+   */
+  kind: 'saved' | 'draft'
   txId: string
   amountCents: number
   item: string
@@ -45,7 +54,7 @@ const EXPIRED_MSG = 'That edit timed out lah \u{23F1} Tap Edit again.'
 
 function summary(s: EditSession): string {
   const lines = [
-    '\u{270F}\u{FE0F} Editing',
+    s.kind === 'draft' ? '\u{270F}\u{FE0F} Editing (not saved yet)' : '\u{270F}\u{FE0F} Editing',
     `${fmtSGD(s.amountCents)} \u{00B7} ${s.item}`,
     `${s.category} / ${s.subCategory} \u{00B7} ${occurredOnToFullDisplay(s.occurredOn)}`,
   ]
@@ -116,13 +125,49 @@ function liveSession(chatId: number): EditSession | undefined {
   return s
 }
 
+type DraftExtra = Partial<Pick<PendingConfirmation['result'], 'originalAmount' | 'originalCurrency' | 'exchangeRate'>>
+
+/** Folds a change into the pending confirmation instead of the database. */
+function applyToDraft(entry: PendingConfirmation, change: UpdateTransactionInput, extra?: DraftExtra): void {
+  const r = entry.result
+  if (change.amountCents !== undefined) {
+    r.amount = change.amountCents
+    // A new amount invalidates the old conversion note; a fresh one may follow in `extra`.
+    delete r.originalAmount
+    delete r.originalCurrency
+    delete r.exchangeRate
+    Object.assign(r, extra)
+  }
+  if (change.item !== undefined) {
+    r.item = change.item
+    r.description = change.item
+  }
+  if (change.category !== undefined) r.category = change.category as Category
+  if (change.subCategory !== undefined) r.subCategory = change.subCategory as never
+  if (change.date !== undefined) r.date = change.date
+}
+
 /** Saves a change, and on success folds it into the session. Returns false on failure. */
 async function save(
   ctx: Context,
   s: EditSession,
   change: UpdateTransactionInput,
   apply: () => void,
+  extra?: DraftExtra,
 ): Promise<boolean> {
+  if (s.kind === 'draft') {
+    const chatId = ctx.chat?.id
+    const entry = chatId !== undefined ? pendingConfirmations.get(chatId) : undefined
+    if (entry === undefined) {
+      await ctx.reply('No pending transaction found leh. Start again!')
+      return false
+    }
+    applyToDraft(entry, change, extra)
+    apply()
+    s.expiresAt = Date.now() + EDIT_SESSION_MS
+    return true
+  }
+
   const telegramId = ctx.from?.id
   const token = telegramId !== undefined ? tokenStore.get(telegramId) : undefined
   if (token === undefined) {
@@ -135,6 +180,31 @@ async function save(
   apply()
   s.expiresAt = Date.now() + EDIT_SESSION_MS
   return true
+}
+
+/** Opens the picker on the pre-save confirmation card (the Edit button under "Confirm / Edit / Cancel"). */
+export async function startDraftEdit(ctx: Context): Promise<void> {
+  const chatId = ctx.chat?.id
+  if (chatId === undefined) return
+  const entry = pendingConfirmations.get(chatId)
+  if (entry === undefined) {
+    await ctx.reply('No pending transaction found leh. Start again!')
+    return
+  }
+  const r = entry.result
+  const session: EditSession = {
+    kind: 'draft',
+    txId: '',
+    amountCents: r.amount,
+    item: r.item,
+    category: r.category ?? 'Other',
+    subCategory: r.subCategory ?? 'Other',
+    occurredOn: ddmmyyyyToIso(r.date ?? getTodayDDMMYYYY()),
+    awaiting: null,
+    expiresAt: Date.now() + EDIT_SESSION_MS,
+  }
+  editSessions.set(chatId, session)
+  await show(ctx, `${summary(session)}\n\nWhat do you want to change?`, pickerKeyboard())
 }
 
 // ── /edit and the Edit button ────────────────────────────────────────────────
@@ -197,6 +267,7 @@ export async function editSelectHandler(ctx: Context): Promise<void> {
   }
 
   const session: EditSession = {
+    kind: 'saved',
     txId,
     amountCents: tx.amountCents,
     item: tx.item,
@@ -227,6 +298,16 @@ export async function editFieldHandler(ctx: Context): Promise<void> {
 
   if (action === 'done') {
     editSessions.delete(chatId)
+    if (s.kind === 'draft') {
+      // Back to the confirmation card; nothing is saved until Confirm.
+      const entry = pendingConfirmations.get(chatId)
+      if (entry === undefined) {
+        await ctx.reply('No pending transaction found leh. Start again!')
+        return
+      }
+      await show(ctx, buildConfirmationMessage(entry), buildConfirmKeyboard(!!(entry.activeSpaceId ?? entry.suggestedSpaceId)))
+      return
+    }
     await show(ctx, `${summary({ ...s, note: undefined })}\n\n\u{2705} Done`, new InlineKeyboard())
     return
   }
@@ -328,7 +409,7 @@ export async function editSubCategoryHandler(ctx: Context): Promise<void> {
 
   // An auto-logged expense was categorised from the merchant name alone.
   // Remember the correction under that name so the next tap gets it right.
-  const merchant = autologMerchantFor(s.txId)
+  const merchant = s.kind === 'saved' ? autologMerchantFor(s.txId) : undefined
   if (merchant !== undefined) {
     try {
       await apiClient.saveLearnedMapping(merchant.toLowerCase(), category, subCategory)
@@ -409,9 +490,16 @@ export async function handlePendingEdit(ctx: Context): Promise<boolean> {
 
   let amountCents = amount.amountCents
   let note: string | undefined
+  let extra: DraftExtra | undefined
   if (amount.currency !== 'SGD') {
     try {
-      amountCents = (await convertToSGD(amount.amountCents, amount.currency)).convertedCents
+      const converted = await convertToSGD(amount.amountCents, amount.currency)
+      amountCents = converted.convertedCents
+      extra = {
+        originalAmount: amount.amountCents,
+        originalCurrency: amount.currency,
+        exchangeRate: converted.rate,
+      }
     } catch {
       await ctx.reply(`Couldn't convert ${amount.currency} to SGD right now. Type the SGD amount instead?`)
       return true
@@ -423,9 +511,15 @@ export async function handlePendingEdit(ctx: Context): Promise<boolean> {
     note = `${fmtCurrency(amount.amountCents, amount.currency)} \u{2192} ${fmtSGD(amountCents)}`
   }
 
-  const ok = await save(ctx, s, { amountCents }, () => {
-    s.amountCents = amountCents
-  })
+  const ok = await save(
+    ctx,
+    s,
+    { amountCents },
+    () => {
+      s.amountCents = amountCents
+    },
+    extra,
+  )
   if (!ok) {
     await ctx.reply('Aiyah, could not update the transaction. Try again later lah! \u{1F625}')
     return true

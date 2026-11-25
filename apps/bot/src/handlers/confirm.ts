@@ -22,7 +22,7 @@ import { apiClient, tokenStore, userIdStore } from '../lib/api-client.js'
 import type { CreateTransactionInput } from '../lib/api-client.js'
 import { DASHBOARD_URL } from '../lib/env.js'
 import { pendingConfirmations } from './expense.js'
-import { pendingInlineEdits } from './inline-edit.js'
+import { startDraftEdit } from './edit.js'
 
 const log = createLogger('bot:confirm')
 
@@ -129,7 +129,7 @@ export async function confirmHandler(ctx: Context): Promise<void> {
   }
 
   if (callbackData === 'confirm_edit') {
-    await handleConfirmEdit(ctx, chatId)
+    await handleConfirmEdit(ctx)
     return
   }
 
@@ -243,12 +243,8 @@ async function handleConfirmYes(
 
 // ── confirm_edit ──────────────────────────────────────────────────────────────
 
-async function handleConfirmEdit(ctx: Context, chatId: number): Promise<void> {
-  pendingInlineEdits.add(chatId)
-  await ctx.editMessageText(
-    `No worries! Send the corrected details:\n\`[price] [item] [category] [sub-category]\`\n\nExample: \`3.50 coffee Food Cafe\`\n\nSub-category is optional.`,
-    { parse_mode: 'Markdown' },
-  )
+async function handleConfirmEdit(ctx: Context): Promise<void> {
+  await startDraftEdit(ctx)
 }
 
 // ── confirm_no ────────────────────────────────────────────────────────────────

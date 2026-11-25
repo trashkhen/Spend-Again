@@ -18,8 +18,10 @@ import {
   editCategoryHandler,
   editSubCategoryHandler,
   handlePendingEdit,
+  startDraftEdit,
   editSessions,
 } from '../src/handlers/edit.js'
+import { pendingConfirmations } from '../src/handlers/expense.js'
 import { rememberAutologMerchant, clearAutologMerchants } from '../src/lib/autolog-merchants.js'
 import { apiClient, tokenStore, userIdStore } from '../src/lib/api-client.js'
 import { convertToSGD } from '@spend-again/parser'
@@ -272,5 +274,104 @@ describe('session lifecycle', () => {
     await openEdit()
     await editFieldHandler(makeCtx({ data: 'ef:done' }) as never)
     expect(editSessions.has(CHAT)).toBe(false)
+  })
+})
+
+describe('editing a payment before it is saved', () => {
+  function seedDraft(): void {
+    pendingConfirmations.set(CHAT, {
+      result: {
+        amount: 733,
+        item: 'coffee',
+        category: 'Food',
+        subCategory: 'Cafe',
+        date: '23/11/2026',
+        confidence: 0.9,
+        tier: 1,
+        originalAmount: 500,
+        originalCurrency: 'EUR',
+        exchangeRate: 1.466,
+      },
+      rawInput: '5 euro coffee 23 nov',
+    })
+  }
+
+  beforeEach(() => {
+    pendingConfirmations.clear()
+    seedDraft()
+  })
+
+  it('opens the same picker, marked as not saved yet', async () => {
+    const ctx = makeCtx({ data: 'confirm_edit' })
+    await startDraftEdit(ctx as never)
+    const text = lastText(ctx)
+    expect(text).toContain('not saved yet')
+    expect(text).toContain('S$7.33')
+    expect(text).toContain('23/11/2026')
+    expect(editSessions.get(CHAT)?.kind).toBe('draft')
+  })
+
+  it('changes the pending entry, never the database', async () => {
+    await startDraftEdit(makeCtx({ data: 'confirm_edit' }) as never)
+    await editFieldHandler(makeCtx({ data: 'ef:name' }) as never)
+    await handlePendingEdit(makeCtx({ text: 'iced latte' }) as never)
+    await editCategoryHandler(makeCtx({ data: 'ec:1' }) as never) // Groceries
+    await editSubCategoryHandler(makeCtx({ data: 'es:0' }) as never) // Supermarket
+    await editFieldHandler(makeCtx({ data: 'ef:date' }) as never)
+    await editFieldHandler(makeCtx({ data: 'ef:d_today' }) as never)
+
+    expect(apiClient.updateTransaction).not.toHaveBeenCalled()
+    const r = pendingConfirmations.get(CHAT)?.result
+    expect(r?.item).toBe('iced latte')
+    expect(r?.category).toBe('Groceries')
+    expect(r?.subCategory).toBe('Supermarket')
+    expect(r?.date).toMatch(/^\d{2}\/\d{2}\/\d{4}$/)
+  })
+
+  it('replaces the conversion note when the amount is re-entered in another currency', async () => {
+    vi.mocked(convertToSGD).mockResolvedValue({ convertedCents: 1760, rate: 1.4667 })
+    await startDraftEdit(makeCtx({ data: 'confirm_edit' }) as never)
+    await editFieldHandler(makeCtx({ data: 'ef:amount' }) as never)
+    await handlePendingEdit(makeCtx({ text: '12 EUR' }) as never)
+    const r = pendingConfirmations.get(CHAT)?.result
+    expect(r?.amount).toBe(1760)
+    expect(r?.originalAmount).toBe(1200)
+    expect(r?.exchangeRate).toBe(1.4667)
+  })
+
+  it('drops the old conversion note when the amount is typed in SGD', async () => {
+    await startDraftEdit(makeCtx({ data: 'confirm_edit' }) as never)
+    await editFieldHandler(makeCtx({ data: 'ef:amount' }) as never)
+    await handlePendingEdit(makeCtx({ text: '7.50' }) as never)
+    const r = pendingConfirmations.get(CHAT)?.result
+    expect(r?.amount).toBe(750)
+    expect(r?.originalAmount).toBeUndefined()
+    expect(r?.originalCurrency).toBeUndefined()
+  })
+
+  it('Done goes back to the Confirm / Edit / Cancel card and keeps the pending entry', async () => {
+    await startDraftEdit(makeCtx({ data: 'confirm_edit' }) as never)
+    const ctx = makeCtx({ data: 'ef:done' })
+    await editFieldHandler(ctx as never)
+    expect(pendingConfirmations.has(CHAT)).toBe(true)
+    expect(editSessions.has(CHAT)).toBe(false)
+    const markup = JSON.stringify(ctx.editMessageText.mock.calls[0]?.[1])
+    expect(markup).toContain('confirm_yes')
+    expect(markup).toContain('confirm_no')
+  })
+
+  it('does not learn a merchant from a draft', async () => {
+    rememberAutologMerchant('', 'Zxqv')
+    await startDraftEdit(makeCtx({ data: 'confirm_edit' }) as never)
+    await editCategoryHandler(makeCtx({ data: 'ec:0' }) as never)
+    await editSubCategoryHandler(makeCtx({ data: 'es:2' }) as never)
+    expect(apiClient.saveLearnedMapping).not.toHaveBeenCalled()
+  })
+
+  it('says so when the pending payment is gone', async () => {
+    pendingConfirmations.clear()
+    const ctx = makeCtx({ data: 'confirm_edit' })
+    await startDraftEdit(ctx as never)
+    expect(String(ctx.reply.mock.calls[0]?.[0])).toContain('No pending transaction')
   })
 })
