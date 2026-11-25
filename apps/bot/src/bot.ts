@@ -10,7 +10,14 @@ import { recentHandler } from './handlers/recent.js'
 import { receiptHandler } from './handlers/receipt.js'
 import { receiptConfirmHandler } from './handlers/receipt-confirm.js'
 import { queryHandler, looksLikeQuery } from './handlers/query.js'
-import { editCommandHandler, editSelectHandler, handlePendingEdit, pendingEdits } from './handlers/edit.js'
+import {
+  editCommandHandler,
+  editSelectHandler,
+  editFieldHandler,
+  editCategoryHandler,
+  editSubCategoryHandler,
+  handlePendingEdit,
+} from './handlers/edit.js'
 import { handlePendingInlineEdit, pendingInlineEdits } from './handlers/inline-edit.js'
 import {
   recurringCommandHandler,
@@ -80,6 +87,9 @@ bot.callbackQuery(/^confirm_/, confirmHandler)
 bot.callbackQuery(/^learn_/, learnHandler)
 bot.callbackQuery(/^receipt_/, receiptConfirmHandler)
 bot.callbackQuery(/^edit_select:/, editSelectHandler)
+bot.callbackQuery(/^ef:/, editFieldHandler)
+bot.callbackQuery(/^ec:/, editCategoryHandler)
+bot.callbackQuery(/^es:/, editSubCategoryHandler)
 bot.callbackQuery(/^autolog_del:/, autologDeleteHandler)
 bot.callbackQuery('add_recurring', addRecurringStart)
 bot.callbackQuery(/^rec_cat:/, recCategoryHandler)
@@ -179,9 +189,9 @@ bot.on('message:text', async (ctx) => {
   }
 
   // Pending /edit flow (editing a saved transaction)
-  if (chatId !== undefined && pendingEdits.has(chatId)) {
-    await handlePendingEdit(ctx)
-    return
+  if (chatId !== undefined) {
+    const consumed = await handlePendingEdit(ctx)
+    if (consumed) return
   }
 
   // Pending inline-edit flow (correcting a parsed transaction before save)
